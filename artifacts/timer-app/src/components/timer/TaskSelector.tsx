@@ -159,7 +159,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
           exit={{ opacity: 0, y: -10, scale: 0.95 }}
           transition={{ duration: 0.1, ease: "easeOut" }}
           className="fixed z-[9999] glass-panel bg-card border-border/50 rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[400px]"
-          style={{ top: panelPos.top, left: panelPos.left, width: panelPos.width }}
+          style={{ top: panelPos.top, left: panelPos.left, width: panelPos.width, visibility: panelPos === OFF_SCREEN ? "hidden" : "visible" }}
         >
           <div className="p-3 border-b border-border/30 flex items-center justify-between bg-card/50">
             <span className="text-sm font-semibold pl-1">Select a task</span>
