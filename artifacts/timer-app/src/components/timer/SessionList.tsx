@@ -137,6 +137,17 @@ function PlayableRecording({ rec, indexInSession }: { rec: RecordingItem; indexI
         onEnded={() => setPlaying(false)}
         className="hidden"
       />
+      <span className="text-[11px] text-muted-foreground/50 tabular-nums shrink-0">
+        {formatOffset(rec.offsetSeconds)}
+      </span>
+      <Mic className="w-3 h-3 text-muted-foreground/40 shrink-0" />
+      <span className="flex-1 min-w-0 text-xs text-foreground/70 truncate">
+        {rec.label || `Recording ${indexInSession + 1}`}
+      </span>
+      <span className="text-[11px] text-muted-foreground/30 shrink-0">&mdash;</span>
+      <span className="text-[11px] text-muted-foreground/40 tabular-nums shrink-0">
+        {rec.durationSeconds}s
+      </span>
       <button
         onClick={toggle}
         className="p-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-secondary/40 transition-colors shrink-0"
@@ -148,15 +159,6 @@ function PlayableRecording({ rec, indexInSession }: { rec: RecordingItem; indexI
           <Play className="w-3 h-3" fill="currentColor" />
         )}
       </button>
-      <span className="text-[11px] text-muted-foreground/50 tabular-nums shrink-0">
-        @{formatOffset(rec.offsetSeconds)}
-      </span>
-      <span className="flex-1 min-w-0 text-xs text-foreground/70 truncate">
-        {rec.label || `Recording ${indexInSession + 1}`}
-      </span>
-      <span className="text-[11px] text-muted-foreground/40 tabular-nums shrink-0">
-        {rec.durationSeconds}s
-      </span>
     </div>
   );
 }
