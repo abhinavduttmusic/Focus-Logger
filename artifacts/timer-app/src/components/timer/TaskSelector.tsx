@@ -31,8 +31,10 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const [panelPos, setPanelPos] = useState({ top: 0, left: 0, width: 320 });
+  const [panelPos, setPanelPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const queryClient = useQueryClient();
+
+  const MAX_PANEL_HEIGHT = 400;
 
   const { data: tasks, isLoading: isLoadingTasks } = useListTasks();
   const { data: projects, isLoading: isLoadingProjects } = useListProjects();
@@ -45,7 +47,11 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
     if (left + panelWidth > window.innerWidth - 8) {
       left = window.innerWidth - panelWidth - 8;
     }
-    setPanelPos({ top: rect.bottom + 8, left, width: panelWidth });
+    let top = rect.bottom + 8;
+    if (top + MAX_PANEL_HEIGHT > window.innerHeight) {
+      top = Math.max(0, rect.top - MAX_PANEL_HEIGHT - 8);
+    }
+    setPanelPos({ top, left, width: panelWidth });
   }, []);
 
   useEffect(() => {
@@ -94,7 +100,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
         containerRef.current && !containerRef.current.contains(target) &&
         panelRef.current && !panelRef.current.contains(target)
       ) {
-        setIsOpen(false);
+        resetAndClose();
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -109,6 +115,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
     setNewProjectName("");
     setIsCreatingProject(false);
     setSearchQuery("");
+    setPanelPos(null);
   };
 
   const handleCreateTask = async () => {
@@ -156,7 +163,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
       ) : (
         <button
           ref={triggerRef}
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => { if (isOpen) { resetAndClose(); } else { setIsOpen(true); } }}
           className="flex items-center gap-2 px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-full transition-colors text-sm font-medium border border-transparent hover:border-border/50"
         >
           <Tag className="w-3.5 h-3.5" />
@@ -165,7 +172,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
       )}
 
       <AnimatePresence>
-        {isOpen && (
+        {isOpen && panelPos && (
           <motion.div
             ref={panelRef}
             initial={{ opacity: 0, y: -10, scale: 0.95 }}
@@ -177,7 +184,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
           >
             <div className="p-3 border-b border-border/30 flex items-center justify-between bg-card/50">
               <span className="text-sm font-semibold pl-1">Select a task</span>
-              <button onClick={() => setIsOpen(false)} className="p-1.5 rounded-lg hover:bg-secondary/80 text-muted-foreground transition-colors">
+              <button onClick={resetAndClose} className="p-1.5 rounded-lg hover:bg-secondary/80 text-muted-foreground transition-colors">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -206,7 +213,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
                           key={task.id}
                           onClick={() => {
                             onSelectTask(task);
-                            setIsOpen(false);
+                            resetAndClose();
                           }}
                           className={cn(
                             "w-full flex items-center gap-2.5 p-2.5 rounded-xl text-left transition-colors",
