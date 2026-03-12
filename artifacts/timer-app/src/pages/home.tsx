@@ -52,6 +52,8 @@ export default function Home() {
   const queryClient = useQueryClient();
   const recorder = useVoiceRecorder();
   const pendingClipsRef = useRef<AudioClip[]>([]);
+  const recorderRef = useRef(recorder);
+  recorderRef.current = recorder;
 
   const createSession = useCreateSession({
     mutation: {
@@ -59,26 +61,32 @@ export default function Home() {
         const clipsToUpload = pendingClipsRef.current;
         pendingClipsRef.current = [];
 
+        queryClient.invalidateQueries({ queryKey: getListSessionsQueryKey() });
+        setNotes("");
+
         if (clipsToUpload.length > 0) {
           try {
             await uploadClips(session.id, clipsToUpload);
+            queryClient.invalidateQueries({ queryKey: getListSessionsQueryKey() });
           } catch (err) {
             console.error("Failed to upload recordings:", err);
           }
         }
 
-        queryClient.invalidateQueries({ queryKey: getListSessionsQueryKey() });
-        setNotes("");
-        recorder.clearClips();
+        recorderRef.current.clearClips();
+      },
+      onError: (err) => {
+        console.error("Failed to create session:", err);
       }
     }
   });
 
   const handleLogSession = useCallback(async (type: SessionType, durationSeconds: number) => {
-    const allClips = [...recorder.clips];
+    const rec = recorderRef.current;
+    const allClips = [...rec.clips];
 
-    if (recorder.isRecording) {
-      const finalClipPromise = recorder.stopRecording();
+    if (rec.isRecording) {
+      const finalClipPromise = rec.stopRecording();
       if (finalClipPromise) {
         const finalClip = await finalClipPromise;
         allClips.push(finalClip);
@@ -94,7 +102,7 @@ export default function Home() {
         taskId: selectedTask?.id ?? null,
       }
     });
-  }, [recorder, createSession, notes, selectedTask]);
+  }, [createSession, notes, selectedTask]);
 
   const timer = useTimer({
     onLogSession: handleLogSession
