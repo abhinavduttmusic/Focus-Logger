@@ -1,0 +1,57 @@
+There is an issue with the timer when the app goes into the background.
+
+Currently, if I switch to another app, lock the phone, or use split-screen mode, the timer stops running. This prevents the focus session from continuing correctly.
+
+Please refactor the timer system so that it continues tracking time even when the app is in the background.
+
+Implement the following changes:
+
+1. Use timestamp-based timing instead of relying on intervals
+
+Instead of depending only on "setInterval" or "setTimeout", store the session start timestamp when a session begins.
+
+Example:
+
+sessionStartTime = Date.now()
+
+Then calculate elapsed time dynamically:
+
+elapsedTime = Date.now() - sessionStartTime
+
+This ensures the timer remains accurate even if the app is paused in the background.
+
+2. Recalculate elapsed time when the app becomes active again
+
+When the user returns to the app, the timer should recalculate the session duration using the stored start timestamp.
+
+The timer display should immediately update to the correct elapsed time.
+
+3. Ensure Pomodoro sessions continue correctly
+
+If a Pomodoro session is running and the user leaves the app:
+
+• The timer should continue counting down
+• When the user returns, the remaining time should reflect the actual elapsed time.
+
+4. Ensure recordings and session logs remain accurate
+
+Voice recordings made during the session should still attach correctly to the session.
+
+When the session ends, the total session duration should reflect the true elapsed time, not just the time the app was visible.
+
+5. Do not rely on continuous background execution
+
+The timer should work correctly even if the browser pauses JavaScript timers while the app is in the background.
+
+The timer display should simply recalculate based on timestamps when the UI updates.
+
+6. Test the following scenarios
+
+Please ensure the timer continues correctly when:
+
+• The user switches to another app
+• The phone is locked and unlocked
+• The app is placed in split-screen mode
+• The user returns to the app after several minutes
+
+The focus session should remain accurate in all cases.
