@@ -5,18 +5,25 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
+  MutationFunction,
   QueryFunction,
   QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { HealthStatus } from "./api.schemas";
+import type {
+  CreateSessionRequest,
+  HealthStatus,
+  Session,
+} from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
-import type { ErrorType } from "../custom-fetch";
+import type { ErrorType, BodyType } from "../custom-fetch";
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -99,3 +106,250 @@ export function useHealthCheck<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Returns all logged timer sessions, newest first
+ * @summary List all sessions
+ */
+export const getListSessionsUrl = () => {
+  return `/api/sessions`;
+};
+
+export const listSessions = async (
+  options?: RequestInit,
+): Promise<Session[]> => {
+  return customFetch<Session[]>(getListSessionsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListSessionsQueryKey = () => {
+  return [`/api/sessions`] as const;
+};
+
+export const getListSessionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listSessions>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listSessions>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListSessionsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listSessions>>> = ({
+    signal,
+  }) => listSessions({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listSessions>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListSessionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listSessions>>
+>;
+export type ListSessionsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all sessions
+ */
+
+export function useListSessions<
+  TData = Awaited<ReturnType<typeof listSessions>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listSessions>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListSessionsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Log a completed or stopped timer session
+ * @summary Create a new session
+ */
+export const getCreateSessionUrl = () => {
+  return `/api/sessions`;
+};
+
+export const createSession = async (
+  createSessionRequest: CreateSessionRequest,
+  options?: RequestInit,
+): Promise<Session> => {
+  return customFetch<Session>(getCreateSessionUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createSessionRequest),
+  });
+};
+
+export const getCreateSessionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createSession>>,
+    TError,
+    { data: BodyType<CreateSessionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createSession>>,
+  TError,
+  { data: BodyType<CreateSessionRequest> },
+  TContext
+> => {
+  const mutationKey = ["createSession"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createSession>>,
+    { data: BodyType<CreateSessionRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createSession(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateSessionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createSession>>
+>;
+export type CreateSessionMutationBody = BodyType<CreateSessionRequest>;
+export type CreateSessionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a new session
+ */
+export const useCreateSession = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createSession>>,
+    TError,
+    { data: BodyType<CreateSessionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createSession>>,
+  TError,
+  { data: BodyType<CreateSessionRequest> },
+  TContext
+> => {
+  return useMutation(getCreateSessionMutationOptions(options));
+};
+
+/**
+ * @summary Delete a session
+ */
+export const getDeleteSessionUrl = (id: number) => {
+  return `/api/sessions/${id}`;
+};
+
+export const deleteSession = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteSessionUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteSessionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteSession>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteSession>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteSession"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteSession>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteSession(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteSessionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteSession>>
+>;
+
+export type DeleteSessionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete a session
+ */
+export const useDeleteSession = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteSession>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteSession>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteSessionMutationOptions(options));
+};

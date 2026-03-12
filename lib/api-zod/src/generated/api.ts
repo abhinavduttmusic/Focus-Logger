@@ -14,3 +14,33 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * Returns all logged timer sessions, newest first
+ * @summary List all sessions
+ */
+export const ListSessionsResponseItem = zod.object({
+  id: zod.number(),
+  type: zod.enum(["simple", "pomodoro_focus", "pomodoro_break"]),
+  durationSeconds: zod.number(),
+  notes: zod.string(),
+  createdAt: zod.date(),
+});
+export const ListSessionsResponse = zod.array(ListSessionsResponseItem);
+
+/**
+ * Log a completed or stopped timer session
+ * @summary Create a new session
+ */
+export const CreateSessionBody = zod.object({
+  type: zod.enum(["simple", "pomodoro_focus", "pomodoro_break"]),
+  durationSeconds: zod.number(),
+  notes: zod.string(),
+});
+
+/**
+ * @summary Delete a session
+ */
+export const DeleteSessionParams = zod.object({
+  id: zod.coerce.number(),
+});

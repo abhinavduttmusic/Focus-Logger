@@ -8,3 +8,34 @@
 export interface HealthStatus {
   status: string;
 }
+
+export type SessionType = (typeof SessionType)[keyof typeof SessionType];
+
+export const SessionType = {
+  simple: "simple",
+  pomodoro_focus: "pomodoro_focus",
+  pomodoro_break: "pomodoro_break",
+} as const;
+
+export interface Session {
+  id: number;
+  type: SessionType;
+  durationSeconds: number;
+  notes: string;
+  createdAt: string;
+}
+
+export type CreateSessionRequestType =
+  (typeof CreateSessionRequestType)[keyof typeof CreateSessionRequestType];
+
+export const CreateSessionRequestType = {
+  simple: "simple",
+  pomodoro_focus: "pomodoro_focus",
+  pomodoro_break: "pomodoro_break",
+} as const;
+
+export interface CreateSessionRequest {
+  type: CreateSessionRequestType;
+  durationSeconds: number;
+  notes: string;
+}

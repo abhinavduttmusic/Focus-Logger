@@ -6,4 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./createSessionRequest";
+export * from "./createSessionRequestType";
 export * from "./healthStatus";
+export * from "./session";
+export * from "./sessionType";

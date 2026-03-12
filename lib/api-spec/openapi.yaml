@@ -1,6 +1,5 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
   description: API specification
@@ -10,6 +9,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: sessions
+    description: Timer session operations
 paths:
   /healthz:
     get:
@@ -24,6 +25,53 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /sessions:
+    get:
+      operationId: listSessions
+      tags: [sessions]
+      summary: List all sessions
+      description: Returns all logged timer sessions, newest first
+      responses:
+        "200":
+          description: List of sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Session"
+    post:
+      operationId: createSession
+      tags: [sessions]
+      summary: Create a new session
+      description: Log a completed or stopped timer session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSessionRequest"
+      responses:
+        "201":
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+  /sessions/{id}:
+    delete:
+      operationId: deleteSession
+      tags: [sessions]
+      summary: Delete a session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Session deleted
 components:
   schemas:
     HealthStatus:
@@ -33,4 +81,38 @@ components:
           type: string
       required:
         - status
-
+    Session:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [simple, pomodoro_focus, pomodoro_break]
+        durationSeconds:
+          type: integer
+        notes:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - type
+        - durationSeconds
+        - notes
+        - createdAt
+    CreateSessionRequest:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [simple, pomodoro_focus, pomodoro_break]
+        durationSeconds:
+          type: integer
+        notes:
+          type: string
+      required:
+        - type
+        - durationSeconds
+        - notes

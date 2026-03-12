@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Timer App"
+version = "1.0.0"
+id = "artifacts/timer-app"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+localPort = 18459
+name = "web"
+paths = ["/"]
+
+[services.development]
+run = "pnpm --filter @workspace/timer-app run dev"
+
+[services.env]
+PORT = "18459"
+BASE_PATH = "/"
+
+[services.production]
+build = ["pnpm", "--filter", "@workspace/timer-app", "run", "build"]
+publicDir = "artifacts/timer-app/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
