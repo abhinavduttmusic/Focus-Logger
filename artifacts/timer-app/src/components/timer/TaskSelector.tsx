@@ -29,7 +29,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
   const [searchQuery, setSearchQuery] = useState("");
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [panelPos, setPanelPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const queryClient = useQueryClient();
@@ -164,15 +164,14 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
           </div>
         </div>
       ) : (
-        <motion.button
+        <button
           ref={triggerRef}
           onClick={() => { if (isOpen) { resetAndClose(); } else { updatePanelPosition(); setIsOpen(true); } }}
-          whileTap={{ scale: 0.93 }}
-          className="flex items-center gap-2 px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/50 active:bg-secondary/70 rounded-full transition-colors text-sm font-medium border border-transparent hover:border-border/50 touch-manipulation"
+          className="flex items-center gap-2 px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/50 active:bg-secondary/70 active:scale-95 rounded-full transition-all duration-75 text-sm font-medium border border-transparent hover:border-border/50 touch-manipulation"
         >
           <Tag className="w-3.5 h-3.5" />
           <span>Select Task</span>
-        </motion.button>
+        </button>
       )}
 
       <AnimatePresence>
