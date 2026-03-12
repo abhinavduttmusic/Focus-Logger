@@ -35,6 +35,13 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
   const { data: tasks, isLoading: isLoadingTasks } = useListTasks();
   const { data: projects, isLoading: isLoadingProjects } = useListProjects();
 
+  // Auto-switch to create form when panel opens and there are no tasks yet
+  useEffect(() => {
+    if (isOpen && !isLoadingTasks && tasks?.length === 0) {
+      setIsCreating(true);
+    }
+  }, [isOpen, isLoadingTasks, tasks]);
+
   const createTask = useCreateTask({
     mutation: {
       onSuccess: (data) => {
