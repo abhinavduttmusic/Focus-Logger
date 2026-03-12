@@ -8,7 +8,6 @@
 import * as zod from "zod";
 
 /**
- * Returns server health status
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({
@@ -16,7 +15,6 @@ export const HealthCheckResponse = zod.object({
 });
 
 /**
- * Returns all logged timer sessions, newest first
  * @summary List all sessions
  */
 export const ListSessionsResponseItem = zod.object({
@@ -24,18 +22,22 @@ export const ListSessionsResponseItem = zod.object({
   type: zod.enum(["simple", "pomodoro_focus", "pomodoro_break"]),
   durationSeconds: zod.number(),
   notes: zod.string(),
+  taskId: zod.number().nullable(),
+  taskName: zod.string().nullable(),
+  projectId: zod.number().nullable(),
+  projectName: zod.string().nullable(),
   createdAt: zod.date(),
 });
 export const ListSessionsResponse = zod.array(ListSessionsResponseItem);
 
 /**
- * Log a completed or stopped timer session
  * @summary Create a new session
  */
 export const CreateSessionBody = zod.object({
   type: zod.enum(["simple", "pomodoro_focus", "pomodoro_break"]),
   durationSeconds: zod.number(),
   notes: zod.string(),
+  taskId: zod.number().nullish(),
 });
 
 /**
@@ -43,4 +45,41 @@ export const CreateSessionBody = zod.object({
  */
 export const DeleteSessionParams = zod.object({
   id: zod.coerce.number(),
+});
+
+/**
+ * @summary List all tasks
+ */
+export const ListTasksResponseItem = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  projectId: zod.number().nullable(),
+  projectName: zod.string().nullable(),
+  createdAt: zod.date(),
+});
+export const ListTasksResponse = zod.array(ListTasksResponseItem);
+
+/**
+ * @summary Create a new task
+ */
+export const CreateTaskBody = zod.object({
+  name: zod.string(),
+  projectId: zod.number().nullish(),
+});
+
+/**
+ * @summary List all projects
+ */
+export const ListProjectsResponseItem = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  createdAt: zod.date(),
+});
+export const ListProjectsResponse = zod.array(ListProjectsResponseItem);
+
+/**
+ * @summary Create a new project
+ */
+export const CreateProjectBody = zod.object({
+  name: zod.string(),
 });

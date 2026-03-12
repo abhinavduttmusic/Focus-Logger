@@ -5,15 +5,10 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { SessionType } from "./sessionType";
 
-export interface Session {
+export interface Task {
   id: number;
-  type: SessionType;
-  durationSeconds: number;
-  notes: string;
-  taskId: number | null;
-  taskName: string | null;
+  name: string;
   projectId: number | null;
   projectName: string | null;
   createdAt: Date;

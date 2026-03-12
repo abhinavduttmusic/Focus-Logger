@@ -22,6 +22,10 @@ export interface Session {
   type: SessionType;
   durationSeconds: number;
   notes: string;
+  taskId: number | null;
+  taskName: string | null;
+  projectId: number | null;
+  projectName: string | null;
   createdAt: string;
 }
 
@@ -38,4 +42,28 @@ export interface CreateSessionRequest {
   type: CreateSessionRequestType;
   durationSeconds: number;
   notes: string;
+  taskId?: number | null;
+}
+
+export interface Task {
+  id: number;
+  name: string;
+  projectId: number | null;
+  projectName: string | null;
+  createdAt: string;
+}
+
+export interface CreateTaskRequest {
+  name: string;
+  projectId?: number | null;
+}
+
+export interface Project {
+  id: number;
+  name: string;
+  createdAt: string;
+}
+
+export interface CreateProjectRequest {
+  name: string;
 }

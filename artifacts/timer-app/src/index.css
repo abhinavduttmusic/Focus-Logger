@@ -119,8 +119,6 @@
   }
   body {
     @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary;
-    background-image: url('/images/bg-texture.png');
-    background-blend-mode: multiply;
   }
   
   /* Custom scrollbar for a cleaner look */

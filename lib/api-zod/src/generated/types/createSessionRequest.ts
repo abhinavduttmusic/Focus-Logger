@@ -11,4 +11,5 @@ export interface CreateSessionRequest {
   type: CreateSessionRequestType;
   durationSeconds: number;
   notes: string;
+  taskId?: number | null;
 }

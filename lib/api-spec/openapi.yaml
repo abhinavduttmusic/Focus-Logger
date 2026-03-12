@@ -11,13 +11,16 @@ tags:
     description: Health operations
   - name: sessions
     description: Timer session operations
+  - name: tasks
+    description: Task operations
+  - name: projects
+    description: Project operations
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -25,12 +28,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
   /sessions:
     get:
       operationId: listSessions
       tags: [sessions]
       summary: List all sessions
-      description: Returns all logged timer sessions, newest first
       responses:
         "200":
           description: List of sessions
@@ -44,7 +47,6 @@ paths:
       operationId: createSession
       tags: [sessions]
       summary: Create a new session
-      description: Log a completed or stopped timer session
       requestBody:
         required: true
         content:
@@ -72,6 +74,71 @@ paths:
       responses:
         "204":
           description: Session deleted
+
+  /tasks:
+    get:
+      operationId: listTasks
+      tags: [tasks]
+      summary: List all tasks
+      responses:
+        "200":
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+    post:
+      operationId: createTask
+      tags: [tasks]
+      summary: Create a new task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTaskRequest"
+      responses:
+        "201":
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      summary: List all projects
+      responses:
+        "200":
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+    post:
+      operationId: createProject
+      tags: [projects]
+      summary: Create a new project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProjectRequest"
+      responses:
+        "201":
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+
 components:
   schemas:
     HealthStatus:
@@ -81,6 +148,7 @@ components:
           type: string
       required:
         - status
+
     Session:
       type: object
       properties:
@@ -93,6 +161,18 @@ components:
           type: integer
         notes:
           type: string
+        taskId:
+          type: integer
+          nullable: true
+        taskName:
+          type: string
+          nullable: true
+        projectId:
+          type: integer
+          nullable: true
+        projectName:
+          type: string
+          nullable: true
         createdAt:
           type: string
           format: date-time
@@ -101,7 +181,12 @@ components:
         - type
         - durationSeconds
         - notes
+        - taskId
+        - taskName
+        - projectId
+        - projectName
         - createdAt
+
     CreateSessionRequest:
       type: object
       properties:
@@ -112,7 +197,67 @@ components:
           type: integer
         notes:
           type: string
+        taskId:
+          type: integer
+          nullable: true
       required:
         - type
         - durationSeconds
         - notes
+
+    Task:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        projectId:
+          type: integer
+          nullable: true
+        projectName:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - projectId
+        - projectName
+        - createdAt
+
+    CreateTaskRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        projectId:
+          type: integer
+          nullable: true
+      required:
+        - name
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - createdAt
+
+    CreateProjectRequest:
+      type: object
+      properties:
+        name:
+          type: string
+      required:
+        - name

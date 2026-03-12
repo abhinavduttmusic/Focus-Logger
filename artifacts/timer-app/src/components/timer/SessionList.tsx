@@ -2,7 +2,7 @@ import { useListSessions, useDeleteSession, getListSessionsQueryKey } from "@wor
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { formatTime, cn } from "@/lib/utils";
-import { Trash2, BrainCircuit, Timer, Coffee, History } from "lucide-react";
+import { Trash2, BrainCircuit, Timer, Coffee, History, Tag } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export function SessionList() {
@@ -95,6 +95,18 @@ export function SessionList() {
                 <p className="text-sm text-foreground/80 line-clamp-2 leading-relaxed">
                   {session.notes || <span className="italic text-muted-foreground/60">No notes recorded</span>}
                 </p>
+                {session.taskName && (
+                  <div className="mt-2.5 flex items-center gap-1.5 w-fit bg-primary/5 border border-primary/10 rounded-lg px-2.5 py-1">
+                    <Tag className="w-3 h-3 text-primary/70 shrink-0" />
+                    <span className="text-xs font-medium text-foreground/80 truncate">{session.taskName}</span>
+                    {session.projectName && (
+                      <>
+                        <span className="text-muted-foreground/40 text-[10px]">·</span>
+                        <span className="text-xs text-muted-foreground/70 truncate">{session.projectName}</span>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-between sm:flex-col sm:items-end sm:justify-center gap-2 min-w-[100px]">

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCreateSession, getListSessionsQueryKey } from "@workspace/api-client-react";
-import type { SessionType } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { SessionType, Task } from "@workspace/api-client-react/src/generated/api.schemas";
 import { useTimer } from "@/hooks/use-timer";
 
 import { TimerToggle } from "@/components/timer/TimerToggle";
@@ -11,12 +11,14 @@ import { SessionList } from "@/components/timer/SessionList";
 
 export default function Home() {
   const [notes, setNotes] = useState("");
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const queryClient = useQueryClient();
   
   const createSession = useCreateSession({
     mutation: {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListSessionsQueryKey() });
+        setNotes("");
       }
     }
   });
@@ -27,6 +29,7 @@ export default function Home() {
         type,
         durationSeconds,
         notes: notes.trim(),
+        taskId: selectedTask?.id ?? null,
       }
     });
   };
@@ -70,7 +73,12 @@ export default function Home() {
 
         {/* Notes Section */}
         <section>
-          <NotesArea value={notes} onChange={setNotes} />
+          <NotesArea 
+            value={notes} 
+            onChange={setNotes} 
+            selectedTask={selectedTask}
+            onSelectTask={setSelectedTask}
+          />
         </section>
 
         <div className="h-px w-full bg-gradient-to-r from-transparent via-border/60 to-transparent my-16" />
