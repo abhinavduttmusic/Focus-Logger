@@ -1,0 +1,14 @@
+packages:
+  "framer-motion": "For smooth layout transitions and timer animations"
+  "date-fns": "For formatting session timestamps and durations"
+  "clsx": "For conditional class name joining"
+  "tailwind-merge": "For merging tailwind classes safely"
+
+images:
+  - path: "artifacts/timer-app/public/images/bg-texture.png"
+    description: "Very subtle, minimal noise texture in light gray, almost invisible, used to give a premium paper-like feel to the background."
+    aspect_ratio: "16:9"
+
+notes:
+  - Relying on @workspace/api-client-react for TanStack query hooks
+  - Using generated getListSessionsQueryKey for cache invalidation
