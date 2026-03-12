@@ -8,6 +8,7 @@ import {
   useDeleteTask,
   useListProjects,
   useCreateProject,
+  useDeleteProject,
   getListTasksQueryKey,
   getListProjectsQueryKey,
 } from "@workspace/api-client-react";
@@ -50,6 +51,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
   const [standaloneProjectName, setStandaloneProjectName] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [confirmDeleteProjectId, setConfirmDeleteProjectId] = useState<number | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -102,6 +104,16 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
     }
   });
 
+  const deleteProject = useDeleteProject({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListProjectsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
+        setConfirmDeleteProjectId(null);
+      }
+    }
+  });
+
   const createProject = useCreateProject({
     mutation: {
       onSuccess: (data) => {
@@ -149,6 +161,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
     setStandaloneProjectName("");
     setSearchQuery("");
     setConfirmDeleteId(null);
+    setConfirmDeleteProjectId(null);
     setPanelPos(OFF_SCREEN);
   };
 
@@ -327,28 +340,59 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
       <div className="space-y-3">
         {withProject.length > 0 && independent.length > 0 && (
           <div className="flex items-center gap-2 px-2.5 py-1">
-            <FolderPlus className="w-3 h-3 text-muted-foreground/40" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">
+            <FolderPlus className="w-3 h-3 text-muted-foreground/50" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
               Projects
             </span>
           </div>
         )}
         {withProject.map(({ project, tasks: projectTasks }) => (
           <div key={project.id}>
-            <div className="flex items-center gap-2 px-2.5 py-1.5">
-              <Folder className="w-3.5 h-3.5 text-muted-foreground/50" />
-              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60">
-                {project.name}
-              </span>
-            </div>
-            {projectTasks.length > 0 ? (
-              <div className="space-y-0.5 ml-1">
-                {projectTasks.map(task => renderTaskRow(task))}
+            {confirmDeleteProjectId === project.id ? (
+              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-destructive/5 border border-destructive/20">
+                <span className="flex-1 text-sm font-medium text-destructive truncate">Delete &ldquo;{project.name}&rdquo;?</span>
+                <button
+                  onClick={() => setConfirmDeleteProjectId(null)}
+                  className="px-2.5 py-1 rounded-lg text-xs font-medium text-muted-foreground hover:bg-secondary/60 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => deleteProject.mutate({ id: project.id })}
+                  disabled={deleteProject.isPending}
+                  className="px-2.5 py-1 rounded-lg text-xs font-medium bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 transition-colors"
+                >
+                  {deleteProject.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "Delete"}
+                </button>
               </div>
             ) : (
-              <div className="ml-6 py-1.5 text-xs italic text-muted-foreground/40">
-                No tasks yet
+              <div className="group/project flex items-center gap-2 px-2.5 py-1.5">
+                <Folder className="w-3.5 h-3.5 text-primary/50" />
+                <span className="flex-1 text-[11px] font-bold uppercase tracking-wider text-foreground/70">
+                  {project.name}
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setConfirmDeleteProjectId(project.id);
+                  }}
+                  className="p-1 rounded-lg text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover/project:opacity-100 focus:opacity-100 shrink-0"
+                  aria-label="Delete project"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
               </div>
+            )}
+            {confirmDeleteProjectId !== project.id && (
+              projectTasks.length > 0 ? (
+                <div className="space-y-0.5 ml-1">
+                  {projectTasks.map(task => renderTaskRow(task))}
+                </div>
+              ) : (
+                <div className="ml-6 py-1.5 text-xs italic text-muted-foreground/40">
+                  No tasks yet
+                </div>
+              )
             )}
           </div>
         ))}

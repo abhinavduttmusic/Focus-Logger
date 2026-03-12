@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db, projectsTable } from "@workspace/db";
 import { CreateProjectBody } from "@workspace/api-zod";
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -20,6 +20,16 @@ router.post("/projects", async (req, res) => {
     .values({ name: body.name })
     .returning();
   res.status(201).json(project);
+});
+
+router.delete("/projects/:id", async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) {
+    res.status(400).json({ error: "Invalid id" });
+    return;
+  }
+  await db.delete(projectsTable).where(eq(projectsTable.id, id));
+  res.status(204).send();
 });
 
 export default router;

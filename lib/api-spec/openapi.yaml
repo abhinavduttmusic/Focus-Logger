@@ -154,6 +154,21 @@ paths:
               schema:
                 $ref: "#/components/schemas/Project"
 
+  /projects/{id}:
+    delete:
+      operationId: deleteProject
+      tags: [projects]
+      summary: Delete a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Project deleted
+
 components:
   schemas:
     HealthStatus:
