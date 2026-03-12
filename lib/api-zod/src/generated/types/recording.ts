@@ -10,6 +10,7 @@ export interface Recording {
   id: number;
   sessionId: number;
   objectPath: string;
+  label: string | null;
   durationSeconds: number;
   offsetSeconds: number;
   createdAt: Date;

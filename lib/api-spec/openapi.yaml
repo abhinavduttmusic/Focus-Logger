@@ -386,6 +386,9 @@ components:
           type: integer
         objectPath:
           type: string
+        label:
+          type: string
+          nullable: true
         durationSeconds:
           type: integer
         offsetSeconds:
@@ -397,6 +400,7 @@ components:
         - id
         - sessionId
         - objectPath
+        - label
         - durationSeconds
         - offsetSeconds
         - createdAt
@@ -408,6 +412,9 @@ components:
           type: integer
         objectPath:
           type: string
+        label:
+          type: string
+          nullable: true
         durationSeconds:
           type: integer
         offsetSeconds:

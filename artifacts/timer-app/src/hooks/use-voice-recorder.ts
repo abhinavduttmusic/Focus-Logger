@@ -4,6 +4,7 @@ export type AudioClip = {
   blob: Blob;
   durationSeconds: number;
   offsetSeconds: number;
+  label: string;
   url: string;
 };
 
@@ -45,10 +46,15 @@ export function useVoiceRecorder() {
           blob,
           durationSeconds: Math.max(durationSeconds, 1),
           offsetSeconds: offsetRef.current,
+          label: "",
           url,
         };
 
-        setClips((prev) => [...prev, clip]);
+        setClips((prev) => {
+          const defaultLabel = `Recording ${prev.length + 1}`;
+          clip.label = defaultLabel;
+          return [...prev, clip];
+        });
 
         stream.getTracks().forEach((track) => track.stop());
         chunksRef.current = [];
@@ -78,6 +84,16 @@ export function useVoiceRecorder() {
     return null;
   }, []);
 
+  const renameClip = useCallback((index: number, label: string) => {
+    setClips((prev) => {
+      const next = [...prev];
+      if (next[index]) {
+        next[index] = { ...next[index], label };
+      }
+      return next;
+    });
+  }, []);
+
   const clearClips = useCallback(() => {
     setClips((prev) => {
       prev.forEach((clip) => URL.revokeObjectURL(clip.url));
@@ -90,6 +106,7 @@ export function useVoiceRecorder() {
     clips,
     startRecording,
     stopRecording,
+    renameClip,
     clearClips,
   };
 }

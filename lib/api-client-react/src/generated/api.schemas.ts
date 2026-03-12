@@ -21,6 +21,7 @@ export interface Recording {
   id: number;
   sessionId: number;
   objectPath: string;
+  label: string | null;
   durationSeconds: number;
   offsetSeconds: number;
   createdAt: string;
@@ -81,6 +82,7 @@ export interface CreateProjectRequest {
 export interface CreateRecordingRequest {
   sessionId: number;
   objectPath: string;
+  label?: string | null;
   durationSeconds: number;
   offsetSeconds: number;
 }

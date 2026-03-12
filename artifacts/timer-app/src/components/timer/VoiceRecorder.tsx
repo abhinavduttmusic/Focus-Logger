@@ -1,11 +1,49 @@
-import { Mic, Square } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useState, useRef } from "react";
+import { Mic, Play, Pause } from "lucide-react";
 import type { AudioClip } from "@/hooks/use-voice-recorder";
 
 function formatOffset(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+function ClipPlayer({ clip }: { clip: AudioClip }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+
+  const toggle = () => {
+    if (!audioRef.current) return;
+    if (playing) {
+      audioRef.current.pause();
+      setPlaying(false);
+    } else {
+      audioRef.current.play();
+      setPlaying(true);
+    }
+  };
+
+  return (
+    <>
+      <audio
+        ref={audioRef}
+        src={clip.url}
+        onEnded={() => setPlaying(false)}
+        className="hidden"
+      />
+      <button
+        onClick={toggle}
+        className="p-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-secondary/40 transition-colors shrink-0"
+        aria-label={playing ? "Pause" : "Play"}
+      >
+        {playing ? (
+          <Pause className="w-3.5 h-3.5" fill="currentColor" />
+        ) : (
+          <Play className="w-3.5 h-3.5" fill="currentColor" />
+        )}
+      </button>
+    </>
+  );
 }
 
 interface VoiceRecorderProps {
@@ -14,6 +52,7 @@ interface VoiceRecorderProps {
   clips: AudioClip[];
   onStartRecording: () => void;
   onStopRecording: () => void;
+  onRenameClip: (index: number, label: string) => void;
 }
 
 export function VoiceRecorder({
@@ -22,6 +61,7 @@ export function VoiceRecorder({
   clips,
   onStartRecording,
   onStopRecording,
+  onRenameClip,
 }: VoiceRecorderProps) {
   if (!isActive && clips.length === 0) return null;
 
@@ -55,29 +95,75 @@ export function VoiceRecorder({
       {clips.length > 0 && (
         <div className="space-y-1.5">
           {clips.map((clip, i) => (
-            <div
+            <ClipRow
               key={i}
-              className="flex items-center gap-3 px-3 py-2 rounded-xl bg-card/40 border border-border/20"
-            >
-              <Mic className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
-              <span className="text-xs text-muted-foreground/60 tabular-nums shrink-0">
-                @{formatOffset(clip.offsetSeconds)}
-              </span>
-              <audio
-                src={clip.url}
-                controls
-                className={cn(
-                  "h-8 flex-1 min-w-0",
-                  "[&::-webkit-media-controls-panel]:bg-transparent"
-                )}
-              />
-              <span className="text-xs text-muted-foreground/50 tabular-nums shrink-0">
-                {clip.durationSeconds}s
-              </span>
-            </div>
+              clip={clip}
+              index={i}
+              onRename={onRenameClip}
+            />
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function ClipRow({
+  clip,
+  index,
+  onRename,
+}: {
+  clip: AudioClip;
+  index: number;
+  onRename: (index: number, label: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(clip.label);
+
+  const commit = () => {
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== clip.label) {
+      onRename(index, trimmed);
+    } else {
+      setDraft(clip.label);
+    }
+    setEditing(false);
+  };
+
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card/40 border border-border/20">
+      <span className="text-[11px] text-muted-foreground/50 tabular-nums shrink-0">
+        {formatOffset(clip.offsetSeconds)}
+      </span>
+      <Mic className="w-3 h-3 text-muted-foreground/40 shrink-0" />
+      {editing ? (
+        <input
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commit();
+            if (e.key === "Escape") {
+              setDraft(clip.label);
+              setEditing(false);
+            }
+          }}
+          className="flex-1 min-w-0 text-xs bg-transparent border-b border-border/40 outline-none text-foreground/80 py-0.5"
+        />
+      ) : (
+        <button
+          onClick={() => { setDraft(clip.label); setEditing(true); }}
+          className="flex-1 min-w-0 text-left text-xs text-foreground/70 hover:text-foreground truncate transition-colors"
+          title="Click to rename"
+        >
+          {clip.label}
+        </button>
+      )}
+      <span className="text-[11px] text-muted-foreground/40 tabular-nums shrink-0">
+        {clip.durationSeconds}s
+      </span>
+      <ClipPlayer clip={clip} />
     </div>
   );
 }

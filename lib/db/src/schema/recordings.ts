@@ -7,6 +7,7 @@ export const recordingsTable = pgTable("recordings", {
     .notNull()
     .references(() => sessionsTable.id, { onDelete: "cascade" }),
   objectPath: text("object_path").notNull(),
+  label: text("label"),
   durationSeconds: integer("duration_seconds").notNull(),
   offsetSeconds: integer("offset_seconds").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),

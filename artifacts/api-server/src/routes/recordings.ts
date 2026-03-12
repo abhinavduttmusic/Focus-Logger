@@ -11,6 +11,7 @@ router.post("/recordings", async (req, res) => {
     .values({
       sessionId: body.sessionId,
       objectPath: body.objectPath,
+      label: body.label ?? null,
       durationSeconds: body.durationSeconds,
       offsetSeconds: body.offsetSeconds,
     })

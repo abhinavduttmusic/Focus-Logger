@@ -38,6 +38,7 @@ async function uploadClips(sessionId: number, clips: AudioClip[]) {
       body: JSON.stringify({
         sessionId,
         objectPath,
+        label: clip.label || null,
         durationSeconds: clip.durationSeconds,
         offsetSeconds: clip.offsetSeconds,
       }),
@@ -143,6 +144,7 @@ export default function Home() {
             clips={recorder.clips}
             onStartRecording={handleStartRecording}
             onStopRecording={recorder.stopRecording}
+            onRenameClip={recorder.renameClip}
           />
           <NotesArea 
             value={notes} 

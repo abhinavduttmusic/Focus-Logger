@@ -9,6 +9,7 @@
 export interface CreateRecordingRequest {
   sessionId: number;
   objectPath: string;
+  label?: string | null;
   durationSeconds: number;
   offsetSeconds: number;
 }

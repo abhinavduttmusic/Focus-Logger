@@ -32,6 +32,7 @@ export const ListSessionsResponseItem = zod.object({
       id: zod.number(),
       sessionId: zod.number(),
       objectPath: zod.string(),
+      label: zod.string().nullable(),
       durationSeconds: zod.number(),
       offsetSeconds: zod.number(),
       createdAt: zod.date(),
@@ -136,6 +137,7 @@ export const GetStorageObjectParams = zod.object({
 export const CreateRecordingBody = zod.object({
   sessionId: zod.number(),
   objectPath: zod.string(),
+  label: zod.string().nullish(),
   durationSeconds: zod.number(),
   offsetSeconds: zod.number(),
 });
