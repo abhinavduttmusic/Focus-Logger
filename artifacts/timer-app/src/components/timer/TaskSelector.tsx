@@ -259,15 +259,17 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
                     </div>
                   ) : null}
                   
-                  <div className="px-2 pt-2 mt-2 border-t border-border/30">
-                    <button
-                      onClick={() => setIsCreating(true)}
-                      className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl text-sm font-medium text-primary hover:bg-primary/5 transition-colors border border-dashed border-primary/20 hover:border-primary/40"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>New Task</span>
-                    </button>
-                  </div>
+                  {!trimmedSearch && (
+                    <div className="px-2 pt-2 mt-2 border-t border-border/30">
+                      <button
+                        onClick={() => setIsCreating(true)}
+                        className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl text-sm font-medium text-primary hover:bg-primary/5 transition-colors border border-dashed border-primary/20 hover:border-primary/40 touch-manipulation"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>New Task</span>
+                      </button>
+                    </div>
+                  )}
                 </>
               ) : (
                 <motion.div 
