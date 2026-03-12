@@ -24,6 +24,13 @@ export interface PersistedSessionState {
   }>;
 }
 
+export interface RestoredSession {
+  timer: PersistedSessionState["timer"];
+  notes: string;
+  selectedTask: PersistedSessionState["selectedTask"];
+  clips: AudioClip[];
+}
+
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -86,6 +93,45 @@ async function clearBlobs(): Promise<void> {
   }
 }
 
+export async function loadSession(): Promise<RestoredSession | null> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const state = JSON.parse(raw) as PersistedSessionState;
+
+    let clips: AudioClip[] = [];
+    if (state.clipsMeta.length > 0) {
+      try {
+        const blobs = await loadBlobs();
+        clips = state.clipsMeta
+          .map((m, i) => {
+            const blob = blobs[i];
+            if (!blob) return null;
+            return {
+              blob,
+              durationSeconds: m.durationSeconds,
+              offsetSeconds: m.offsetSeconds,
+              label: m.label,
+              url: URL.createObjectURL(blob),
+            } as AudioClip;
+          })
+          .filter(Boolean) as AudioClip[];
+      } catch {
+        // clips lost, timer/notes/task still restored
+      }
+    }
+
+    return {
+      timer: state.timer,
+      notes: state.notes,
+      selectedTask: state.selectedTask,
+      clips,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function saveSession(state: PersistedSessionState, clips: AudioClip[]): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -96,36 +142,6 @@ export function saveSession(state: PersistedSessionState, clips: AudioClip[]): v
     saveBlobs(clips.map((c) => c.blob)).catch(() => {});
   } else {
     clearBlobs().catch(() => {});
-  }
-}
-
-export function loadSessionSync(): PersistedSessionState | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as PersistedSessionState;
-  } catch {
-    return null;
-  }
-}
-
-export async function loadSessionClips(meta: PersistedSessionState["clipsMeta"]): Promise<AudioClip[]> {
-  if (meta.length === 0) return [];
-  try {
-    const blobs = await loadBlobs();
-    return meta.map((m, i) => {
-      const blob = blobs[i];
-      if (!blob) return null;
-      return {
-        blob,
-        durationSeconds: m.durationSeconds,
-        offsetSeconds: m.offsetSeconds,
-        label: m.label,
-        url: URL.createObjectURL(blob),
-      } as AudioClip;
-    }).filter(Boolean) as AudioClip[];
-  } catch {
-    return [];
   }
 }
 

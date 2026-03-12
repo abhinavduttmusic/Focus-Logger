@@ -1,15 +1,15 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCreateSession, getListSessionsQueryKey } from "@workspace/api-client-react";
 import type { SessionType, Task } from "@workspace/api-client-react/src/generated/api.schemas";
 import { useTimer, type TimerInitialState } from "@/hooks/use-timer";
 import { useVoiceRecorder, type AudioClip } from "@/hooks/use-voice-recorder";
 import {
-  loadSessionSync,
-  loadSessionClips,
+  loadSession,
   saveSession,
   clearSession,
   buildPersistedState,
+  type RestoredSession,
 } from "@/hooks/use-session-persistence";
 
 import { TimerToggle } from "@/components/timer/TimerToggle";
@@ -53,9 +53,19 @@ async function uploadClips(sessionId: number, clips: AudioClip[]) {
   }
 }
 
-const restored = loadSessionSync();
+export default function HomeLoader() {
+  const [restored, setRestored] = useState<RestoredSession | null | undefined>(undefined);
 
-export default function Home() {
+  useEffect(() => {
+    loadSession().then((data) => setRestored(data));
+  }, []);
+
+  if (restored === undefined) return null;
+
+  return <Home restored={restored} />;
+}
+
+function Home({ restored }: { restored: RestoredSession | null }) {
   const [notes, setNotes] = useState(restored?.notes ?? "");
   const [selectedTask, setSelectedTask] = useState<Task | null>(
     restored?.selectedTask
@@ -68,32 +78,21 @@ export default function Home() {
       : null,
   );
 
-  const restoredTimerState = useMemo<TimerInitialState | undefined>(() => {
-    if (!restored) return undefined;
-    return {
-      mode: restored.timer.mode,
-      phase: restored.timer.phase,
-      isActive: restored.timer.isActive,
-      startTimestamp: restored.timer.startTimestamp,
-      elapsedAtPause: restored.timer.elapsedAtPause,
-    };
-  }, []);
+  const timerInitialState: TimerInitialState | undefined = restored
+    ? {
+        mode: restored.timer.mode,
+        phase: restored.timer.phase,
+        isActive: restored.timer.isActive,
+        startTimestamp: restored.timer.startTimestamp,
+        elapsedAtPause: restored.timer.elapsedAtPause,
+      }
+    : undefined;
 
   const queryClient = useQueryClient();
-  const recorder = useVoiceRecorder();
+  const recorder = useVoiceRecorder(restored?.clips);
   const pendingClipsRef = useRef<AudioClip[]>([]);
   const recorderRef = useRef(recorder);
   recorderRef.current = recorder;
-
-  useEffect(() => {
-    if (restored?.clipsMeta?.length) {
-      loadSessionClips(restored.clipsMeta).then((clips) => {
-        if (clips.length > 0) {
-          recorder.replaceClips(clips);
-        }
-      });
-    }
-  }, []);
 
   const createSession = useCreateSession({
     mutation: {
@@ -105,6 +104,7 @@ export default function Home() {
 
         queryClient.invalidateQueries({ queryKey: getListSessionsQueryKey() });
         setNotes("");
+        setSelectedTask(null);
 
         if (clipsToUpload.length > 0) {
           try {
@@ -151,7 +151,7 @@ export default function Home() {
 
   const timer = useTimer({
     onLogSession: handleLogSession,
-    initialState: restoredTimerState,
+    initialState: timerInitialState,
   });
 
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -166,7 +166,8 @@ export default function Home() {
         timer.elapsedAtPause > 0 ||
         (timer.mode === "simple" && timer.seconds > 0) ||
         recorder.clips.length > 0 ||
-        notes.trim().length > 0;
+        notes.trim().length > 0 ||
+        selectedTask !== null;
 
       if (hasActiveSession) {
         const state = buildPersistedState(
