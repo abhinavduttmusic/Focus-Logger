@@ -29,7 +29,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
   const [searchQuery, setSearchQuery] = useState("");
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [panelPos, setPanelPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const queryClient = useQueryClient();
@@ -138,6 +138,9 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
   };
 
   const filteredTasks = tasks?.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase())) || [];
+  const trimmedSearch = searchQuery.trim();
+  const hasExactMatch = tasks?.some(t => t.name.toLowerCase() === trimmedSearch.toLowerCase()) ?? false;
+  const showInlineCreate = trimmedSearch.length > 0 && !hasExactMatch && !createTask.isPending;
 
   return (
     <div className="w-full" ref={containerRef}>
@@ -161,14 +164,15 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
           </div>
         </div>
       ) : (
-        <button
+        <motion.button
           ref={triggerRef}
-          onClick={() => { if (isOpen) { resetAndClose(); } else { setIsOpen(true); } }}
-          className="flex items-center gap-2 px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-full transition-colors text-sm font-medium border border-transparent hover:border-border/50"
+          onClick={() => { if (isOpen) { resetAndClose(); } else { updatePanelPosition(); setIsOpen(true); } }}
+          whileTap={{ scale: 0.93 }}
+          className="flex items-center gap-2 px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/50 active:bg-secondary/70 rounded-full transition-colors text-sm font-medium border border-transparent hover:border-border/50 touch-manipulation"
         >
           <Tag className="w-3.5 h-3.5" />
           <span>Select Task</span>
-        </button>
+        </motion.button>
       )}
 
       <AnimatePresence>
@@ -178,7 +182,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
             initial={{ opacity: 0, y: -10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
+            transition={{ duration: 0.1, ease: "easeOut" }}
             className="fixed z-[9999] glass-panel bg-card border-border/50 rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[400px]"
             style={{ top: panelPos.top, left: panelPos.left, width: panelPos.width }}
           >
@@ -202,6 +206,25 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
                     />
                   </div>
                   
+                  {showInlineCreate && (
+                    <button
+                      onClick={() => {
+                        createTask.mutate({ data: { name: trimmedSearch, projectId: null } });
+                      }}
+                      className="w-full flex items-center gap-2.5 p-2.5 rounded-xl text-left transition-colors hover:bg-primary/5 text-primary touch-manipulation"
+                    >
+                      <Plus className="w-4 h-4 shrink-0" />
+                      <span className="font-medium text-sm truncate">Create &ldquo;{trimmedSearch}&rdquo;</span>
+                    </button>
+                  )}
+
+                  {createTask.isPending && (
+                    <div className="flex items-center justify-center gap-2 p-4">
+                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                      <span className="text-sm text-muted-foreground">Creating task...</span>
+                    </div>
+                  )}
+
                   {isLoadingTasks ? (
                     <div className="flex justify-center p-4">
                       <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -216,7 +239,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
                             resetAndClose();
                           }}
                           className={cn(
-                            "w-full flex items-center gap-2.5 p-2.5 rounded-xl text-left transition-colors",
+                            "w-full flex items-center gap-2.5 p-2.5 rounded-xl text-left transition-colors touch-manipulation",
                             selectedTask?.id === task.id ? "bg-primary/10 text-primary" : "hover:bg-secondary/60 text-foreground/80"
                           )}
                         >
@@ -230,11 +253,11 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
                         </button>
                       ))}
                     </div>
-                  ) : (
+                  ) : !showInlineCreate && !createTask.isPending ? (
                     <div className="text-center p-6 text-sm text-muted-foreground">
                       No tasks found
                     </div>
-                  )}
+                  ) : null}
                   
                   <div className="px-2 pt-2 mt-2 border-t border-border/30">
                     <button
