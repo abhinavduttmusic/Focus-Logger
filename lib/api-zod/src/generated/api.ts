@@ -68,6 +68,13 @@ export const CreateTaskBody = zod.object({
 });
 
 /**
+ * @summary Delete a task
+ */
+export const DeleteTaskParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
  * @summary List all projects
  */
 export const ListProjectsResponseItem = zod.object({

@@ -107,6 +107,21 @@ paths:
               schema:
                 $ref: "#/components/schemas/Task"
 
+  /tasks/{id}:
+    delete:
+      operationId: deleteTask
+      tags: [tasks]
+      summary: Delete a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Task deleted
+
   /projects:
     get:
       operationId: listProjects

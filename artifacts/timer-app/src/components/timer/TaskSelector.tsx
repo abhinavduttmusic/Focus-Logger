@@ -1,17 +1,18 @@
-import { useState, useRef, useEffect, useLayoutEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListTasks,
   useCreateTask,
+  useDeleteTask,
   useListProjects,
   useCreateProject,
   getListTasksQueryKey,
   getListProjectsQueryKey,
 } from "@workspace/api-client-react";
 import type { Task } from "@workspace/api-client-react/src/generated/api.schemas";
-import { Tag, X, Plus, FolderPlus, Loader2 } from "lucide-react";
+import { Tag, X, Plus, FolderPlus, Folder, Loader2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TaskSelectorProps {
@@ -40,12 +41,15 @@ function computePanelPos(triggerEl: HTMLButtonElement | null) {
 export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  
+
   const [newTaskName, setNewTaskName] = useState("");
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [newProjectName, setNewProjectName] = useState("");
   const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [isCreatingProjectStandalone, setIsCreatingProjectStandalone] = useState(false);
+  const [standaloneProjectName, setStandaloneProjectName] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -54,7 +58,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
   const queryClient = useQueryClient();
 
   const { data: tasks, isLoading: isLoadingTasks } = useListTasks();
-  const { data: projects, isLoading: isLoadingProjects } = useListProjects();
+  const { data: projects } = useListProjects();
 
   useLayoutEffect(() => {
     if (!isOpen) return;
@@ -88,6 +92,16 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
     }
   });
 
+  const deleteTask = useDeleteTask({
+    mutation: {
+      onSuccess: (_data, vars) => {
+        queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
+        if (selectedTask?.id === vars.id) onSelectTask(null);
+        setConfirmDeleteId(null);
+      }
+    }
+  });
+
   const createProject = useCreateProject({
     mutation: {
       onSuccess: (data) => {
@@ -95,6 +109,16 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
         setSelectedProjectId(data.id);
         setIsCreatingProject(false);
         setNewProjectName("");
+      }
+    }
+  });
+
+  const createProjectStandalone = useCreateProject({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListProjectsQueryKey() });
+        setIsCreatingProjectStandalone(false);
+        setStandaloneProjectName("");
       }
     }
   });
@@ -121,7 +145,10 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
     setSelectedProjectId(null);
     setNewProjectName("");
     setIsCreatingProject(false);
+    setIsCreatingProjectStandalone(false);
+    setStandaloneProjectName("");
     setSearchQuery("");
+    setConfirmDeleteId(null);
     setPanelPos(OFF_SCREEN);
   };
 
@@ -138,9 +165,14 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) return;
     createProject.mutate({
-      data: {
-        name: newProjectName.trim()
-      }
+      data: { name: newProjectName.trim() }
+    });
+  };
+
+  const handleCreateProjectStandalone = async () => {
+    if (!standaloneProjectName.trim()) return;
+    createProjectStandalone.mutate({
+      data: { name: standaloneProjectName.trim() }
     });
   };
 
@@ -148,6 +180,178 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
   const trimmedSearch = searchQuery.trim();
   const hasExactMatch = tasks?.some(t => t.name.toLowerCase() === trimmedSearch.toLowerCase()) ?? false;
   const showInlineCreate = trimmedSearch.length > 0 && !hasExactMatch && !createTask.isPending;
+
+  const groupedTasks = useMemo(() => {
+    const byProject = new Map<number, { project: { id: number; name: string }; tasks: Task[] }>();
+    const independent: Task[] = [];
+    for (const task of filteredTasks) {
+      if (task.projectId && task.projectName) {
+        if (!byProject.has(task.projectId)) {
+          byProject.set(task.projectId, { project: { id: task.projectId, name: task.projectName }, tasks: [] });
+        }
+        byProject.get(task.projectId)!.tasks.push(task);
+      } else {
+        independent.push(task);
+      }
+    }
+    return { withProject: Array.from(byProject.values()), independent };
+  }, [filteredTasks]);
+
+  const isSearching = trimmedSearch.length > 0;
+
+  function renderTaskRow(task: Task) {
+    const isConfirming = confirmDeleteId === task.id;
+
+    if (isConfirming) {
+      return (
+        <div
+          key={task.id}
+          className="flex items-center gap-2 p-2.5 rounded-xl bg-destructive/5 border border-destructive/20"
+        >
+          <span className="flex-1 text-sm font-medium text-destructive truncate">Delete &ldquo;{task.name}&rdquo;?</span>
+          <button
+            onClick={() => setConfirmDeleteId(null)}
+            className="px-2.5 py-1 rounded-lg text-xs font-medium text-muted-foreground hover:bg-secondary/60 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => deleteTask.mutate({ id: task.id })}
+            disabled={deleteTask.isPending}
+            className="px-2.5 py-1 rounded-lg text-xs font-medium bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 transition-colors"
+          >
+            {deleteTask.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "Delete"}
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        key={task.id}
+        className={cn(
+          "group/task flex items-center gap-2 rounded-xl transition-colors",
+          selectedTask?.id === task.id ? "bg-primary/10" : "hover:bg-secondary/60"
+        )}
+      >
+        <button
+          onClick={() => {
+            onSelectTask(task);
+            resetAndClose();
+          }}
+          className="flex-1 flex items-center gap-2.5 p-2.5 text-left touch-manipulation min-w-0"
+        >
+          <Tag className={cn("w-3.5 h-3.5 shrink-0", selectedTask?.id === task.id ? "text-primary" : "text-muted-foreground/50")} />
+          <div className="flex-1 flex items-baseline gap-2 min-w-0">
+            <span className={cn("font-medium text-sm truncate", selectedTask?.id === task.id ? "text-primary" : "text-foreground/80")}>
+              {task.name}
+            </span>
+            {isSearching && task.projectName && (
+              <span className="text-xs text-muted-foreground/60 truncate shrink-0">{task.projectName}</span>
+            )}
+          </div>
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setConfirmDeleteId(task.id);
+          }}
+          className="p-1.5 mr-1.5 rounded-lg text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover/task:opacity-100 focus:opacity-100 shrink-0"
+          aria-label="Delete task"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    );
+  }
+
+  function renderTaskList() {
+    if (isLoadingTasks) {
+      return (
+        <div className="flex justify-center p-4">
+          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+        </div>
+      );
+    }
+
+    if (isSearching) {
+      return (
+        <>
+          {showInlineCreate && (
+            <button
+              onClick={() => {
+                createTask.mutate({ data: { name: trimmedSearch, projectId: null } });
+              }}
+              className="w-full flex items-center gap-2.5 p-2.5 rounded-xl text-left transition-colors hover:bg-primary/5 text-primary touch-manipulation"
+            >
+              <Plus className="w-4 h-4 shrink-0" />
+              <span className="font-medium text-sm truncate">Create &ldquo;{trimmedSearch}&rdquo;</span>
+            </button>
+          )}
+          {createTask.isPending && (
+            <div className="flex items-center justify-center gap-2 p-4">
+              <Loader2 className="w-4 h-4 animate-spin text-primary" />
+              <span className="text-sm text-muted-foreground">Creating task...</span>
+            </div>
+          )}
+          {filteredTasks.length > 0 ? (
+            <div className="space-y-0.5">
+              {filteredTasks.map(task => renderTaskRow(task))}
+            </div>
+          ) : !showInlineCreate && !createTask.isPending ? (
+            <div className="text-center p-6 text-sm text-muted-foreground">
+              No tasks found
+            </div>
+          ) : null}
+        </>
+      );
+    }
+
+    const { withProject, independent } = groupedTasks;
+    const hasAny = withProject.length > 0 || independent.length > 0;
+
+    if (!hasAny) {
+      return (
+        <div className="text-center p-6 text-sm text-muted-foreground">
+          No tasks yet. Create one below.
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-3">
+        {withProject.map(({ project, tasks: projectTasks }) => (
+          <div key={project.id}>
+            <div className="flex items-center gap-2 px-2.5 py-1.5">
+              <Folder className="w-3.5 h-3.5 text-muted-foreground/50" />
+              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60">
+                {project.name}
+              </span>
+            </div>
+            <div className="space-y-0.5 ml-1">
+              {projectTasks.map(task => renderTaskRow(task))}
+            </div>
+          </div>
+        ))}
+
+        {independent.length > 0 && (
+          <div>
+            {withProject.length > 0 && (
+              <div className="flex items-center gap-2 px-2.5 py-1.5">
+                <Tag className="w-3.5 h-3.5 text-muted-foreground/50" />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60">
+                  Independent Tasks
+                </span>
+              </div>
+            )}
+            <div className="space-y-0.5 ml-1">
+              {independent.map(task => renderTaskRow(task))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const panelContent = (
     <AnimatePresence>
@@ -176,78 +380,62 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
                     type="text"
                     placeholder="Search tasks..."
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => { setSearchQuery(e.target.value); setConfirmDeleteId(null); }}
                     className="w-full bg-secondary/30 border border-border/50 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50"
                   />
                 </div>
-                
-                {showInlineCreate && (
-                  <button
-                    onClick={() => {
-                      createTask.mutate({ data: { name: trimmedSearch, projectId: null } });
-                    }}
-                    className="w-full flex items-center gap-2.5 p-2.5 rounded-xl text-left transition-colors hover:bg-primary/5 text-primary touch-manipulation"
-                  >
-                    <Plus className="w-4 h-4 shrink-0" />
-                    <span className="font-medium text-sm truncate">Create &ldquo;{trimmedSearch}&rdquo;</span>
-                  </button>
-                )}
 
-                {createTask.isPending && (
-                  <div className="flex items-center justify-center gap-2 p-4">
-                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                    <span className="text-sm text-muted-foreground">Creating task...</span>
-                  </div>
-                )}
+                {renderTaskList()}
 
-                {isLoadingTasks ? (
-                  <div className="flex justify-center p-4">
-                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                  </div>
-                ) : filteredTasks.length > 0 ? (
-                  <div className="space-y-1">
-                    {filteredTasks.map(task => (
-                      <button
-                        key={task.id}
-                        onClick={() => {
-                          onSelectTask(task);
-                          resetAndClose();
-                        }}
-                        className={cn(
-                          "w-full flex items-center gap-2.5 p-2.5 rounded-xl text-left transition-colors touch-manipulation",
-                          selectedTask?.id === task.id ? "bg-primary/10 text-primary" : "hover:bg-secondary/60 text-foreground/80"
-                        )}
-                      >
-                        <Tag className={cn("w-4 h-4 shrink-0", selectedTask?.id === task.id ? "text-primary" : "text-muted-foreground/50")} />
-                        <div className="flex-1 flex items-baseline gap-2 min-w-0">
-                          <span className="font-medium text-sm truncate">{task.name}</span>
-                          {task.projectName && (
-                            <span className="text-xs text-muted-foreground/60 truncate shrink-0">{task.projectName}</span>
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                ) : !showInlineCreate && !createTask.isPending ? (
-                  <div className="text-center p-6 text-sm text-muted-foreground">
-                    No tasks found
-                  </div>
-                ) : null}
-                
-                {!trimmedSearch && (
-                  <div className="px-2 pt-2 mt-2 border-t border-border/30">
-                    <button
-                      onClick={() => setIsCreating(true)}
-                      className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl text-sm font-medium text-primary hover:bg-primary/5 transition-colors border border-dashed border-primary/20 hover:border-primary/40 touch-manipulation"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>New Task</span>
-                    </button>
+                {!isSearching && (
+                  <div className="px-2 pt-2 mt-2 border-t border-border/30 space-y-1.5">
+                    {isCreatingProjectStandalone ? (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Project name..."
+                          value={standaloneProjectName}
+                          onChange={(e) => setStandaloneProjectName(e.target.value)}
+                          className="flex-1 bg-secondary/30 border border-border/50 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                          autoFocus
+                        />
+                        <button
+                          onClick={handleCreateProjectStandalone}
+                          disabled={!standaloneProjectName.trim() || createProjectStandalone.isPending}
+                          className="shrink-0 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                        >
+                          {createProjectStandalone.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Add"}
+                        </button>
+                        <button
+                          onClick={() => { setIsCreatingProjectStandalone(false); setStandaloneProjectName(""); }}
+                          className="shrink-0 px-2 py-2 rounded-xl bg-secondary/50 text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setIsCreating(true)}
+                          className="flex-1 flex items-center justify-center gap-2 p-2.5 rounded-xl text-sm font-medium text-primary hover:bg-primary/5 transition-colors border border-dashed border-primary/20 hover:border-primary/40 touch-manipulation"
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span>New Task</span>
+                        </button>
+                        <button
+                          onClick={() => setIsCreatingProjectStandalone(true)}
+                          className="flex-1 flex items-center justify-center gap-2 p-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors border border-dashed border-border/40 hover:border-border/60 touch-manipulation"
+                        >
+                          <FolderPlus className="w-4 h-4" />
+                          <span>New Project</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </>
             ) : (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className="p-3 space-y-4"
@@ -266,7 +454,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-muted-foreground ml-1">Project (Optional)</label>
-                  
+
                   {!isCreatingProject ? (
                     <div className="flex gap-2">
                       <select

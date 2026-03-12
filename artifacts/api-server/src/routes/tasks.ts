@@ -42,4 +42,14 @@ router.post("/tasks", async (req, res) => {
   res.status(201).json({ ...task, projectName });
 });
 
+router.delete("/tasks/:id", async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) {
+    res.status(400).json({ error: "Invalid id" });
+    return;
+  }
+  await db.delete(tasksTable).where(eq(tasksTable.id, id));
+  res.status(204).send();
+});
+
 export default router;
