@@ -184,6 +184,11 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
   const groupedTasks = useMemo(() => {
     const byProject = new Map<number, { project: { id: number; name: string }; tasks: Task[] }>();
     const independent: Task[] = [];
+    if (projects) {
+      for (const p of projects) {
+        byProject.set(p.id, { project: { id: p.id, name: p.name }, tasks: [] });
+      }
+    }
     for (const task of filteredTasks) {
       if (task.projectId && task.projectName) {
         if (!byProject.has(task.projectId)) {
@@ -195,7 +200,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
       }
     }
     return { withProject: Array.from(byProject.values()), independent };
-  }, [filteredTasks]);
+  }, [filteredTasks, projects]);
 
   const isSearching = trimmedSearch.length > 0;
 
@@ -328,9 +333,15 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
                 {project.name}
               </span>
             </div>
-            <div className="space-y-0.5 ml-1">
-              {projectTasks.map(task => renderTaskRow(task))}
-            </div>
+            {projectTasks.length > 0 ? (
+              <div className="space-y-0.5 ml-1">
+                {projectTasks.map(task => renderTaskRow(task))}
+              </div>
+            ) : (
+              <div className="ml-6 py-1.5 text-xs italic text-muted-foreground/40">
+                No tasks yet
+              </div>
+            )}
           </div>
         ))}
 
