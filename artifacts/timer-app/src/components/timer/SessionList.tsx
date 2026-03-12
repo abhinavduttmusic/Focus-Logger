@@ -3,7 +3,7 @@ import { useListSessions, useDeleteSession, getListSessionsQueryKey } from "@wor
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { formatShortDuration, cn } from "@/lib/utils";
-import { Trash2, History, Tag, Play, Pause, ChevronDown, Mic } from "lucide-react";
+import { Trash2, History, Tag, Play, Pause, ChevronDown, Mic, ListOrdered } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const BASE = import.meta.env.BASE_URL;
@@ -114,7 +114,7 @@ function formatOffset(seconds: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-function PlayableRecording({ rec }: { rec: RecordingItem }) {
+function PlayableRecording({ rec, indexInSession }: { rec: RecordingItem; indexInSession: number }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
 
@@ -152,7 +152,7 @@ function PlayableRecording({ rec }: { rec: RecordingItem }) {
         @{formatOffset(rec.offsetSeconds)}
       </span>
       <span className="flex-1 min-w-0 text-xs text-foreground/70 truncate">
-        {rec.label || "Untitled"}
+        {rec.label || `Recording ${indexInSession + 1}`}
       </span>
       <span className="text-[11px] text-muted-foreground/40 tabular-nums shrink-0">
         {rec.durationSeconds}s
@@ -336,13 +336,13 @@ export function SessionList({ onRestart }: SessionListProps) {
                                   {sortedRecs.length > 0 && (
                                     <div className="ml-3 space-y-1">
                                       <div className="flex items-center gap-1.5 px-3 pt-1">
-                                        <Mic className="w-3 h-3 text-muted-foreground/40" />
+                                        <ListOrdered className="w-3 h-3 text-muted-foreground/40" />
                                         <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/40">
                                           Session Timeline
                                         </span>
                                       </div>
-                                      {sortedRecs.map(rec => (
-                                        <PlayableRecording key={rec.id} rec={rec} />
+                                      {sortedRecs.map((rec, idx) => (
+                                        <PlayableRecording key={rec.id} rec={rec} indexInSession={idx} />
                                       ))}
                                     </div>
                                   )}

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Mic, Play, Pause } from "lucide-react";
 import type { AudioClip } from "@/hooks/use-voice-recorder";
 
@@ -63,6 +63,16 @@ export function VoiceRecorder({
   onStopRecording,
   onRenameClip,
 }: VoiceRecorderProps) {
+  const prevCountRef = useRef(clips.length);
+  const [newestIndex, setNewestIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (clips.length > prevCountRef.current) {
+      setNewestIndex(clips.length - 1);
+    }
+    prevCountRef.current = clips.length;
+  }, [clips.length]);
+
   if (!isActive && clips.length === 0) return null;
 
   return (
@@ -99,7 +109,11 @@ export function VoiceRecorder({
               key={i}
               clip={clip}
               index={i}
-              onRename={onRenameClip}
+              autoEdit={i === newestIndex}
+              onRename={(idx, label) => {
+                onRenameClip(idx, label);
+                if (idx === newestIndex) setNewestIndex(null);
+              }}
             />
           ))}
         </div>
@@ -111,14 +125,25 @@ export function VoiceRecorder({
 function ClipRow({
   clip,
   index,
+  autoEdit,
   onRename,
 }: {
   clip: AudioClip;
   index: number;
+  autoEdit: boolean;
   onRename: (index: number, label: string) => void;
 }) {
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(autoEdit);
   const [draft, setDraft] = useState(clip.label);
+  const didAutoEdit = useRef(autoEdit);
+
+  useEffect(() => {
+    if (autoEdit && !didAutoEdit.current) {
+      setEditing(true);
+      setDraft(clip.label);
+      didAutoEdit.current = true;
+    }
+  }, [autoEdit, clip.label]);
 
   const commit = () => {
     const trimmed = draft.trim();
