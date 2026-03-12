@@ -20,7 +20,6 @@ export interface PersistedSessionState {
     durationSeconds: number;
     offsetSeconds: number;
     label: string;
-    mimeType: string;
   }>;
 }
 
@@ -168,7 +167,6 @@ export function buildPersistedState(
       durationSeconds: c.durationSeconds,
       offsetSeconds: c.offsetSeconds,
       label: c.label,
-      mimeType: c.blob.type || "audio/webm",
     })),
   };
 }
