@@ -73,11 +73,18 @@ export default function Home() {
     }
   });
 
-  const handleLogSession = useCallback((type: SessionType, durationSeconds: number) => {
+  const handleLogSession = useCallback(async (type: SessionType, durationSeconds: number) => {
+    const allClips = [...recorder.clips];
+
     if (recorder.isRecording) {
-      recorder.stopRecording();
+      const finalClipPromise = recorder.stopRecording();
+      if (finalClipPromise) {
+        const finalClip = await finalClipPromise;
+        allClips.push(finalClip);
+      }
     }
-    pendingClipsRef.current = [...recorder.clips];
+
+    pendingClipsRef.current = allClips;
     createSession.mutate({
       data: {
         type,
@@ -95,11 +102,9 @@ export default function Home() {
   const handleStartRecording = useCallback(() => {
     const elapsed = timer.mode === "simple"
       ? timer.seconds
-      : (timer.phase === "focus"
-          ? (25 * 60) - timer.seconds
-          : (5 * 60) - timer.seconds);
+      : (25 * 60) - timer.seconds;
     recorder.startRecording(elapsed);
-  }, [recorder, timer.mode, timer.seconds, timer.phase]);
+  }, [recorder, timer.mode, timer.seconds]);
 
   return (
     <main className="min-h-screen w-full py-12 px-4 sm:px-6 lg:px-8 flex flex-col items-center">
@@ -133,7 +138,7 @@ export default function Home() {
 
         <section className="space-y-4">
           <VoiceRecorder
-            isActive={timer.isActive}
+            isActive={timer.isActive && (timer.mode === "simple" || timer.phase === "focus")}
             isRecording={recorder.isRecording}
             clips={recorder.clips}
             onStartRecording={handleStartRecording}

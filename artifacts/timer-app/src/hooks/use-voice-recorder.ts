@@ -14,6 +14,7 @@ export function useVoiceRecorder() {
   const chunksRef = useRef<Blob[]>([]);
   const startTimeRef = useRef(0);
   const offsetRef = useRef(0);
+  const stopResolveRef = useRef<((clip: AudioClip) => void) | null>(null);
 
   const startRecording = useCallback(async (sessionOffsetSeconds: number) => {
     try {
@@ -40,18 +41,22 @@ export function useVoiceRecorder() {
         const durationSeconds = Math.round((Date.now() - startTimeRef.current) / 1000);
         const url = URL.createObjectURL(blob);
 
-        setClips((prev) => [
-          ...prev,
-          {
-            blob,
-            durationSeconds: Math.max(durationSeconds, 1),
-            offsetSeconds: offsetRef.current,
-            url,
-          },
-        ]);
+        const clip: AudioClip = {
+          blob,
+          durationSeconds: Math.max(durationSeconds, 1),
+          offsetSeconds: offsetRef.current,
+          url,
+        };
+
+        setClips((prev) => [...prev, clip]);
 
         stream.getTracks().forEach((track) => track.stop());
         chunksRef.current = [];
+
+        if (stopResolveRef.current) {
+          stopResolveRef.current(clip);
+          stopResolveRef.current = null;
+        }
       };
 
       mediaRecorder.start(1000);
@@ -61,11 +66,16 @@ export function useVoiceRecorder() {
     }
   }, []);
 
-  const stopRecording = useCallback(() => {
+  const stopRecording = useCallback((): Promise<AudioClip> | null => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      const promise = new Promise<AudioClip>((resolve) => {
+        stopResolveRef.current = resolve;
+      });
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+      return promise;
     }
+    return null;
   }, []);
 
   const clearClips = useCallback(() => {
