@@ -8,9 +8,9 @@ export type AudioClip = {
   url: string;
 };
 
-export function useVoiceRecorder() {
+export function useVoiceRecorder(initialClips?: AudioClip[]) {
   const [isRecording, setIsRecording] = useState(false);
-  const [clips, setClips] = useState<AudioClip[]>([]);
+  const [clips, setClips] = useState<AudioClip[]>(initialClips ?? []);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const startTimeRef = useRef(0);
@@ -101,6 +101,10 @@ export function useVoiceRecorder() {
     });
   }, []);
 
+  const replaceClips = useCallback((newClips: AudioClip[]) => {
+    setClips(newClips);
+  }, []);
+
   return {
     isRecording,
     clips,
@@ -108,5 +112,6 @@ export function useVoiceRecorder() {
     stopRecording,
     renameClip,
     clearClips,
+    replaceClips,
   };
 }

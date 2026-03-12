@@ -1,9 +1,16 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCreateSession, getListSessionsQueryKey } from "@workspace/api-client-react";
 import type { SessionType, Task } from "@workspace/api-client-react/src/generated/api.schemas";
-import { useTimer } from "@/hooks/use-timer";
+import { useTimer, type TimerInitialState } from "@/hooks/use-timer";
 import { useVoiceRecorder, type AudioClip } from "@/hooks/use-voice-recorder";
+import {
+  loadSessionSync,
+  loadSessionClips,
+  saveSession,
+  clearSession,
+  buildPersistedState,
+} from "@/hooks/use-session-persistence";
 
 import { TimerToggle } from "@/components/timer/TimerToggle";
 import { TimerDisplay } from "@/components/timer/TimerDisplay";
@@ -46,20 +53,55 @@ async function uploadClips(sessionId: number, clips: AudioClip[]) {
   }
 }
 
+const restored = loadSessionSync();
+
 export default function Home() {
-  const [notes, setNotes] = useState("");
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [notes, setNotes] = useState(restored?.notes ?? "");
+  const [selectedTask, setSelectedTask] = useState<Task | null>(
+    restored?.selectedTask
+      ? ({
+          id: restored.selectedTask.id,
+          name: restored.selectedTask.name,
+          projectId: restored.selectedTask.projectId,
+          projectName: restored.selectedTask.projectName,
+        } as Task)
+      : null,
+  );
+
+  const restoredTimerState = useMemo<TimerInitialState | undefined>(() => {
+    if (!restored) return undefined;
+    return {
+      mode: restored.timer.mode,
+      phase: restored.timer.phase,
+      isActive: restored.timer.isActive,
+      startTimestamp: restored.timer.startTimestamp,
+      elapsedAtPause: restored.timer.elapsedAtPause,
+    };
+  }, []);
+
   const queryClient = useQueryClient();
   const recorder = useVoiceRecorder();
   const pendingClipsRef = useRef<AudioClip[]>([]);
   const recorderRef = useRef(recorder);
   recorderRef.current = recorder;
 
+  useEffect(() => {
+    if (restored?.clipsMeta?.length) {
+      loadSessionClips(restored.clipsMeta).then((clips) => {
+        if (clips.length > 0) {
+          recorder.replaceClips(clips);
+        }
+      });
+    }
+  }, []);
+
   const createSession = useCreateSession({
     mutation: {
       onSuccess: async (session) => {
         const clipsToUpload = pendingClipsRef.current;
         pendingClipsRef.current = [];
+
+        clearSession();
 
         queryClient.invalidateQueries({ queryKey: getListSessionsQueryKey() });
         setNotes("");
@@ -77,48 +119,104 @@ export default function Home() {
       },
       onError: (err) => {
         console.error("Failed to create session:", err);
-      }
-    }
+      },
+    },
   });
 
-  const handleLogSession = useCallback(async (type: SessionType, durationSeconds: number) => {
-    const rec = recorderRef.current;
-    const allClips = [...rec.clips];
+  const handleLogSession = useCallback(
+    async (type: SessionType, durationSeconds: number) => {
+      const rec = recorderRef.current;
+      const allClips = [...rec.clips];
 
-    if (rec.isRecording) {
-      const finalClipPromise = rec.stopRecording();
-      if (finalClipPromise) {
-        const finalClip = await finalClipPromise;
-        allClips.push(finalClip);
+      if (rec.isRecording) {
+        const finalClipPromise = rec.stopRecording();
+        if (finalClipPromise) {
+          const finalClip = await finalClipPromise;
+          allClips.push(finalClip);
+        }
       }
-    }
 
-    pendingClipsRef.current = allClips;
-    createSession.mutate({
-      data: {
-        type,
-        durationSeconds,
-        notes: notes.trim(),
-        taskId: selectedTask?.id ?? null,
-      }
-    });
-  }, [createSession, notes, selectedTask]);
+      pendingClipsRef.current = allClips;
+      createSession.mutate({
+        data: {
+          type,
+          durationSeconds,
+          notes: notes.trim(),
+          taskId: selectedTask?.id ?? null,
+        },
+      });
+    },
+    [createSession, notes, selectedTask],
+  );
 
   const timer = useTimer({
-    onLogSession: handleLogSession
+    onLogSession: handleLogSession,
+    initialState: restoredTimerState,
   });
 
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+
+    saveTimeoutRef.current = setTimeout(() => {
+      const hasActiveSession =
+        timer.isActive ||
+        timer.startTimestamp !== null ||
+        timer.elapsedAtPause > 0 ||
+        (timer.mode === "simple" && timer.seconds > 0) ||
+        recorder.clips.length > 0 ||
+        notes.trim().length > 0;
+
+      if (hasActiveSession) {
+        const state = buildPersistedState(
+          {
+            mode: timer.mode,
+            phase: timer.phase,
+            isActive: timer.isActive,
+            startTimestamp: timer.startTimestamp,
+            elapsedAtPause: timer.elapsedAtPause,
+          },
+          notes,
+          selectedTask
+            ? {
+                id: selectedTask.id,
+                name: selectedTask.name,
+                projectId: selectedTask.projectId ?? null,
+                projectName: selectedTask.projectName ?? null,
+              }
+            : null,
+          recorder.clips,
+        );
+        saveSession(state, recorder.clips);
+      } else {
+        clearSession();
+      }
+    }, 500);
+
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, [
+    timer.mode,
+    timer.phase,
+    timer.isActive,
+    timer.startTimestamp,
+    timer.elapsedAtPause,
+    notes,
+    selectedTask,
+    recorder.clips,
+  ]);
+
   const handleStartRecording = useCallback(() => {
-    const elapsed = timer.mode === "simple"
-      ? timer.seconds
-      : (25 * 60) - timer.seconds;
+    const elapsed =
+      timer.mode === "simple" ? timer.seconds : 25 * 60 - timer.seconds;
     recorder.startRecording(elapsed);
   }, [recorder, timer.mode, timer.seconds]);
 
   return (
     <main className="min-h-screen w-full py-12 px-4 sm:px-6 lg:px-8 flex flex-col items-center">
       <div className="w-full max-w-2xl space-y-12">
-        
         <header className="text-center space-y-8">
           <h1 className="text-2xl font-extrabold tracking-tight bg-gradient-to-br from-foreground to-foreground/60 bg-clip-text text-transparent">
             Flow State
@@ -128,13 +226,18 @@ export default function Home() {
 
         <section className="relative">
           <div className="absolute inset-0 -z-10 flex items-center justify-center opacity-40 blur-[100px] pointer-events-none">
-            <div className={`w-64 h-64 rounded-full transition-colors duration-1000 ${
-               timer.mode === 'simple' ? 'bg-primary/20' : 
-               timer.phase === 'focus' ? 'bg-focus/20' : 'bg-break/20'
-            }`} />
+            <div
+              className={`w-64 h-64 rounded-full transition-colors duration-1000 ${
+                timer.mode === "simple"
+                  ? "bg-primary/20"
+                  : timer.phase === "focus"
+                    ? "bg-focus/20"
+                    : "bg-break/20"
+              }`}
+            />
           </div>
 
-          <TimerDisplay 
+          <TimerDisplay
             mode={timer.mode}
             phase={timer.phase}
             seconds={timer.seconds}
@@ -147,16 +250,19 @@ export default function Home() {
 
         <section className="space-y-4">
           <VoiceRecorder
-            isActive={timer.isActive && (timer.mode === "simple" || timer.phase === "focus")}
+            isActive={
+              timer.isActive &&
+              (timer.mode === "simple" || timer.phase === "focus")
+            }
             isRecording={recorder.isRecording}
             clips={recorder.clips}
             onStartRecording={handleStartRecording}
             onStopRecording={recorder.stopRecording}
             onRenameClip={recorder.renameClip}
           />
-          <NotesArea 
-            value={notes} 
-            onChange={setNotes} 
+          <NotesArea
+            value={notes}
+            onChange={setNotes}
             selectedTask={selectedTask}
             onSelectTask={setSelectedTask}
           />
@@ -165,17 +271,23 @@ export default function Home() {
         <div className="h-px w-full bg-gradient-to-r from-transparent via-border/60 to-transparent my-16" />
 
         <section className="pb-24">
-          <SessionList onRestart={(task, notes) => {
-            if (task) {
-              setSelectedTask({ id: task.id, name: task.name, projectId: task.projectId, projectName: task.projectName } as Task);
-            } else {
-              setSelectedTask(null);
-            }
-            setNotes(notes);
-            window.scrollTo({ top: 0, behavior: "smooth" });
-          }} />
+          <SessionList
+            onRestart={(task, notes) => {
+              if (task) {
+                setSelectedTask({
+                  id: task.id,
+                  name: task.name,
+                  projectId: task.projectId,
+                  projectName: task.projectName,
+                } as Task);
+              } else {
+                setSelectedTask(null);
+              }
+              setNotes(notes);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+          />
         </section>
-
       </div>
     </main>
   );

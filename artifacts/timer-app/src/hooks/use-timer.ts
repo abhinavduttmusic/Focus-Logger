@@ -7,19 +7,40 @@ export type PomodoroPhase = "focus" | "break";
 export const POMODORO_FOCUS_SEC = 25 * 60;
 export const POMODORO_BREAK_SEC = 5 * 60;
 
-interface UseTimerProps {
-  onLogSession: (type: SessionType, durationSeconds: number) => void;
+export interface TimerInitialState {
+  mode: TimerMode;
+  phase: PomodoroPhase;
+  isActive: boolean;
+  startTimestamp: number | null;
+  elapsedAtPause: number;
 }
 
-export function useTimer({ onLogSession }: UseTimerProps) {
-  const [mode, setMode] = useState<TimerMode>("pomodoro");
-  const [phase, setPhase] = useState<PomodoroPhase>("focus");
-  const [isActive, setIsActive] = useState(false);
+interface UseTimerProps {
+  onLogSession: (type: SessionType, durationSeconds: number) => void;
+  initialState?: TimerInitialState;
+}
 
-  const [seconds, setSeconds] = useState(POMODORO_FOCUS_SEC);
+function computeInitialSeconds(state: TimerInitialState): number {
+  const elapsed = state.startTimestamp !== null
+    ? state.elapsedAtPause + Math.floor((Date.now() - state.startTimestamp) / 1000)
+    : state.elapsedAtPause;
 
-  const startTimestampRef = useRef<number | null>(null);
-  const elapsedAtPauseRef = useRef(0);
+  if (state.mode === "simple") return elapsed;
+  const phaseTotal = state.phase === "focus" ? POMODORO_FOCUS_SEC : POMODORO_BREAK_SEC;
+  return Math.max(0, phaseTotal - elapsed);
+}
+
+export function useTimer({ onLogSession, initialState }: UseTimerProps) {
+  const [mode, setMode] = useState<TimerMode>(initialState?.mode ?? "pomodoro");
+  const [phase, setPhase] = useState<PomodoroPhase>(initialState?.phase ?? "focus");
+  const [isActive, setIsActive] = useState(initialState?.isActive ?? false);
+
+  const [seconds, setSeconds] = useState(() =>
+    initialState ? computeInitialSeconds(initialState) : POMODORO_FOCUS_SEC
+  );
+
+  const startTimestampRef = useRef<number | null>(initialState?.startTimestamp ?? null);
+  const elapsedAtPauseRef = useRef(initialState?.elapsedAtPause ?? 0);
 
   const onLogSessionRef = useRef(onLogSession);
   onLogSessionRef.current = onLogSession;
@@ -141,6 +162,8 @@ export function useTimer({ onLogSession }: UseTimerProps) {
     phase,
     seconds,
     isActive,
+    startTimestamp: startTimestampRef.current,
+    elapsedAtPause: elapsedAtPauseRef.current,
     setMode: handleSetMode,
     start,
     pause,
