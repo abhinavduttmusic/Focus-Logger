@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -22,7 +22,6 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
   const [isOpen, setIsOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   
-  // Create state
   const [newTaskName, setNewTaskName] = useState("");
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [newProjectName, setNewProjectName] = useState("");
@@ -30,12 +29,36 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
   const [searchQuery, setSearchQuery] = useState("");
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [panelPos, setPanelPos] = useState({ top: 0, left: 0, width: 320 });
   const queryClient = useQueryClient();
 
   const { data: tasks, isLoading: isLoadingTasks } = useListTasks();
   const { data: projects, isLoading: isLoadingProjects } = useListProjects();
 
-  // Auto-switch to create form when panel opens and there are no tasks yet
+  const updatePanelPosition = useCallback(() => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const panelWidth = Math.min(320, window.innerWidth - 16);
+    let left = rect.left;
+    if (left + panelWidth > window.innerWidth - 8) {
+      left = window.innerWidth - panelWidth - 8;
+    }
+    setPanelPos({ top: rect.bottom + 8, left, width: panelWidth });
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    updatePanelPosition();
+    window.addEventListener("resize", updatePanelPosition);
+    window.addEventListener("scroll", updatePanelPosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePanelPosition);
+      window.removeEventListener("scroll", updatePanelPosition, true);
+    };
+  }, [isOpen, updatePanelPosition]);
+
   useEffect(() => {
     if (isOpen && !isLoadingTasks && tasks?.length === 0) {
       setIsCreating(true);
@@ -63,16 +86,20 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
     }
   });
 
-  // Close on outside click
   useEffect(() => {
+    if (!isOpen) return;
     function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (
+        containerRef.current && !containerRef.current.contains(target) &&
+        panelRef.current && !panelRef.current.contains(target)
+      ) {
         setIsOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [isOpen]);
 
   const resetAndClose = () => {
     setIsOpen(false);
@@ -106,7 +133,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
   const filteredTasks = tasks?.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase())) || [];
 
   return (
-    <div className="relative w-full" ref={containerRef}>
+    <div className="w-full" ref={containerRef}>
       {selectedTask ? (
         <div className="flex items-center gap-2 max-w-fit">
           <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/5 hover:bg-primary/10 border border-primary/10 rounded-full transition-colors text-sm font-medium">
@@ -128,6 +155,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
         </div>
       ) : (
         <button
+          ref={triggerRef}
           onClick={() => setIsOpen(!isOpen)}
           className="flex items-center gap-2 px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-full transition-colors text-sm font-medium border border-transparent hover:border-border/50"
         >
@@ -139,11 +167,13 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
       <AnimatePresence>
         {isOpen && (
           <motion.div
+            ref={panelRef}
             initial={{ opacity: 0, y: -10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="absolute z-50 top-full mt-2 w-full sm:w-[320px] left-0 glass-panel bg-card border-border/50 rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[400px]"
+            className="fixed z-[9999] glass-panel bg-card border-border/50 rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[400px]"
+            style={{ top: panelPos.top, left: panelPos.left, width: panelPos.width }}
           >
             <div className="p-3 border-b border-border/30 flex items-center justify-between bg-card/50">
               <span className="text-sm font-semibold pl-1">Select a task</span>
