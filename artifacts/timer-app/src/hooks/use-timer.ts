@@ -15,18 +15,43 @@ export function useTimer({ onLogSession }: UseTimerProps) {
   const [mode, setMode] = useState<TimerMode>("pomodoro");
   const [phase, setPhase] = useState<PomodoroPhase>("focus");
   const [isActive, setIsActive] = useState(false);
-  
+
   const [seconds, setSeconds] = useState(POMODORO_FOCUS_SEC);
-  
-  const elapsedRef = useRef(0);
+
+  const startTimestampRef = useRef<number | null>(null);
+  const elapsedAtPauseRef = useRef(0);
+
   const onLogSessionRef = useRef(onLogSession);
   onLogSessionRef.current = onLogSession;
+
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
+  const isActiveRef = useRef(isActive);
+  isActiveRef.current = isActive;
+
+  function getElapsedSeconds(): number {
+    if (startTimestampRef.current === null) return elapsedAtPauseRef.current;
+    return elapsedAtPauseRef.current + Math.floor((Date.now() - startTimestampRef.current) / 1000);
+  }
+
+  function syncDisplay() {
+    const elapsed = getElapsedSeconds();
+    if (modeRef.current === "simple") {
+      setSeconds(elapsed);
+    } else {
+      const phaseTotal = phaseRef.current === "focus" ? POMODORO_FOCUS_SEC : POMODORO_BREAK_SEC;
+      setSeconds(Math.max(0, phaseTotal - elapsed));
+    }
+  }
 
   const handleSetMode = useCallback((newMode: TimerMode) => {
     setIsActive(false);
     setMode(newMode);
-    elapsedRef.current = 0;
-    
+    startTimestampRef.current = null;
+    elapsedAtPauseRef.current = 0;
+
     if (newMode === "simple") {
       setSeconds(0);
     } else {
@@ -35,21 +60,31 @@ export function useTimer({ onLogSession }: UseTimerProps) {
     }
   }, []);
 
-  const start = useCallback(() => setIsActive(true), []);
-  const pause = useCallback(() => setIsActive(false), []);
+  const start = useCallback(() => {
+    startTimestampRef.current = Date.now();
+    setIsActive(true);
+  }, []);
+
+  const pause = useCallback(() => {
+    elapsedAtPauseRef.current = getElapsedSeconds();
+    startTimestampRef.current = null;
+    setIsActive(false);
+  }, []);
 
   const stop = useCallback(() => {
+    const elapsed = getElapsedSeconds();
+    startTimestampRef.current = null;
+    elapsedAtPauseRef.current = 0;
     setIsActive(false);
-    
-    if (elapsedRef.current > 0) {
+
+    if (elapsed > 0) {
       let sessionType: SessionType = "simple";
       if (mode === "pomodoro") {
         sessionType = phase === "focus" ? "pomodoro_focus" : "pomodoro_break";
       }
-      onLogSessionRef.current(sessionType, elapsedRef.current);
+      onLogSessionRef.current(sessionType, elapsed);
     }
 
-    elapsedRef.current = 0;
     if (mode === "simple") {
       setSeconds(0);
     } else {
@@ -62,36 +97,35 @@ export function useTimer({ onLogSession }: UseTimerProps) {
 
     if (isActive) {
       interval = setInterval(() => {
-        elapsedRef.current += 1;
-        
-        setSeconds((currentSeconds) => {
-          if (mode === "simple") {
-            return currentSeconds + 1;
-          } else {
-            const nextSeconds = currentSeconds - 1;
-            
-            if (nextSeconds <= 0) {
-              return 0;
-            }
-            return nextSeconds;
-          }
-        });
+        syncDisplay();
       }, 1000);
     }
 
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isActive, mode]);
+  }, [isActive]);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible" && isActiveRef.current) {
+        syncDisplay();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, []);
 
   useEffect(() => {
     if (seconds === 0 && mode === "pomodoro" && isActive) {
+      const elapsed = getElapsedSeconds();
+      startTimestampRef.current = null;
+      elapsedAtPauseRef.current = 0;
       setIsActive(false);
-      
+
       const sessionType: SessionType = phase === "focus" ? "pomodoro_focus" : "pomodoro_break";
-      onLogSessionRef.current(sessionType, elapsedRef.current);
-      elapsedRef.current = 0;
-      
+      onLogSessionRef.current(sessionType, elapsed);
+
       if (phase === "focus") {
         setPhase("break");
         setSeconds(POMODORO_BREAK_SEC);
