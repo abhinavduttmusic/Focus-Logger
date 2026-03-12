@@ -85,7 +85,15 @@ export default function Home() {
 
         {/* History Section */}
         <section className="pb-24">
-          <SessionList />
+          <SessionList onRestart={(task, notes) => {
+            if (task) {
+              setSelectedTask({ id: task.id, name: task.name, projectId: task.projectId, projectName: task.projectName } as Task);
+            } else {
+              setSelectedTask(null);
+            }
+            setNotes(notes);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }} />
         </section>
 
       </div>
