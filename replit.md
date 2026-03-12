@@ -43,20 +43,41 @@ React + Vite app served at `/`. Features:
 - **Pomodoro** mode: 25-min focus / 5-min break cycles with auto-progression
 - **Notes section**: always visible, notes attached to each logged session
 - **Session history**: list of all logged sessions with type, duration, notes, timestamp
+- **Voice recording**: record audio clips during active sessions, uploaded to GCS, playable from session history
+- **Task/project system**: hierarchical task management with project grouping
 
-Frontend packages: framer-motion, date-fns, clsx, tailwind-merge
+Frontend packages: framer-motion, date-fns, clsx, tailwind-merge, lucide-react
+
+### Voice Recording Architecture
+- `useVoiceRecorder` hook: MediaRecorder API, captures WebM/Opus blobs in memory during session
+- `VoiceRecorder` component: Record/Stop button, only visible when timer is active
+- On session save: clips uploaded to GCS via presigned URLs, metadata POSTed to `/api/recordings`
+- Session history: recordings displayed as inline audio players with offset timestamp and duration
 
 ## API Endpoints
 
-- `GET /api/sessions` — list all sessions (newest first)
-- `POST /api/sessions` — create session (`{ type, durationSeconds, notes }`)
-- `DELETE /api/sessions/:id` — delete a session
+- `GET /api/sessions` — list all sessions with recordings (newest first, left-join recordings)
+- `POST /api/sessions` — create session (`{ type, durationSeconds, notes, taskId }`)
+- `DELETE /api/sessions/:id` — delete a session (cascades to recordings)
+- `POST /api/recordings` — create recording metadata (`{ sessionId, objectPath, durationSeconds, offsetSeconds }`)
+- `POST /api/storage/uploads/request-url` — request presigned GCS upload URL
+- `GET /api/storage/objects/*` — serve uploaded audio files from GCS
 
 Session types: `simple`, `pomodoro_focus`, `pomodoro_break`
 
+## Object Storage
+
+Replit App Storage (GCS-backed) for audio file persistence. Provisioned via `setupObjectStorage()`.
+- Server files: `artifacts/api-server/src/lib/objectStorage.ts`, `objectAcl.ts`, `routes/storage.ts`
+- Packages: `@google-cloud/storage`, `google-auth-library`
+- Upload flow: client requests presigned URL → uploads directly to GCS → stores objectPath in DB
+
 ## Database Schema
 
-- `sessions` table: `id`, `type`, `duration_seconds`, `notes`, `created_at`
+- `sessions` table: `id`, `type`, `duration_seconds`, `notes`, `task_id`, `created_at`
+- `recordings` table: `id`, `session_id` (FK→sessions CASCADE), `object_path`, `duration_seconds`, `offset_seconds`, `created_at`
+- `tasks` table: `id`, `name`, `project_id`, `created_at`
+- `projects` table: `id`, `name`, `created_at`
 
 ## TypeScript & Composite Projects
 

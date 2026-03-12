@@ -7,11 +7,16 @@
  */
 
 export * from "./createProjectRequest";
+export * from "./createRecordingRequest";
 export * from "./createSessionRequest";
 export * from "./createSessionRequestType";
 export * from "./createTaskRequest";
+export * from "./errorEnvelope";
 export * from "./healthStatus";
 export * from "./project";
+export * from "./recording";
 export * from "./session";
 export * from "./sessionType";
 export * from "./task";
+export * from "./uploadUrlRequest";
+export * from "./uploadUrlResponse";

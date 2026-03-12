@@ -3,8 +3,19 @@ import { useListSessions, useDeleteSession, getListSessionsQueryKey } from "@wor
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { formatShortDuration, cn } from "@/lib/utils";
-import { Trash2, History, Tag, Play, ChevronDown } from "lucide-react";
+import { Trash2, History, Tag, Play, ChevronDown, Mic } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+
+const BASE = import.meta.env.BASE_URL;
+
+type RecordingItem = {
+  id: number;
+  sessionId: number;
+  objectPath: string;
+  durationSeconds: number;
+  offsetSeconds: number;
+  createdAt: string;
+};
 
 type TaskInfo = {
   id: number;
@@ -27,6 +38,7 @@ type SessionItem = {
   projectId: number | null;
   projectName: string | null;
   createdAt: string;
+  recordings: RecordingItem[];
 };
 
 type TaskGroup = {
@@ -239,28 +251,52 @@ export function SessionList({ onRestart }: SessionListProps) {
                         >
                           <div className="ml-4 mr-2 mt-1 mb-2 border-l-2 border-border/30 pl-4 space-y-1">
                             {group.sessions.map(s => (
-                              <div
-                                key={s.id}
-                                className="group/session flex items-center gap-3 py-2 px-3 rounded-xl hover:bg-secondary/30 transition-colors"
-                              >
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm text-foreground/70 truncate">
-                                    {s.notes || <span className="italic text-muted-foreground/40">No notes</span>}
-                                  </p>
-                                  <p className="text-[11px] text-muted-foreground/50">
-                                    {format(new Date(s.createdAt), "h:mm a")}
-                                  </p>
-                                </div>
-                                <span className="text-xs font-medium text-muted-foreground/60 tabular-nums shrink-0">
-                                  {formatShortDuration(s.durationSeconds)}
-                                </span>
-                                <button
-                                  onClick={() => handleDelete(s.id)}
-                                  className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover/session:opacity-100 focus:opacity-100 shrink-0"
-                                  aria-label="Delete session"
+                              <div key={s.id} className="space-y-1">
+                                <div
+                                  className="group/session flex items-center gap-3 py-2 px-3 rounded-xl hover:bg-secondary/30 transition-colors"
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm text-foreground/70 truncate">
+                                      {s.notes || <span className="italic text-muted-foreground/40">No notes</span>}
+                                    </p>
+                                    <p className="text-[11px] text-muted-foreground/50">
+                                      {format(new Date(s.createdAt), "h:mm a")}
+                                    </p>
+                                  </div>
+                                  <span className="text-xs font-medium text-muted-foreground/60 tabular-nums shrink-0">
+                                    {formatShortDuration(s.durationSeconds)}
+                                  </span>
+                                  <button
+                                    onClick={() => handleDelete(s.id)}
+                                    className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover/session:opacity-100 focus:opacity-100 shrink-0"
+                                    aria-label="Delete session"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                                {s.recordings && s.recordings.length > 0 && (
+                                  <div className="ml-3 space-y-1">
+                                    {s.recordings.map(rec => (
+                                      <div
+                                        key={rec.id}
+                                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-card/30 border border-border/15"
+                                      >
+                                        <Mic className="w-3 h-3 text-muted-foreground/40 shrink-0" />
+                                        <span className="text-[11px] text-muted-foreground/50 tabular-nums shrink-0">
+                                          @{Math.floor(rec.offsetSeconds / 60)}:{String(rec.offsetSeconds % 60).padStart(2, "0")}
+                                        </span>
+                                        <audio
+                                          src={`${BASE}api/storage${rec.objectPath}`}
+                                          controls
+                                          className="h-7 flex-1 min-w-0"
+                                        />
+                                        <span className="text-[11px] text-muted-foreground/40 tabular-nums shrink-0">
+                                          {rec.durationSeconds}s
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>

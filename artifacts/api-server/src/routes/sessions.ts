@@ -1,12 +1,12 @@
 import { Router, type IRouter } from "express";
-import { db, sessionsTable, tasksTable, projectsTable } from "@workspace/db";
+import { db, sessionsTable, tasksTable, projectsTable, recordingsTable } from "@workspace/db";
 import { CreateSessionBody, DeleteSessionParams } from "@workspace/api-zod";
 import { desc, eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 
 router.get("/sessions", async (_req, res) => {
-  const sessions = await db
+  const rows = await db
     .select({
       id: sessionsTable.id,
       type: sessionsTable.type,
@@ -17,12 +17,47 @@ router.get("/sessions", async (_req, res) => {
       projectId: tasksTable.projectId,
       projectName: projectsTable.name,
       createdAt: sessionsTable.createdAt,
+      recordingId: recordingsTable.id,
+      recordingObjectPath: recordingsTable.objectPath,
+      recordingDurationSeconds: recordingsTable.durationSeconds,
+      recordingOffsetSeconds: recordingsTable.offsetSeconds,
+      recordingCreatedAt: recordingsTable.createdAt,
     })
     .from(sessionsTable)
     .leftJoin(tasksTable, eq(sessionsTable.taskId, tasksTable.id))
     .leftJoin(projectsTable, eq(tasksTable.projectId, projectsTable.id))
+    .leftJoin(recordingsTable, eq(sessionsTable.id, recordingsTable.sessionId))
     .orderBy(desc(sessionsTable.createdAt));
-  res.json(sessions);
+
+  const sessionMap = new Map<number, any>();
+  for (const row of rows) {
+    if (!sessionMap.has(row.id)) {
+      sessionMap.set(row.id, {
+        id: row.id,
+        type: row.type,
+        durationSeconds: row.durationSeconds,
+        notes: row.notes,
+        taskId: row.taskId,
+        taskName: row.taskName,
+        projectId: row.projectId,
+        projectName: row.projectName,
+        createdAt: row.createdAt,
+        recordings: [],
+      });
+    }
+    if (row.recordingId != null) {
+      sessionMap.get(row.id)!.recordings.push({
+        id: row.recordingId,
+        sessionId: row.id,
+        objectPath: row.recordingObjectPath,
+        durationSeconds: row.recordingDurationSeconds,
+        offsetSeconds: row.recordingOffsetSeconds,
+        createdAt: row.recordingCreatedAt,
+      });
+    }
+  }
+
+  res.json(Array.from(sessionMap.values()));
 });
 
 router.post("/sessions", async (req, res) => {
@@ -57,7 +92,7 @@ router.post("/sessions", async (req, res) => {
     projectName = taskRow?.projectName ?? null;
   }
 
-  res.status(201).json({ ...session, taskName, projectId, projectName });
+  res.status(201).json({ ...session, taskName, projectId, projectName, recordings: [] });
 });
 
 router.delete("/sessions/:id", async (req, res) => {

@@ -15,6 +15,10 @@ tags:
     description: Task operations
   - name: projects
     description: Project operations
+  - name: storage
+    description: Object storage upload and serving endpoints
+  - name: recordings
+    description: Voice recording operations
 paths:
   /healthz:
     get:
@@ -169,6 +173,82 @@ paths:
         "204":
           description: Project deleted
 
+  /storage/uploads/request-url:
+    post:
+      tags: [storage]
+      operationId: requestUploadUrl
+      summary: Request a presigned URL for file upload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadUrlRequest"
+      responses:
+        "200":
+          description: Presigned upload URL generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadUrlResponse"
+        "400":
+          description: Missing or invalid required fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500":
+          description: Failed to generate upload URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /storage/objects/{objectPath}:
+    get:
+      tags: [storage]
+      operationId: getStorageObject
+      summary: Serve an object entity
+      parameters:
+        - name: objectPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Object content streamed
+          content:
+            "*/*":
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Object not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /recordings:
+    post:
+      operationId: createRecording
+      tags: [recordings]
+      summary: Create a recording metadata entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRecordingRequest"
+      responses:
+        "201":
+          description: Recording created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recording"
+
 components:
   schemas:
     HealthStatus:
@@ -206,6 +286,10 @@ components:
         createdAt:
           type: string
           format: date-time
+        recordings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Recording"
       required:
         - id
         - type
@@ -216,6 +300,7 @@ components:
         - projectId
         - projectName
         - createdAt
+        - recordings
 
     CreateSessionRequest:
       type: object
@@ -291,3 +376,81 @@ components:
           type: string
       required:
         - name
+
+    Recording:
+      type: object
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        objectPath:
+          type: string
+        durationSeconds:
+          type: integer
+        offsetSeconds:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - sessionId
+        - objectPath
+        - durationSeconds
+        - offsetSeconds
+        - createdAt
+
+    CreateRecordingRequest:
+      type: object
+      properties:
+        sessionId:
+          type: integer
+        objectPath:
+          type: string
+        durationSeconds:
+          type: integer
+        offsetSeconds:
+          type: integer
+      required:
+        - sessionId
+        - objectPath
+        - durationSeconds
+        - offsetSeconds
+
+    UploadUrlRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        size:
+          type: integer
+          minimum: 1
+        contentType:
+          type: string
+          minLength: 1
+      required:
+        - name
+        - size
+        - contentType
+
+    UploadUrlResponse:
+      type: object
+      properties:
+        uploadURL:
+          type: string
+          format: uri
+        objectPath:
+          type: string
+      required:
+        - uploadURL
+        - objectPath
+
+    ErrorEnvelope:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error

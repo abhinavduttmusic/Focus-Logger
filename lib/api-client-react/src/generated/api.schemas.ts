@@ -17,6 +17,15 @@ export const SessionType = {
   pomodoro_break: "pomodoro_break",
 } as const;
 
+export interface Recording {
+  id: number;
+  sessionId: number;
+  objectPath: string;
+  durationSeconds: number;
+  offsetSeconds: number;
+  createdAt: string;
+}
+
 export interface Session {
   id: number;
   type: SessionType;
@@ -27,6 +36,7 @@ export interface Session {
   projectId: number | null;
   projectName: string | null;
   createdAt: string;
+  recordings: Recording[];
 }
 
 export type CreateSessionRequestType =
@@ -66,4 +76,29 @@ export interface Project {
 
 export interface CreateProjectRequest {
   name: string;
+}
+
+export interface CreateRecordingRequest {
+  sessionId: number;
+  objectPath: string;
+  durationSeconds: number;
+  offsetSeconds: number;
+}
+
+export interface UploadUrlRequest {
+  /** @minLength 1 */
+  name: string;
+  /** @minimum 1 */
+  size: number;
+  /** @minLength 1 */
+  contentType: string;
+}
+
+export interface UploadUrlResponse {
+  uploadURL: string;
+  objectPath: string;
+}
+
+export interface ErrorEnvelope {
+  error: string;
 }

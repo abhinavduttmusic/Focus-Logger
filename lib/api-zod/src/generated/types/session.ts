@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { Recording } from "./recording";
 import type { SessionType } from "./sessionType";
 
 export interface Session {
@@ -17,4 +18,5 @@ export interface Session {
   projectId: number | null;
   projectName: string | null;
   createdAt: Date;
+  recordings: Recording[];
 }

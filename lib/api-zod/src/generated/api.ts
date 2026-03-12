@@ -27,6 +27,16 @@ export const ListSessionsResponseItem = zod.object({
   projectId: zod.number().nullable(),
   projectName: zod.string().nullable(),
   createdAt: zod.date(),
+  recordings: zod.array(
+    zod.object({
+      id: zod.number(),
+      sessionId: zod.number(),
+      objectPath: zod.string(),
+      durationSeconds: zod.number(),
+      offsetSeconds: zod.number(),
+      createdAt: zod.date(),
+    }),
+  ),
 });
 export const ListSessionsResponse = zod.array(ListSessionsResponseItem);
 
@@ -96,4 +106,36 @@ export const CreateProjectBody = zod.object({
  */
 export const DeleteProjectParams = zod.object({
   id: zod.coerce.number(),
+});
+
+/**
+ * @summary Request a presigned URL for file upload
+ */
+
+export const RequestUploadUrlBody = zod.object({
+  name: zod.string().min(1),
+  size: zod.number().min(1),
+  contentType: zod.string().min(1),
+});
+
+export const RequestUploadUrlResponse = zod.object({
+  uploadURL: zod.string().url(),
+  objectPath: zod.string(),
+});
+
+/**
+ * @summary Serve an object entity
+ */
+export const GetStorageObjectParams = zod.object({
+  objectPath: zod.coerce.string(),
+});
+
+/**
+ * @summary Create a recording metadata entry
+ */
+export const CreateRecordingBody = zod.object({
+  sessionId: zod.number(),
+  objectPath: zod.string(),
+  durationSeconds: zod.number(),
+  offsetSeconds: zod.number(),
 });
