@@ -325,6 +325,14 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
 
     return (
       <div className="space-y-3">
+        {withProject.length > 0 && independent.length > 0 && (
+          <div className="flex items-center gap-2 px-2.5 py-1">
+            <FolderPlus className="w-3 h-3 text-muted-foreground/40" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">
+              Projects
+            </span>
+          </div>
+        )}
         {withProject.map(({ project, tasks: projectTasks }) => (
           <div key={project.id}>
             <div className="flex items-center gap-2 px-2.5 py-1.5">
