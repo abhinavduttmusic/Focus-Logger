@@ -167,7 +167,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
         <button
           ref={triggerRef}
           onClick={() => { if (isOpen) { resetAndClose(); } else { updatePanelPosition(); setIsOpen(true); } }}
-          className="flex items-center gap-2 px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/50 active:bg-secondary/70 active:scale-95 rounded-full transition-all duration-75 text-sm font-medium border border-transparent hover:border-border/50 touch-manipulation"
+          className="flex items-center gap-2 px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/50 active:bg-secondary/70 active:scale-95 rounded-full transition-transform duration-75 text-sm font-medium border border-transparent hover:border-border/50 touch-manipulation"
         >
           <Tag className="w-3.5 h-3.5" />
           <span>Select Task</span>
