@@ -276,6 +276,12 @@ export function SessionList({ onRestart }: SessionListProps) {
                                 </div>
                                 {s.recordings && s.recordings.length > 0 && (
                                   <div className="ml-3 space-y-1">
+                                    <div className="flex items-center gap-1.5 px-3 pt-1">
+                                      <Mic className="w-3 h-3 text-muted-foreground/40" />
+                                      <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/40">
+                                        Recordings
+                                      </span>
+                                    </div>
                                     {s.recordings.map(rec => (
                                       <div
                                         key={rec.id}
