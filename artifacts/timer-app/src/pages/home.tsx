@@ -106,6 +106,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
         queryClient.invalidateQueries({ queryKey: getListSessionsQueryKey() });
         setNotes("");
         setSelectedTask(null);
+        recorderRef.current.clearClips();
 
         if (clipsToUpload.length > 0) {
           try {
@@ -115,8 +116,6 @@ function Home({ restored }: { restored: RestoredSession | null }) {
             console.error("Failed to upload recordings:", err);
           }
         }
-
-        recorderRef.current.clearClips();
       },
       onError: (err) => {
         console.error("Failed to create session:", err);
