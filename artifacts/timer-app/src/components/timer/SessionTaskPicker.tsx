@@ -62,8 +62,22 @@ export function SessionTaskPicker({ currentTaskId, currentTaskName, onSelect }: 
   });
 
   useLayoutEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      setPanelPos(OFF_SCREEN);
+      return;
+    }
     setPanelPos(computeDropdownPos(triggerRef.current));
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const reposition = () => setPanelPos(computeDropdownPos(triggerRef.current));
+    window.addEventListener("resize", reposition);
+    window.addEventListener("scroll", reposition, true);
+    return () => {
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition, true);
+    };
   }, [isOpen]);
 
   useEffect(() => {
