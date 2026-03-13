@@ -125,6 +125,20 @@ export function useTimer({ onLogSession, initialState }: UseTimerProps) {
     }
   }, [mode]);
 
+  const restartAs = useCallback((targetMode: TimerMode) => {
+    setMode(targetMode);
+    startTimestampRef.current = Date.now();
+    elapsedAtPauseRef.current = 0;
+    if (targetMode === "simple") {
+      setSeconds(0);
+      setPhase("focus");
+    } else {
+      setPhase("focus");
+      setSeconds(POMODORO_FOCUS_SEC);
+    }
+    setIsActive(true);
+  }, []);
+
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null;
 
@@ -181,5 +195,6 @@ export function useTimer({ onLogSession, initialState }: UseTimerProps) {
     pause,
     stop,
     reset,
+    restartAs,
   };
 }

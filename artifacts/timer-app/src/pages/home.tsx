@@ -248,9 +248,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
       setNotes(sessionNotes);
 
       const targetMode: TimerMode = sessionType === "simple" ? "simple" : "pomodoro";
-      if (timer.mode !== targetMode) {
-        timer.setMode(targetMode);
-      }
+      timer.restartAs(targetMode);
 
       window.scrollTo({ top: 0, behavior: "smooth" });
     },

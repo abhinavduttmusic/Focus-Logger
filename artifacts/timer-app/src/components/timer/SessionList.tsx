@@ -326,10 +326,8 @@ export function SessionList({ onRestart }: SessionListProps) {
   };
 
   const handleUpdate = (id: number, durationSeconds: number, createdAt: string | null) => {
-    const data: Record<string, unknown> = { durationSeconds };
-    if (createdAt) data.createdAt = createdAt;
     updateSession.mutate(
-      { id, data: data as any },
+      { id, data: createdAt ? { durationSeconds, createdAt } : { durationSeconds } },
       {
         onSuccess: () => {
           setEditingId(null);
