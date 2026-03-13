@@ -341,7 +341,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
             setRenamingTaskId(task.id);
             setRenameValue(task.name);
           }}
-          className="p-1.5 rounded-lg text-muted-foreground/30 hover:text-foreground/70 hover:bg-secondary/60 transition-colors opacity-0 group-hover/task:opacity-100 focus:opacity-100 shrink-0"
+          className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-muted-foreground/60 hover:text-foreground/70 hover:bg-secondary/60 transition-colors shrink-0"
           aria-label="Rename task"
         >
           <Pencil className="w-3.5 h-3.5" />
@@ -353,7 +353,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
             setRenameValue("");
             setConfirmDeleteId(task.id);
           }}
-          className="p-1.5 mr-1.5 rounded-lg text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover/task:opacity-100 focus:opacity-100 shrink-0"
+          className="p-2.5 mr-1 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
           aria-label="Delete task"
         >
           <Trash2 className="w-3.5 h-3.5" />
