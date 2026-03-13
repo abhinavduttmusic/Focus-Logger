@@ -18,6 +18,8 @@ import { TimerDisplay } from "@/components/timer/TimerDisplay";
 import { NotesArea } from "@/components/timer/NotesArea";
 import { SessionList } from "@/components/timer/SessionList";
 import { VoiceRecorder } from "@/components/timer/VoiceRecorder";
+import { BottomNav, type Tab } from "@/components/nav/BottomNav";
+import { CalendarView } from "@/components/calendar/CalendarView";
 
 const BASE = import.meta.env.BASE_URL;
 
@@ -67,6 +69,7 @@ export default function HomeLoader() {
 }
 
 function Home({ restored }: { restored: RestoredSession | null }) {
+  const [activeTab, setActiveTab] = useState<Tab>("timer");
   const [notes, setNotes] = useState(restored?.notes ?? "");
   const [selectedTask, setSelectedTask] = useState<Task | null>(
     restored?.selectedTask
@@ -257,117 +260,135 @@ function Home({ restored }: { restored: RestoredSession | null }) {
 
       timer.restartAs("simple");
 
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      setActiveTab("timer");
     },
     [timer],
   );
 
   return (
-    <main className="min-h-screen w-full py-12 px-4 sm:px-6 lg:px-8 flex flex-col items-center">
-      <div className="w-full max-w-2xl space-y-12">
-        <header className="text-center space-y-8">
-          <h1 className="text-2xl font-extrabold tracking-tight bg-gradient-to-br from-foreground to-foreground/60 bg-clip-text text-transparent">
-            Flow State
-          </h1>
-          <TimerToggle mode={timer.mode} onChange={timer.setMode} />
-        </header>
+    <div className="h-[100dvh] flex flex-col overflow-hidden bg-background">
+      <div className="flex-1 min-h-0 relative">
+        <div className={activeTab === "timer" ? "absolute inset-0 overflow-y-auto" : "hidden"}>
+          <main className="w-full py-8 px-4 sm:px-6 flex flex-col items-center pb-6">
+            <div className="w-full max-w-md space-y-8">
+              <header className="text-center space-y-6">
+                <h1 className="text-2xl font-extrabold tracking-tight bg-gradient-to-br from-foreground to-foreground/60 bg-clip-text text-transparent">
+                  Flow State
+                </h1>
+                <TimerToggle mode={timer.mode} onChange={timer.setMode} />
+              </header>
 
-        <section className="relative">
-          <div className="absolute inset-0 -z-10 flex items-center justify-center opacity-40 blur-[100px] pointer-events-none">
-            <div
-              className={`w-64 h-64 rounded-full transition-colors duration-1000 ${
-                timer.mode === "simple"
-                  ? "bg-primary/20"
-                  : timer.phase === "focus"
-                    ? "bg-focus/20"
-                    : "bg-break/20"
-              }`}
-            />
-          </div>
-
-          <TimerDisplay
-            mode={timer.mode}
-            phase={timer.phase}
-            seconds={timer.seconds}
-            isActive={timer.isActive}
-            onStart={timer.start}
-            onPause={timer.pause}
-            onStop={timer.stop}
-          />
-
-          {sessionIsInProgress && (
-            <div className="flex justify-center mt-4">
-              {!showAbortConfirm ? (
-                <button
-                  onClick={() => setShowAbortConfirm(true)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
-                >
-                  <XCircle className="w-3.5 h-3.5" />
-                  Abort Session
-                </button>
-              ) : showAbortConfirm2 ? (
-                <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-destructive/5 border border-destructive/20">
-                  <span className="text-xs text-foreground/80">End session already? Progress won't be saved if you stop now.</span>
-                  <button
-                    onClick={handleAbort}
-                    className="px-2.5 py-1 rounded-md bg-destructive/90 text-destructive-foreground text-[11px] font-medium hover:bg-destructive transition-colors"
-                  >
-                    Yes, abort it
-                  </button>
-                  <button
-                    onClick={() => { setShowAbortConfirm(false); setShowAbortConfirm2(false); }}
-                    className="px-2.5 py-1 rounded-md bg-secondary/60 text-foreground/70 text-[11px] font-medium hover:bg-secondary transition-colors"
-                  >
-                    Keep going
-                  </button>
+              <section className="relative">
+                <div className="absolute inset-0 -z-10 flex items-center justify-center opacity-40 blur-[100px] pointer-events-none">
+                  <div
+                    className={`w-64 h-64 rounded-full transition-colors duration-1000 ${
+                      timer.mode === "simple"
+                        ? "bg-primary/20"
+                        : timer.phase === "focus"
+                          ? "bg-focus/20"
+                          : "bg-break/20"
+                    }`}
+                  />
                 </div>
-              ) : (
-                <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-destructive/5 border border-destructive/20">
-                  <span className="text-xs text-foreground/80">Abort this session? This session will not be saved.</span>
-                  <button
-                    onClick={() => setShowAbortConfirm2(true)}
-                    className="px-2.5 py-1 rounded-md bg-destructive/90 text-destructive-foreground text-[11px] font-medium hover:bg-destructive transition-colors"
-                  >
-                    Abort
-                  </button>
-                  <button
-                    onClick={() => setShowAbortConfirm(false)}
-                    className="px-2.5 py-1 rounded-md bg-secondary/60 text-foreground/70 text-[11px] font-medium hover:bg-secondary transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              )}
+
+                <TimerDisplay
+                  mode={timer.mode}
+                  phase={timer.phase}
+                  seconds={timer.seconds}
+                  isActive={timer.isActive}
+                  onStart={timer.start}
+                  onPause={timer.pause}
+                  onStop={timer.stop}
+                />
+
+                {sessionIsInProgress && (
+                  <div className="flex justify-center mt-4">
+                    {!showAbortConfirm ? (
+                      <button
+                        onClick={() => setShowAbortConfirm(true)}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      >
+                        <XCircle className="w-3.5 h-3.5" />
+                        Abort Session
+                      </button>
+                    ) : showAbortConfirm2 ? (
+                      <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-destructive/5 border border-destructive/20">
+                        <span className="text-xs text-foreground/80">End session already? Progress won't be saved if you stop now.</span>
+                        <button
+                          onClick={handleAbort}
+                          className="px-2.5 py-1 rounded-md bg-destructive/90 text-destructive-foreground text-[11px] font-medium hover:bg-destructive transition-colors"
+                        >
+                          Yes, abort it
+                        </button>
+                        <button
+                          onClick={() => { setShowAbortConfirm(false); setShowAbortConfirm2(false); }}
+                          className="px-2.5 py-1 rounded-md bg-secondary/60 text-foreground/70 text-[11px] font-medium hover:bg-secondary transition-colors"
+                        >
+                          Keep going
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-destructive/5 border border-destructive/20">
+                        <span className="text-xs text-foreground/80">Abort this session? This session will not be saved.</span>
+                        <button
+                          onClick={() => setShowAbortConfirm2(true)}
+                          className="px-2.5 py-1 rounded-md bg-destructive/90 text-destructive-foreground text-[11px] font-medium hover:bg-destructive transition-colors"
+                        >
+                          Abort
+                        </button>
+                        <button
+                          onClick={() => setShowAbortConfirm(false)}
+                          className="px-2.5 py-1 rounded-md bg-secondary/60 text-foreground/70 text-[11px] font-medium hover:bg-secondary transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
+
+              <section className="space-y-4">
+                <VoiceRecorder
+                  isActive={
+                    timer.isActive &&
+                    (timer.mode === "simple" || timer.phase === "focus")
+                  }
+                  isRecording={recorder.isRecording}
+                  clips={recorder.clips}
+                  onStartRecording={handleStartRecording}
+                  onStopRecording={recorder.stopRecording}
+                  onRenameClip={recorder.renameClip}
+                />
+                <NotesArea
+                  value={notes}
+                  onChange={setNotes}
+                  selectedTask={selectedTask}
+                  onSelectTask={setSelectedTask}
+                />
+              </section>
             </div>
-          )}
-        </section>
+          </main>
+        </div>
 
-        <section className="space-y-4">
-          <VoiceRecorder
-            isActive={
-              timer.isActive &&
-              (timer.mode === "simple" || timer.phase === "focus")
-            }
-            isRecording={recorder.isRecording}
-            clips={recorder.clips}
-            onStartRecording={handleStartRecording}
-            onStopRecording={recorder.stopRecording}
-            onRenameClip={recorder.renameClip}
-          />
-          <NotesArea
-            value={notes}
-            onChange={setNotes}
-            selectedTask={selectedTask}
-            onSelectTask={setSelectedTask}
-          />
-        </section>
+        <div className={activeTab === "logs" ? "absolute inset-0 overflow-y-auto" : "hidden"}>
+          <div className="w-full py-4 px-4 sm:px-6">
+            <div className="w-full max-w-2xl mx-auto pb-4">
+              <SessionList onRestart={handleRestart} />
+            </div>
+          </div>
+        </div>
 
-        <div className="h-px w-full bg-gradient-to-r from-transparent via-border/60 to-transparent my-16" />
-
-        <section className="pb-24">
-          <SessionList onRestart={handleRestart} />
-        </section>
+        <div className={activeTab === "calendar" ? "absolute inset-0 overflow-hidden" : "hidden"}>
+          <CalendarView />
+        </div>
       </div>
-    </main>
+
+      <BottomNav
+        activeTab={activeTab}
+        onChange={setActiveTab}
+        sessionIsInProgress={sessionIsInProgress}
+      />
+    </div>
   );
 }
