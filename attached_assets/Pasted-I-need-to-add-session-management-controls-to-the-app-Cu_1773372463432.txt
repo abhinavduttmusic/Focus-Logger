@@ -1,0 +1,85 @@
+I need to add **session management controls** to the app. Currently, once a session starts or is logged, I cannot restart it, abort it, delete it, or edit the time spent on the session.
+
+Please implement the following features.
+
+1. **Restart a session**
+
+In the session logs, each task/session entry should include a **Restart (▶) button**.
+
+When pressed:
+
+• A new timer session should start immediately
+• The same task and project should automatically be assigned
+• The session type (Pomodoro or Stopwatch) should match the original session.
+
+This allows users to quickly repeat the same activity.
+
+2. **Abort an active session**
+
+During an active session, add an **Abort Session** option.
+
+Behavior:
+
+• Aborting a session should immediately stop the timer
+• The session should NOT be saved in the logs
+• Any temporary session data should be cleared.
+
+Prompt the user with a confirmation message:
+
+“Abort this session? This session will not be saved.”
+
+3. **Delete a logged session**
+
+Users should be able to delete sessions that already appear in the logs.
+
+Add a **delete icon (🗑)** on each session entry.
+
+When pressed:
+
+• Ask for confirmation (“Delete this session?”)
+• If confirmed, remove the session from the logs
+• Update the daily total time accordingly.
+
+4. **Edit the time spent on a session**
+
+Users should be able to manually edit the duration of a logged session.
+
+Add an **Edit option** for each session.
+
+Editing should allow:
+
+• Changing the duration (minutes and seconds)
+• Adjusting the start time if needed.
+
+When a session duration is edited:
+
+• The daily total should automatically update
+• The change should not break recordings associated with that session.
+
+5. **Maintain recording attachments**
+
+If a session contains voice recordings, those recordings must remain attached to the session even if the duration is edited.
+
+Deleting the session should also remove its recordings.
+
+6. **UI placement**
+
+For each session entry in the logs, provide controls such as:
+
+▶ Restart
+✏ Edit
+🗑 Delete
+
+These should be visible when the user taps or expands a session entry.
+
+7. **Do not break existing functionality**
+
+Ensure the following continue working:
+
+• Pomodoro sessions
+• Stopwatch sessions
+• Voice recordings
+• Task and project assignment
+• Toggl-style daily log grouping.
+
+These controls should only enhance session management without disrupting the current logging system.
