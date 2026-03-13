@@ -1,5 +1,6 @@
 import { useState, useRef, useMemo } from "react";
 import { useListSessions, useDeleteSession, useUpdateSession, getListSessionsQueryKey, getListTasksQueryKey } from "@workspace/api-client-react";
+import type { UpdateSessionRequest } from "@workspace/api-client-react/src/generated/api.schemas";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { formatShortDuration, cn } from "@/lib/utils";
@@ -342,19 +343,17 @@ export function SessionList({ onRestart }: SessionListProps) {
   };
 
   const handleUpdate = (id: number, durationSeconds: number, createdAt: string | null, taskId: number | null | undefined) => {
-    const data: Record<string, unknown> = { durationSeconds };
+    const data: UpdateSessionRequest = { durationSeconds };
     if (createdAt) data.createdAt = createdAt;
     if (taskId !== undefined) data.taskId = taskId;
 
     updateSession.mutate(
-      { id, data: data as any },
+      { id, data },
       {
         onSuccess: () => {
           setEditingId(null);
           queryClient.invalidateQueries({ queryKey: getListSessionsQueryKey() });
-          if (taskId !== undefined) {
-            queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
-          }
+          queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
         },
       }
     );
