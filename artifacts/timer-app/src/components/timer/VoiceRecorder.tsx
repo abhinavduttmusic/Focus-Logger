@@ -10,7 +10,8 @@ function formatOffset(seconds: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-function fmtTime(sec: number): string {
+function fmtTime(sec: number | null | undefined): string {
+  if (sec == null || !isFinite(sec) || isNaN(sec)) return "--:--";
   const m = Math.floor(sec / 60);
   const s = Math.floor(sec % 60);
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
@@ -20,7 +21,7 @@ function ClipPlayer({ clip }: { clip: AudioClip }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(clip.durationSeconds);
+  const [duration, setDuration] = useState<number | null>(null);
   const idRef = useRef(crypto.randomUUID());
 
   useEffect(() => {
@@ -64,7 +65,11 @@ function ClipPlayer({ clip }: { clip: AudioClip }) {
         src={clip.url}
         onEnded={() => { setPlaying(false); setCurrentTime(0); }}
         onTimeUpdate={() => audioRef.current && setCurrentTime(audioRef.current.currentTime)}
-        onLoadedMetadata={() => audioRef.current && setDuration(audioRef.current.duration)}
+        onLoadedMetadata={() => {
+          if (audioRef.current && isFinite(audioRef.current.duration)) {
+            setDuration(audioRef.current.duration);
+          }
+        }}
         className="hidden"
       />
       <button
@@ -84,7 +89,7 @@ function ClipPlayer({ clip }: { clip: AudioClip }) {
       <input
         type="range"
         min={0}
-        max={duration || 1}
+        max={duration ?? 1}
         step={0.1}
         value={currentTime}
         onChange={handleSeek}

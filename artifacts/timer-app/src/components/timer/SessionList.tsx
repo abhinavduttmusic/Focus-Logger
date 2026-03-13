@@ -118,7 +118,8 @@ function formatOffset(seconds: number): string {
 
 const AUDIO_PLAY_EVENT = "flowstate-audio-play";
 
-function fmtTime(sec: number): string {
+function fmtTime(sec: number | null | undefined): string {
+  if (sec == null || !isFinite(sec) || isNaN(sec)) return "--:--";
   const m = Math.floor(sec / 60);
   const s = Math.floor(sec % 60);
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
@@ -128,7 +129,7 @@ function PlayableRecording({ rec, indexInSession }: { rec: RecordingItem; indexI
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(rec.durationSeconds);
+  const [duration, setDuration] = useState<number | null>(null);
   const idRef = useRef(crypto.randomUUID());
 
   useEffect(() => {
@@ -172,7 +173,11 @@ function PlayableRecording({ rec, indexInSession }: { rec: RecordingItem; indexI
         src={`${BASE}api/storage${rec.objectPath}`}
         onEnded={() => { setPlaying(false); setCurrentTime(0); }}
         onTimeUpdate={() => audioRef.current && setCurrentTime(audioRef.current.currentTime)}
-        onLoadedMetadata={() => audioRef.current && setDuration(audioRef.current.duration)}
+        onLoadedMetadata={() => {
+          if (audioRef.current && isFinite(audioRef.current.duration)) {
+            setDuration(audioRef.current.duration);
+          }
+        }}
         className="hidden"
       />
       <div className="flex items-center gap-2">
@@ -202,7 +207,7 @@ function PlayableRecording({ rec, indexInSession }: { rec: RecordingItem; indexI
         <input
           type="range"
           min={0}
-          max={duration || 1}
+          max={duration ?? 1}
           step={0.1}
           value={currentTime}
           onChange={handleSeek}
