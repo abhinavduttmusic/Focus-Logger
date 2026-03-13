@@ -336,6 +336,8 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
         <button
           onClick={(e) => {
             e.stopPropagation();
+            setConfirmDeleteId(null);
+            setConfirmDeleteProjectId(null);
             setRenamingTaskId(task.id);
             setRenameValue(task.name);
           }}
@@ -347,6 +349,8 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
         <button
           onClick={(e) => {
             e.stopPropagation();
+            setRenamingTaskId(null);
+            setRenameValue("");
             setConfirmDeleteId(task.id);
           }}
           className="p-1.5 mr-1.5 rounded-lg text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover/task:opacity-100 focus:opacity-100 shrink-0"
