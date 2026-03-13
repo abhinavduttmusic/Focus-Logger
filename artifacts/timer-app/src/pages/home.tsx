@@ -216,6 +216,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   }, [recorder, timer.mode, timer.seconds]);
 
   const [showAbortConfirm, setShowAbortConfirm] = useState(false);
+  const [showAbortConfirm2, setShowAbortConfirm2] = useState(false);
 
   const handleAbort = useCallback(() => {
     timer.reset();
@@ -227,10 +228,18 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     setSelectedTask(null);
     clearSession();
     setShowAbortConfirm(false);
+    setShowAbortConfirm2(false);
   }, [timer]);
 
   const sessionIsInProgress =
     timer.isActive || timer.elapsedAtPause > 0 || (timer.mode === "simple" && timer.seconds > 0);
+
+  useEffect(() => {
+    if (!sessionIsInProgress) {
+      setShowAbortConfirm(false);
+      setShowAbortConfirm2(false);
+    }
+  }, [sessionIsInProgress]);
 
   const handleRestart = useCallback(
     (task: { id: number; name: string; projectId: number | null; projectName: string | null } | null, sessionNotes: string) => {
@@ -296,11 +305,27 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                   <XCircle className="w-3.5 h-3.5" />
                   Abort Session
                 </button>
+              ) : showAbortConfirm2 ? (
+                <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-destructive/5 border border-destructive/20">
+                  <span className="text-xs text-foreground/80">End session already? Progress won't be saved if you stop now.</span>
+                  <button
+                    onClick={handleAbort}
+                    className="px-2.5 py-1 rounded-md bg-destructive/90 text-destructive-foreground text-[11px] font-medium hover:bg-destructive transition-colors"
+                  >
+                    Yes, abort it
+                  </button>
+                  <button
+                    onClick={() => { setShowAbortConfirm(false); setShowAbortConfirm2(false); }}
+                    className="px-2.5 py-1 rounded-md bg-secondary/60 text-foreground/70 text-[11px] font-medium hover:bg-secondary transition-colors"
+                  >
+                    Keep going
+                  </button>
+                </div>
               ) : (
                 <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-destructive/5 border border-destructive/20">
                   <span className="text-xs text-foreground/80">Abort this session? This session will not be saved.</span>
                   <button
-                    onClick={handleAbort}
+                    onClick={() => setShowAbortConfirm2(true)}
                     className="px-2.5 py-1 rounded-md bg-destructive/90 text-destructive-foreground text-[11px] font-medium hover:bg-destructive transition-colors"
                   >
                     Abort

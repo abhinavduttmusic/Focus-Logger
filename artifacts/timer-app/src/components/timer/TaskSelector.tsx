@@ -53,7 +53,9 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
   const [standaloneProjectName, setStandaloneProjectName] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [confirmDeleteId2, setConfirmDeleteId2] = useState<number | null>(null);
   const [confirmDeleteProjectId, setConfirmDeleteProjectId] = useState<number | null>(null);
+  const [confirmDeleteProjectId2, setConfirmDeleteProjectId2] = useState<number | null>(null);
   const [renamingTaskId, setRenamingTaskId] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState("");
 
@@ -104,6 +106,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
         queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
         if (selectedTask?.id === vars.id) onSelectTask(null);
         setConfirmDeleteId(null);
+        setConfirmDeleteId2(null);
       }
     }
   });
@@ -128,6 +131,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
         queryClient.invalidateQueries({ queryKey: getListProjectsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
         setConfirmDeleteProjectId(null);
+        setConfirmDeleteProjectId2(null);
       }
     }
   });
@@ -179,7 +183,9 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
     setStandaloneProjectName("");
     setSearchQuery("");
     setConfirmDeleteId(null);
+    setConfirmDeleteId2(null);
     setConfirmDeleteProjectId(null);
+    setConfirmDeleteProjectId2(null);
     setRenamingTaskId(null);
     setRenameValue("");
     setPanelPos(OFF_SCREEN);
@@ -247,15 +253,17 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
     const isConfirming = confirmDeleteId === task.id;
     const isRenaming = renamingTaskId === task.id;
 
-    if (isConfirming) {
+    const isSecondConfirm = confirmDeleteId2 === task.id;
+
+    if (isSecondConfirm) {
       return (
         <div
           key={task.id}
           className="flex items-center gap-2 p-2.5 rounded-xl bg-destructive/5 border border-destructive/20"
         >
-          <span className="flex-1 text-sm font-medium text-destructive truncate">Delete &ldquo;{task.name}&rdquo;?</span>
+          <span className="flex-1 text-sm font-medium text-destructive truncate">Last chance &mdash; delete &ldquo;{task.name}&rdquo; forever?</span>
           <button
-            onClick={() => setConfirmDeleteId(null)}
+            onClick={() => { setConfirmDeleteId(null); setConfirmDeleteId2(null); }}
             className="px-2.5 py-1 rounded-lg text-xs font-medium text-muted-foreground hover:bg-secondary/60 transition-colors"
           >
             Cancel
@@ -265,7 +273,31 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
             disabled={deleteTask.isPending}
             className="px-2.5 py-1 rounded-lg text-xs font-medium bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 transition-colors"
           >
-            {deleteTask.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "Delete"}
+            {deleteTask.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "Yes, delete it"}
+          </button>
+        </div>
+      );
+    }
+
+    if (isConfirming) {
+      return (
+        <div
+          key={task.id}
+          className="flex items-center gap-2 p-2.5 rounded-xl bg-destructive/5 border border-destructive/20"
+        >
+          <span className="flex-1 text-sm font-medium text-destructive truncate">Delete &ldquo;{task.name}&rdquo;?</span>
+          <button
+            onClick={() => { setConfirmDeleteId(null); setConfirmDeleteId2(null); }}
+            className="px-2.5 py-1 rounded-lg text-xs font-medium text-muted-foreground hover:bg-secondary/60 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => setConfirmDeleteId2(task.id)}
+            disabled={deleteTask.isPending}
+            className="px-2.5 py-1 rounded-lg text-xs font-medium bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 transition-colors"
+          >
+            Delete
           </button>
         </div>
       );
@@ -337,7 +369,9 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
           onClick={(e) => {
             e.stopPropagation();
             setConfirmDeleteId(null);
+            setConfirmDeleteId2(null);
             setConfirmDeleteProjectId(null);
+            setConfirmDeleteProjectId2(null);
             setRenamingTaskId(task.id);
             setRenameValue(task.name);
           }}
@@ -351,7 +385,10 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
             e.stopPropagation();
             setRenamingTaskId(null);
             setRenameValue("");
+            setConfirmDeleteProjectId(null);
+            setConfirmDeleteProjectId2(null);
             setConfirmDeleteId(task.id);
+            setConfirmDeleteId2(null);
           }}
           className="p-2.5 mr-1 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
           aria-label="Delete task"
@@ -427,17 +464,34 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
         )}
         {withProject.map(({ project, tasks: projectTasks }) => (
           <div key={project.id}>
-            {confirmDeleteProjectId === project.id ? (
+            {confirmDeleteProjectId2 === project.id ? (
               <div className="flex items-center gap-2 p-2.5 rounded-xl bg-destructive/5 border border-destructive/20">
-                <span className="flex-1 text-sm font-medium text-destructive truncate">Delete &ldquo;{project.name}&rdquo;?</span>
+                <span className="flex-1 text-sm font-medium text-destructive truncate">Last chance &mdash; delete &ldquo;{project.name}&rdquo; forever?</span>
                 <button
-                  onClick={() => setConfirmDeleteProjectId(null)}
+                  onClick={() => { setConfirmDeleteProjectId(null); setConfirmDeleteProjectId2(null); }}
                   className="px-2.5 py-1 rounded-lg text-xs font-medium text-muted-foreground hover:bg-secondary/60 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={() => deleteProject.mutate({ id: project.id })}
+                  disabled={deleteProject.isPending}
+                  className="px-2.5 py-1 rounded-lg text-xs font-medium bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 transition-colors"
+                >
+                  {deleteProject.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "Yes, delete it"}
+                </button>
+              </div>
+            ) : confirmDeleteProjectId === project.id ? (
+              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-destructive/5 border border-destructive/20">
+                <span className="flex-1 text-sm font-medium text-destructive truncate">Delete &ldquo;{project.name}&rdquo;?</span>
+                <button
+                  onClick={() => { setConfirmDeleteProjectId(null); setConfirmDeleteProjectId2(null); }}
+                  className="px-2.5 py-1 rounded-lg text-xs font-medium text-muted-foreground hover:bg-secondary/60 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => setConfirmDeleteProjectId2(project.id)}
                   disabled={deleteProject.isPending}
                   className="px-2.5 py-1 rounded-lg text-xs font-medium bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 transition-colors"
                 >
@@ -453,7 +507,12 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
+                    setConfirmDeleteId(null);
+                    setConfirmDeleteId2(null);
                     setConfirmDeleteProjectId(project.id);
+                    setConfirmDeleteProjectId2(null);
+                    setRenamingTaskId(null);
+                    setRenameValue("");
                   }}
                   className="p-1 rounded-lg text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover/project:opacity-100 focus:opacity-100 shrink-0"
                   aria-label="Delete project"
@@ -462,7 +521,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
                 </button>
               </div>
             )}
-            {confirmDeleteProjectId !== project.id && (
+            {confirmDeleteProjectId !== project.id && confirmDeleteProjectId2 !== project.id && (
               projectTasks.length > 0 ? (
                 <div className="space-y-0.5 ml-1">
                   {projectTasks.map(task => renderTaskRow(task))}
@@ -522,7 +581,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
                     type="text"
                     placeholder="Search tasks..."
                     value={searchQuery}
-                    onChange={(e) => { setSearchQuery(e.target.value); setConfirmDeleteId(null); }}
+                    onChange={(e) => { setSearchQuery(e.target.value); setConfirmDeleteId(null); setConfirmDeleteId2(null); setConfirmDeleteProjectId(null); setConfirmDeleteProjectId2(null); setRenamingTaskId(null); setRenameValue(""); }}
                     className="w-full bg-secondary/30 border border-border/50 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50"
                   />
                 </div>

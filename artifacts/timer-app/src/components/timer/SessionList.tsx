@@ -334,10 +334,14 @@ function ConfirmBanner({
   message,
   onConfirm,
   onCancel,
+  confirmLabel = "Delete",
+  cancelLabel = "Cancel",
 }: {
   message: string;
   onConfirm: () => void;
   onCancel: () => void;
+  confirmLabel?: string;
+  cancelLabel?: string;
 }) {
   return (
     <motion.div
@@ -353,13 +357,13 @@ function ConfirmBanner({
           onClick={onConfirm}
           className="px-2 py-1 rounded-md bg-destructive/90 text-destructive-foreground text-[11px] font-medium hover:bg-destructive transition-colors"
         >
-          Delete
+          {confirmLabel}
         </button>
         <button
           onClick={onCancel}
           className="px-2 py-1 rounded-md bg-secondary/60 text-foreground/70 text-[11px] font-medium hover:bg-secondary transition-colors"
         >
-          Cancel
+          {cancelLabel}
         </button>
       </div>
     </motion.div>
@@ -373,6 +377,7 @@ export function SessionList({ onRestart }: SessionListProps) {
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [confirmDeleteId2, setConfirmDeleteId2] = useState<number | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [expandedNoteId, setExpandedNoteId] = useState<number | null>(null);
 
@@ -399,6 +404,7 @@ export function SessionList({ onRestart }: SessionListProps) {
       {
         onSuccess: () => {
           setConfirmDeleteId(null);
+          setConfirmDeleteId2(null);
           queryClient.invalidateQueries({ queryKey: getListSessionsQueryKey() });
         },
       }
@@ -591,7 +597,7 @@ export function SessionList({ onRestart }: SessionListProps) {
                                           <Pencil className="w-3.5 h-3.5" />
                                         </button>
                                         <button
-                                          onClick={() => setConfirmDeleteId(s.id)}
+                                          onClick={() => { setConfirmDeleteId(s.id); setConfirmDeleteId2(null); }}
                                           className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
                                           aria-label="Delete session"
                                           title="Delete"
@@ -602,11 +608,19 @@ export function SessionList({ onRestart }: SessionListProps) {
                                     </div>
                                   )}
                                   <AnimatePresence>
-                                    {isConfirmingDelete && !isEditing && (
+                                    {isConfirmingDelete && !isEditing && confirmDeleteId2 !== s.id && (
                                       <ConfirmBanner
                                         message="Delete this session?"
+                                        onConfirm={() => setConfirmDeleteId2(s.id)}
+                                        onCancel={() => { setConfirmDeleteId(null); setConfirmDeleteId2(null); }}
+                                      />
+                                    )}
+                                    {confirmDeleteId2 === s.id && !isEditing && (
+                                      <ConfirmBanner
+                                        message="Hold up a sec! Once it's gone, it's gone for good."
+                                        confirmLabel="Yes, delete it"
                                         onConfirm={() => handleDelete(s.id)}
-                                        onCancel={() => setConfirmDeleteId(null)}
+                                        onCancel={() => { setConfirmDeleteId(null); setConfirmDeleteId2(null); }}
                                       />
                                     )}
                                   </AnimatePresence>
