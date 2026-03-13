@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { useListSessions, useDeleteSession, useUpdateSession, getListSessionsQueryKey, getListTasksQueryKey } from "@workspace/api-client-react";
 import type { UpdateSessionRequest } from "@workspace/api-client-react/src/generated/api.schemas";
 import { useQueryClient } from "@tanstack/react-query";
@@ -116,9 +116,32 @@ function formatOffset(seconds: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+const AUDIO_PLAY_EVENT = "flowstate-audio-play";
+
+function fmtTime(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
 function PlayableRecording({ rec, indexInSession }: { rec: RecordingItem; indexInSession: number }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(rec.durationSeconds);
+  const idRef = useRef(crypto.randomUUID());
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail !== idRef.current && audioRef.current) {
+        audioRef.current.pause();
+        setPlaying(false);
+      }
+    };
+    window.addEventListener(AUDIO_PLAY_EVENT, handler);
+    return () => window.removeEventListener(AUDIO_PLAY_EVENT, handler);
+  }, []);
 
   const toggle = () => {
     if (!audioRef.current) return;
@@ -126,41 +149,67 @@ function PlayableRecording({ rec, indexInSession }: { rec: RecordingItem; indexI
       audioRef.current.pause();
       setPlaying(false);
     } else {
+      window.dispatchEvent(new CustomEvent(AUDIO_PLAY_EVENT, { detail: idRef.current }));
       audioRef.current.play();
       setPlaying(true);
     }
   };
 
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const time = Number(e.target.value);
+    if (audioRef.current) {
+      audioRef.current.currentTime = time;
+      setCurrentTime(time);
+    }
+  };
+
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-card/30 border border-border/15">
+    <div className="flex flex-col gap-1.5 px-3 py-2 rounded-lg bg-card/30 border border-border/15">
       <audio
         ref={audioRef}
         src={`${BASE}api/storage${rec.objectPath}`}
-        onEnded={() => setPlaying(false)}
+        onEnded={() => { setPlaying(false); setCurrentTime(0); }}
+        onTimeUpdate={() => audioRef.current && setCurrentTime(audioRef.current.currentTime)}
+        onLoadedMetadata={() => audioRef.current && setDuration(audioRef.current.duration)}
         className="hidden"
       />
-      <span className="text-[11px] text-muted-foreground/50 tabular-nums shrink-0">
-        {formatOffset(rec.offsetSeconds)}
-      </span>
-      <Mic className="w-3 h-3 text-muted-foreground/40 shrink-0" />
-      <span className="flex-1 min-w-0 text-xs text-foreground/70 truncate">
-        {rec.label || `Recording ${indexInSession + 1}`}
-      </span>
-      <span className="text-[11px] text-muted-foreground/30 shrink-0">&mdash;</span>
-      <span className="text-[11px] text-muted-foreground/40 tabular-nums shrink-0">
-        {rec.durationSeconds}s
-      </span>
-      <button
-        onClick={toggle}
-        className="p-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-secondary/40 transition-colors shrink-0"
-        aria-label={playing ? "Pause" : "Play"}
-      >
-        {playing ? (
-          <Pause className="w-3 h-3" fill="currentColor" />
-        ) : (
-          <Play className="w-3 h-3" fill="currentColor" />
-        )}
-      </button>
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] text-muted-foreground/50 tabular-nums shrink-0">
+          {formatOffset(rec.offsetSeconds)}
+        </span>
+        <Mic className="w-3 h-3 text-muted-foreground/40 shrink-0" />
+        <span className="flex-1 min-w-0 text-xs text-foreground/70 truncate">
+          {rec.label || `Recording ${indexInSession + 1}`}
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={toggle}
+          className="p-1.5 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-secondary/40 transition-colors shrink-0 min-w-[32px] min-h-[32px] flex items-center justify-center"
+          aria-label={playing ? "Pause" : "Play"}
+        >
+          {playing ? (
+            <Pause className="w-3.5 h-3.5" fill="currentColor" />
+          ) : (
+            <Play className="w-3.5 h-3.5" fill="currentColor" />
+          )}
+        </button>
+        <span className="text-[10px] text-muted-foreground/50 tabular-nums shrink-0 w-[34px] text-right">
+          {fmtTime(currentTime)}
+        </span>
+        <input
+          type="range"
+          min={0}
+          max={duration || 1}
+          step={0.1}
+          value={currentTime}
+          onChange={handleSeek}
+          className="flex-1 h-1.5 rounded-full appearance-none bg-border/30 cursor-pointer touch-manipulation [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:shadow-sm [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:border-0"
+        />
+        <span className="text-[10px] text-muted-foreground/50 tabular-nums shrink-0 w-[34px]">
+          {fmtTime(duration)}
+        </span>
+      </div>
     </div>
   );
 }
