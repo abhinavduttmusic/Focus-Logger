@@ -143,15 +143,17 @@ function PlayableRecording({ rec, indexInSession }: { rec: RecordingItem; indexI
     return () => window.removeEventListener(AUDIO_PLAY_EVENT, handler);
   }, []);
 
-  const toggle = () => {
+  const toggle = async () => {
     if (!audioRef.current) return;
     if (playing) {
       audioRef.current.pause();
       setPlaying(false);
     } else {
       window.dispatchEvent(new CustomEvent(AUDIO_PLAY_EVENT, { detail: idRef.current }));
-      audioRef.current.play();
-      setPlaying(true);
+      try {
+        await audioRef.current.play();
+        setPlaying(true);
+      } catch { /* browser blocked autoplay */ }
     }
   };
 
