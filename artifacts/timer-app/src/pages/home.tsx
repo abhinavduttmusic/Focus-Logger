@@ -221,7 +221,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const handleAbort = useCallback(() => {
     timer.reset();
     if (recorderRef.current.isRecording) {
-      recorderRef.current.stopRecording();
+      recorderRef.current.discardAndStop();
     }
     recorderRef.current.clearClips();
     setNotes("");
