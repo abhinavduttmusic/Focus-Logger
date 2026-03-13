@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, sessionsTable, tasksTable, projectsTable, recordingsTable } from "@workspace/db";
-import { CreateSessionBody, DeleteSessionParams } from "@workspace/api-zod";
+import { CreateSessionBody, DeleteSessionParams, UpdateSessionBody, UpdateSessionParams } from "@workspace/api-zod";
 import { desc, eq } from "drizzle-orm";
 
 const router: IRouter = Router();
@@ -95,6 +95,72 @@ router.post("/sessions", async (req, res) => {
   }
 
   res.status(201).json({ ...session, taskName, projectId, projectName, recordings: [] });
+});
+
+router.patch("/sessions/:id", async (req, res) => {
+  const { id } = UpdateSessionParams.parse({ id: req.params.id });
+  const body = UpdateSessionBody.parse(req.body);
+
+  const updates: Record<string, unknown> = {};
+  if (body.durationSeconds !== undefined) updates.durationSeconds = body.durationSeconds;
+  if (body.createdAt !== undefined) updates.createdAt = new Date(body.createdAt);
+
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ error: "No fields to update" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(sessionsTable)
+    .set(updates)
+    .where(eq(sessionsTable.id, id))
+    .returning();
+
+  if (!updated) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+
+  let taskName: string | null = null;
+  let projectId: number | null = null;
+  let projectName: string | null = null;
+
+  if (updated.taskId) {
+    const [taskRow] = await db
+      .select({
+        name: tasksTable.name,
+        projectId: tasksTable.projectId,
+        projectName: projectsTable.name,
+      })
+      .from(tasksTable)
+      .leftJoin(projectsTable, eq(tasksTable.projectId, projectsTable.id))
+      .where(eq(tasksTable.id, updated.taskId));
+
+    taskName = taskRow?.name ?? null;
+    projectId = taskRow?.projectId ?? null;
+    projectName = taskRow?.projectName ?? null;
+  }
+
+  const recs = await db
+    .select()
+    .from(recordingsTable)
+    .where(eq(recordingsTable.sessionId, id));
+
+  res.json({
+    ...updated,
+    taskName,
+    projectId,
+    projectName,
+    recordings: recs.map((r) => ({
+      id: r.id,
+      sessionId: r.sessionId,
+      objectPath: r.objectPath,
+      label: r.label,
+      durationSeconds: r.durationSeconds,
+      offsetSeconds: r.offsetSeconds,
+      createdAt: r.createdAt,
+    })),
+  });
 });
 
 router.delete("/sessions/:id", async (req, res) => {

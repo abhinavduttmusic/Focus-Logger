@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCreateSession, getListSessionsQueryKey } from "@workspace/api-client-react";
 import type { SessionType, Task } from "@workspace/api-client-react/src/generated/api.schemas";
-import { useTimer, type TimerInitialState } from "@/hooks/use-timer";
+import { useTimer, type TimerInitialState, type TimerMode } from "@/hooks/use-timer";
 import { useVoiceRecorder, type AudioClip } from "@/hooks/use-voice-recorder";
 import {
   loadSession,
@@ -11,6 +11,7 @@ import {
   buildPersistedState,
   type RestoredSession,
 } from "@/hooks/use-session-persistence";
+import { XCircle } from "lucide-react";
 
 import { TimerToggle } from "@/components/timer/TimerToggle";
 import { TimerDisplay } from "@/components/timer/TimerDisplay";
@@ -215,6 +216,47 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     recorder.startRecording(elapsed);
   }, [recorder, timer.mode, timer.seconds]);
 
+  const [showAbortConfirm, setShowAbortConfirm] = useState(false);
+
+  const handleAbort = useCallback(() => {
+    timer.reset();
+    if (recorderRef.current.isRecording) {
+      recorderRef.current.stopRecording();
+    }
+    recorderRef.current.clearClips();
+    setNotes("");
+    setSelectedTask(null);
+    clearSession();
+    setShowAbortConfirm(false);
+  }, [timer]);
+
+  const sessionIsInProgress =
+    timer.isActive || timer.elapsedAtPause > 0 || (timer.mode === "simple" && timer.seconds > 0);
+
+  const handleRestart = useCallback(
+    (task: { id: number; name: string; projectId: number | null; projectName: string | null } | null, sessionNotes: string, sessionType: string) => {
+      if (task) {
+        setSelectedTask({
+          id: task.id,
+          name: task.name,
+          projectId: task.projectId,
+          projectName: task.projectName,
+        } as Task);
+      } else {
+        setSelectedTask(null);
+      }
+      setNotes(sessionNotes);
+
+      const targetMode: TimerMode = sessionType === "simple" ? "simple" : "pomodoro";
+      if (timer.mode !== targetMode) {
+        timer.setMode(targetMode);
+      }
+
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    },
+    [timer],
+  );
+
   return (
     <main className="min-h-screen w-full py-12 px-4 sm:px-6 lg:px-8 flex flex-col items-center">
       <div className="w-full max-w-2xl space-y-12">
@@ -247,6 +289,36 @@ function Home({ restored }: { restored: RestoredSession | null }) {
             onPause={timer.pause}
             onStop={timer.stop}
           />
+
+          {sessionIsInProgress && (
+            <div className="flex justify-center mt-4">
+              {!showAbortConfirm ? (
+                <button
+                  onClick={() => setShowAbortConfirm(true)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                >
+                  <XCircle className="w-3.5 h-3.5" />
+                  Abort Session
+                </button>
+              ) : (
+                <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-destructive/5 border border-destructive/20">
+                  <span className="text-xs text-foreground/80">Abort this session? This session will not be saved.</span>
+                  <button
+                    onClick={handleAbort}
+                    className="px-2.5 py-1 rounded-md bg-destructive/90 text-destructive-foreground text-[11px] font-medium hover:bg-destructive transition-colors"
+                  >
+                    Abort
+                  </button>
+                  <button
+                    onClick={() => setShowAbortConfirm(false)}
+                    className="px-2.5 py-1 rounded-md bg-secondary/60 text-foreground/70 text-[11px] font-medium hover:bg-secondary transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </section>
 
         <section className="space-y-4">
@@ -272,22 +344,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
         <div className="h-px w-full bg-gradient-to-r from-transparent via-border/60 to-transparent my-16" />
 
         <section className="pb-24">
-          <SessionList
-            onRestart={(task, notes) => {
-              if (task) {
-                setSelectedTask({
-                  id: task.id,
-                  name: task.name,
-                  projectId: task.projectId,
-                  projectName: task.projectName,
-                } as Task);
-              } else {
-                setSelectedTask(null);
-              }
-              setNotes(notes);
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
-          />
+          <SessionList onRestart={handleRestart} />
         </section>
       </div>
     </main>

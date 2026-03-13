@@ -1,9 +1,9 @@
 import { useState, useRef, useMemo } from "react";
-import { useListSessions, useDeleteSession, getListSessionsQueryKey } from "@workspace/api-client-react";
+import { useListSessions, useDeleteSession, useUpdateSession, getListSessionsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { formatShortDuration, cn } from "@/lib/utils";
-import { Trash2, History, Tag, Play, Pause, ChevronDown, Mic, ListOrdered } from "lucide-react";
+import { Trash2, History, Tag, Play, Pause, ChevronDown, Mic, ListOrdered, Pencil, RotateCcw, Check, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const BASE = import.meta.env.BASE_URL;
@@ -26,7 +26,7 @@ type TaskInfo = {
 };
 
 interface SessionListProps {
-  onRestart: (task: TaskInfo | null, notes: string) => void;
+  onRestart: (task: TaskInfo | null, notes: string, sessionType: string) => void;
 }
 
 type SessionItem = {
@@ -163,11 +163,138 @@ function PlayableRecording({ rec, indexInSession }: { rec: RecordingItem; indexI
   );
 }
 
+function EditSessionForm({
+  session,
+  onSave,
+  onCancel,
+  isSaving,
+}: {
+  session: SessionItem;
+  onSave: (durationSeconds: number, createdAt: string | null) => void;
+  onCancel: () => void;
+  isSaving: boolean;
+}) {
+  const [minutes, setMinutes] = useState(String(Math.floor(session.durationSeconds / 60)));
+  const [secs, setSecs] = useState(String(session.durationSeconds % 60));
+  const [startTime, setStartTime] = useState(
+    format(new Date(session.createdAt), "HH:mm"),
+  );
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const totalSecs = Math.max(1, (parseInt(minutes) || 0) * 60 + (parseInt(secs) || 0));
+    const originalTime = format(new Date(session.createdAt), "HH:mm");
+    const timeChanged = startTime !== originalTime;
+    let newCreatedAt: string | null = null;
+    if (timeChanged) {
+      const d = new Date(session.createdAt);
+      const [h, m] = startTime.split(":").map(Number);
+      d.setHours(h, m);
+      newCreatedAt = d.toISOString();
+    }
+    onSave(totalSecs, newCreatedAt);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="flex items-center gap-2 py-2 px-3">
+      <div className="flex items-center gap-1">
+        <input
+          type="number"
+          min="0"
+          max="999"
+          value={minutes}
+          onChange={(e) => setMinutes(e.target.value)}
+          className="w-12 px-1.5 py-1 text-xs text-center rounded-md border border-border/50 bg-background/50 tabular-nums focus:outline-none focus:ring-1 focus:ring-primary/40"
+          aria-label="Minutes"
+        />
+        <span className="text-xs text-muted-foreground">m</span>
+        <input
+          type="number"
+          min="0"
+          max="59"
+          value={secs}
+          onChange={(e) => setSecs(e.target.value)}
+          className="w-12 px-1.5 py-1 text-xs text-center rounded-md border border-border/50 bg-background/50 tabular-nums focus:outline-none focus:ring-1 focus:ring-primary/40"
+          aria-label="Seconds"
+        />
+        <span className="text-xs text-muted-foreground">s</span>
+      </div>
+      <div className="flex items-center gap-1 ml-2">
+        <input
+          type="time"
+          value={startTime}
+          onChange={(e) => setStartTime(e.target.value)}
+          className="px-1.5 py-1 text-xs rounded-md border border-border/50 bg-background/50 tabular-nums focus:outline-none focus:ring-1 focus:ring-primary/40"
+          aria-label="Start time"
+        />
+      </div>
+      <div className="flex items-center gap-1 ml-auto">
+        <button
+          type="submit"
+          disabled={isSaving}
+          className="p-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+          aria-label="Save changes"
+        >
+          <Check className="w-3.5 h-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={isSaving}
+          className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary/40 transition-colors disabled:opacity-50"
+          aria-label="Cancel edit"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function ConfirmBanner({
+  message,
+  onConfirm,
+  onCancel,
+}: {
+  message: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <motion.div
+      initial={{ height: 0, opacity: 0 }}
+      animate={{ height: "auto", opacity: 1 }}
+      exit={{ height: 0, opacity: 0 }}
+      transition={{ duration: 0.15 }}
+      className="overflow-hidden"
+    >
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-destructive/5 border border-destructive/20 text-xs">
+        <span className="flex-1 text-foreground/80">{message}</span>
+        <button
+          onClick={onConfirm}
+          className="px-2 py-1 rounded-md bg-destructive/90 text-destructive-foreground text-[11px] font-medium hover:bg-destructive transition-colors"
+        >
+          Delete
+        </button>
+        <button
+          onClick={onCancel}
+          className="px-2 py-1 rounded-md bg-secondary/60 text-foreground/70 text-[11px] font-medium hover:bg-secondary transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
 export function SessionList({ onRestart }: SessionListProps) {
   const { data: sessions, isLoading } = useListSessions();
   const deleteSession = useDeleteSession();
+  const updateSession = useUpdateSession();
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   const dayGroups = useMemo(() => {
     if (!sessions || sessions.length === 0) return [];
@@ -191,6 +318,21 @@ export function SessionList({ onRestart }: SessionListProps) {
       { id },
       {
         onSuccess: () => {
+          setConfirmDeleteId(null);
+          queryClient.invalidateQueries({ queryKey: getListSessionsQueryKey() });
+        },
+      }
+    );
+  };
+
+  const handleUpdate = (id: number, durationSeconds: number, createdAt: string | null) => {
+    const data: Record<string, unknown> = { durationSeconds };
+    if (createdAt) data.createdAt = createdAt;
+    updateSession.mutate(
+      { id, data: data as any },
+      {
+        onSuccess: () => {
+          setEditingId(null);
           queryClient.invalidateQueries({ queryKey: getListSessionsQueryKey() });
         },
       }
@@ -203,7 +345,15 @@ export function SessionList({ onRestart }: SessionListProps) {
       ? { id: group.taskId, name: group.taskName, projectId: group.projectId, projectName: group.projectName }
       : null;
     const latestSession = group.sessions[group.sessions.length - 1];
-    onRestart(task, latestSession?.notes ?? "");
+    onRestart(task, latestSession?.notes ?? "", latestSession?.type ?? "simple");
+  };
+
+  const handleSessionRestart = (s: SessionItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const task: TaskInfo | null = s.taskId != null && s.taskName != null
+      ? { id: s.taskId, name: s.taskName, projectId: s.projectId, projectName: s.projectName }
+      : null;
+    onRestart(task, s.notes ?? "", s.type);
   };
 
   if (isLoading) {
@@ -310,31 +460,70 @@ export function SessionList({ onRestart }: SessionListProps) {
                               const sortedRecs = s.recordings
                                 ? [...s.recordings].sort((a, b) => a.offsetSeconds - b.offsetSeconds)
                                 : [];
+                              const isEditing = editingId === s.id;
+                              const isConfirmingDelete = confirmDeleteId === s.id;
 
                               return (
                                 <div key={s.id} className="space-y-1">
-                                  <div
-                                    className="group/session flex items-center gap-3 py-2 px-3 rounded-xl hover:bg-secondary/30 transition-colors"
-                                  >
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-sm text-foreground/70 truncate">
-                                        {s.notes || <span className="italic text-muted-foreground/40">No notes</span>}
-                                      </p>
-                                      <p className="text-[11px] text-muted-foreground/50">
-                                        {format(new Date(s.createdAt), "h:mm a")}
-                                      </p>
-                                    </div>
-                                    <span className="text-xs font-medium text-muted-foreground/60 tabular-nums shrink-0">
-                                      {formatShortDuration(s.durationSeconds)}
-                                    </span>
-                                    <button
-                                      onClick={() => handleDelete(s.id)}
-                                      className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover/session:opacity-100 focus:opacity-100 shrink-0"
-                                      aria-label="Delete session"
+                                  {isEditing ? (
+                                    <EditSessionForm
+                                      session={s}
+                                      onSave={(dur, createdAt) => handleUpdate(s.id, dur, createdAt)}
+                                      onCancel={() => setEditingId(null)}
+                                      isSaving={updateSession.isPending}
+                                    />
+                                  ) : (
+                                    <div
+                                      className="group/session flex items-center gap-3 py-2 px-3 rounded-xl hover:bg-secondary/30 transition-colors"
                                     >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm text-foreground/70 truncate">
+                                          {s.notes || <span className="italic text-muted-foreground/40">No notes</span>}
+                                        </p>
+                                        <p className="text-[11px] text-muted-foreground/50">
+                                          {format(new Date(s.createdAt), "h:mm a")}
+                                        </p>
+                                      </div>
+                                      <span className="text-xs font-medium text-muted-foreground/60 tabular-nums shrink-0">
+                                        {formatShortDuration(s.durationSeconds)}
+                                      </span>
+                                      <div className="flex items-center gap-0.5 opacity-0 group-hover/session:opacity-100 focus-within:opacity-100 transition-opacity shrink-0">
+                                        <button
+                                          onClick={(e) => handleSessionRestart(s, e)}
+                                          className="p-1.5 rounded-lg text-primary/50 hover:text-primary hover:bg-primary/10 transition-colors"
+                                          aria-label="Restart this session"
+                                          title="Restart"
+                                        >
+                                          <RotateCcw className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button
+                                          onClick={() => setEditingId(s.id)}
+                                          className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-foreground hover:bg-secondary/40 transition-colors"
+                                          aria-label="Edit session"
+                                          title="Edit"
+                                        >
+                                          <Pencil className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button
+                                          onClick={() => setConfirmDeleteId(s.id)}
+                                          className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                          aria-label="Delete session"
+                                          title="Delete"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+                                  <AnimatePresence>
+                                    {isConfirmingDelete && !isEditing && (
+                                      <ConfirmBanner
+                                        message="Delete this session?"
+                                        onConfirm={() => handleDelete(s.id)}
+                                        onCancel={() => setConfirmDeleteId(null)}
+                                      />
+                                    )}
+                                  </AnimatePresence>
                                   {sortedRecs.length > 0 && (
                                     <div className="ml-3 space-y-1">
                                       <div className="flex items-center gap-1.5 px-3 pt-1">

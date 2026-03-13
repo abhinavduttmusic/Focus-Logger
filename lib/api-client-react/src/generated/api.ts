@@ -27,6 +27,7 @@ import type {
   Recording,
   Session,
   Task,
+  UpdateSessionRequest,
   UploadUrlRequest,
   UploadUrlResponse,
 } from "./api.schemas";
@@ -274,6 +275,93 @@ export const useCreateSession = <
   TContext
 > => {
   return useMutation(getCreateSessionMutationOptions(options));
+};
+
+/**
+ * @summary Update a session
+ */
+export const getUpdateSessionUrl = (id: number) => {
+  return `/api/sessions/${id}`;
+};
+
+export const updateSession = async (
+  id: number,
+  updateSessionRequest: UpdateSessionRequest,
+  options?: RequestInit,
+): Promise<Session> => {
+  return customFetch<Session>(getUpdateSessionUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateSessionRequest),
+  });
+};
+
+export const getUpdateSessionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateSession>>,
+    TError,
+    { id: number; data: BodyType<UpdateSessionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateSession>>,
+  TError,
+  { id: number; data: BodyType<UpdateSessionRequest> },
+  TContext
+> => {
+  const mutationKey = ["updateSession"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateSession>>,
+    { id: number; data: BodyType<UpdateSessionRequest> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateSession(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateSessionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateSession>>
+>;
+export type UpdateSessionMutationBody = BodyType<UpdateSessionRequest>;
+export type UpdateSessionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update a session
+ */
+export const useUpdateSession = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateSession>>,
+    TError,
+    { id: number; data: BodyType<UpdateSessionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateSession>>,
+  TError,
+  { id: number; data: BodyType<UpdateSessionRequest> },
+  TContext
+> => {
+  return useMutation(getUpdateSessionMutationOptions(options));
 };
 
 /**

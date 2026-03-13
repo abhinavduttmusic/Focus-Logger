@@ -52,6 +52,41 @@ export const CreateSessionBody = zod.object({
 });
 
 /**
+ * @summary Update a session
+ */
+export const UpdateSessionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateSessionBody = zod.object({
+  durationSeconds: zod.number().min(1).optional(),
+  createdAt: zod.date().optional(),
+});
+
+export const UpdateSessionResponse = zod.object({
+  id: zod.number(),
+  type: zod.enum(["simple", "pomodoro_focus", "pomodoro_break"]),
+  durationSeconds: zod.number(),
+  notes: zod.string(),
+  taskId: zod.number().nullable(),
+  taskName: zod.string().nullable(),
+  projectId: zod.number().nullable(),
+  projectName: zod.string().nullable(),
+  createdAt: zod.date(),
+  recordings: zod.array(
+    zod.object({
+      id: zod.number(),
+      sessionId: zod.number(),
+      objectPath: zod.string(),
+      label: zod.string().nullable(),
+      durationSeconds: zod.number(),
+      offsetSeconds: zod.number(),
+      createdAt: zod.date(),
+    }),
+  ),
+});
+
+/**
  * @summary Delete a session
  */
 export const DeleteSessionParams = zod.object({

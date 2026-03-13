@@ -56,6 +56,12 @@ export interface CreateSessionRequest {
   taskId?: number | null;
 }
 
+export interface UpdateSessionRequest {
+  /** @minimum 1 */
+  durationSeconds?: number;
+  createdAt?: string;
+}
+
 export interface Task {
   id: number;
   name: string;

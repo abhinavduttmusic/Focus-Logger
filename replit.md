@@ -54,10 +54,18 @@ Frontend packages: framer-motion, date-fns, clsx, tailwind-merge, lucide-react
 - On session save: clips uploaded to GCS via presigned URLs, metadata POSTed to `/api/recordings`
 - Session history: recordings displayed as inline audio players with offset timestamp and duration
 
+### Session Management Controls
+- **Abort session**: "Abort Session" button visible during active sessions, with inline confirmation
+- **Delete with confirmation**: Inline "Delete this session?" banner before deleting logged sessions
+- **Per-session Restart**: RotateCcw icon on individual session entries, restores task/project and switches timer mode
+- **Edit duration**: Inline form with minute/second inputs and start-time picker, calls PATCH endpoint
+- Session action icons (Restart, Edit, Delete) appear on hover over individual session entries
+
 ## API Endpoints
 
 - `GET /api/sessions` — list all sessions with recordings (newest first, left-join recordings)
 - `POST /api/sessions` — create session (`{ type, durationSeconds, notes, taskId }`)
+- `PATCH /api/sessions/:id` — update session (`{ durationSeconds?, createdAt? }`)
 - `DELETE /api/sessions/:id` — delete a session (cascades to recordings)
 - `POST /api/recordings` — create recording metadata (`{ sessionId, objectPath, durationSeconds, offsetSeconds }`)
 - `POST /api/storage/uploads/request-url` — request presigned GCS upload URL
