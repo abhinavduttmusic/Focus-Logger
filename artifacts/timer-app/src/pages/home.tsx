@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCreateSession, getListSessionsQueryKey } from "@workspace/api-client-react";
 import type { SessionType, Task } from "@workspace/api-client-react/src/generated/api.schemas";
-import { useTimer, type TimerInitialState, type TimerMode } from "@/hooks/use-timer";
+import { useTimer, type TimerInitialState } from "@/hooks/use-timer";
 import { useVoiceRecorder, type AudioClip } from "@/hooks/use-voice-recorder";
 import {
   loadSession,
@@ -234,7 +234,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     timer.isActive || timer.elapsedAtPause > 0 || (timer.mode === "simple" && timer.seconds > 0);
 
   const handleRestart = useCallback(
-    (task: { id: number; name: string; projectId: number | null; projectName: string | null } | null, sessionNotes: string, sessionType: string) => {
+    (task: { id: number; name: string; projectId: number | null; projectName: string | null } | null, sessionNotes: string) => {
       if (task) {
         setSelectedTask({
           id: task.id,
@@ -247,8 +247,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
       }
       setNotes(sessionNotes);
 
-      const targetMode: TimerMode = sessionType === "simple" ? "simple" : "pomodoro";
-      timer.restartAs(targetMode);
+      timer.restartAs("simple");
 
       window.scrollTo({ top: 0, behavior: "smooth" });
     },

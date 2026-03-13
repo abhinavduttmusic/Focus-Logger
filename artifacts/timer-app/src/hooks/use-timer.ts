@@ -68,16 +68,32 @@ export function useTimer({ onLogSession, initialState }: UseTimerProps) {
   }
 
   const handleSetMode = useCallback((newMode: TimerMode) => {
-    setIsActive(false);
-    setMode(newMode);
-    startTimestampRef.current = null;
-    elapsedAtPauseRef.current = 0;
+    const currentElapsed = getElapsedSeconds();
+    const wasActive = isActiveRef.current;
 
-    if (newMode === "simple") {
-      setSeconds(0);
+    setMode(newMode);
+
+    if (currentElapsed > 0) {
+      elapsedAtPauseRef.current = currentElapsed;
+      startTimestampRef.current = wasActive ? Date.now() : null;
+
+      if (newMode === "simple") {
+        setSeconds(currentElapsed);
+      } else {
+        setPhase("focus");
+        setSeconds(Math.max(0, POMODORO_FOCUS_SEC - currentElapsed));
+      }
     } else {
-      setPhase("focus");
-      setSeconds(POMODORO_FOCUS_SEC);
+      setIsActive(false);
+      startTimestampRef.current = null;
+      elapsedAtPauseRef.current = 0;
+
+      if (newMode === "simple") {
+        setSeconds(0);
+      } else {
+        setPhase("focus");
+        setSeconds(POMODORO_FOCUS_SEC);
+      }
     }
   }, []);
 

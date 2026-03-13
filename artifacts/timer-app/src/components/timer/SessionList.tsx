@@ -28,7 +28,7 @@ type TaskInfo = {
 };
 
 interface SessionListProps {
-  onRestart: (task: TaskInfo | null, notes: string, sessionType: string) => void;
+  onRestart: (task: TaskInfo | null, notes: string) => void;
 }
 
 type SessionItem = {
@@ -365,7 +365,7 @@ export function SessionList({ onRestart }: SessionListProps) {
       ? { id: group.taskId, name: group.taskName, projectId: group.projectId, projectName: group.projectName }
       : null;
     const latestSession = group.sessions[group.sessions.length - 1];
-    onRestart(task, latestSession?.notes ?? "", latestSession?.type ?? "simple");
+    onRestart(task, latestSession?.notes ?? "");
   };
 
   if (isLoading) {
