@@ -459,7 +459,7 @@ export function SessionList({ onRestart }: SessionListProps) {
 
                       <button
                         onClick={(e) => handleRestart(group, e)}
-                        className="p-2 rounded-xl hover:bg-primary/10 text-primary/60 hover:text-primary transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 shrink-0"
+                        className="p-2 rounded-xl hover:bg-primary/10 text-primary/60 hover:text-primary transition-colors shrink-0"
                         aria-label="Restart this task"
                       >
                         <Play className="w-4 h-4" />
