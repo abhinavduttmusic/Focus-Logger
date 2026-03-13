@@ -174,7 +174,12 @@ function PlayableRecording({ rec, indexInSession }: { rec: RecordingItem; indexI
         onEnded={() => { setPlaying(false); setCurrentTime(0); }}
         onTimeUpdate={() => audioRef.current && setCurrentTime(audioRef.current.currentTime)}
         onLoadedMetadata={() => {
-          if (audioRef.current && isFinite(audioRef.current.duration)) {
+          if (audioRef.current && isFinite(audioRef.current.duration) && audioRef.current.duration > 0) {
+            setDuration(audioRef.current.duration);
+          }
+        }}
+        onDurationChange={() => {
+          if (audioRef.current && isFinite(audioRef.current.duration) && audioRef.current.duration > 0) {
             setDuration(audioRef.current.duration);
           }
         }}
