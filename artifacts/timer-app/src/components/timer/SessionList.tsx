@@ -502,7 +502,7 @@ export function SessionList({ onRestart }: SessionListProps) {
                                               expandedNoteId === s.id ? "rotate-0" : "-rotate-90"
                                             )} />
                                             <span className={cn(
-                                              "text-sm text-foreground/70",
+                                              "text-sm text-foreground/70 flex-1 min-w-0",
                                               expandedNoteId === s.id
                                                 ? "whitespace-pre-wrap break-words max-h-40 overflow-y-auto"
                                                 : "truncate block"
