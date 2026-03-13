@@ -6,14 +6,16 @@ import {
   useListTasks,
   useCreateTask,
   useDeleteTask,
+  useUpdateTask,
   useListProjects,
   useCreateProject,
   useDeleteProject,
   getListTasksQueryKey,
   getListProjectsQueryKey,
+  getListSessionsQueryKey,
 } from "@workspace/api-client-react";
 import type { Task } from "@workspace/api-client-react/src/generated/api.schemas";
-import { Tag, X, Plus, FolderPlus, Folder, Loader2, Trash2 } from "lucide-react";
+import { Tag, X, Plus, FolderPlus, Folder, Loader2, Trash2, Pencil, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TaskSelectorProps {
@@ -52,6 +54,8 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
   const [searchQuery, setSearchQuery] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [confirmDeleteProjectId, setConfirmDeleteProjectId] = useState<number | null>(null);
+  const [renamingTaskId, setRenamingTaskId] = useState<number | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -100,6 +104,20 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
         queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
         if (selectedTask?.id === vars.id) onSelectTask(null);
         setConfirmDeleteId(null);
+      }
+    }
+  });
+
+  const updateTask = useUpdateTask({
+    mutation: {
+      onSuccess: (data) => {
+        queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListSessionsQueryKey() });
+        if (selectedTask?.id === data.id) {
+          onSelectTask(data);
+        }
+        setRenamingTaskId(null);
+        setRenameValue("");
       }
     }
   });
@@ -162,6 +180,8 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
     setSearchQuery("");
     setConfirmDeleteId(null);
     setConfirmDeleteProjectId(null);
+    setRenamingTaskId(null);
+    setRenameValue("");
     setPanelPos(OFF_SCREEN);
   };
 
@@ -217,8 +237,15 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
 
   const isSearching = trimmedSearch.length > 0;
 
+  function handleRenameSubmit(taskId: number) {
+    const trimmed = renameValue.trim();
+    if (!trimmed) return;
+    updateTask.mutate({ id: taskId, data: { name: trimmed } });
+  }
+
   function renderTaskRow(task: Task) {
     const isConfirming = confirmDeleteId === task.id;
+    const isRenaming = renamingTaskId === task.id;
 
     if (isConfirming) {
       return (
@@ -239,6 +266,43 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
             className="px-2.5 py-1 rounded-lg text-xs font-medium bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 transition-colors"
           >
             {deleteTask.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "Delete"}
+          </button>
+        </div>
+      );
+    }
+
+    if (isRenaming) {
+      return (
+        <div
+          key={task.id}
+          className="flex items-center gap-2 p-1.5 rounded-xl bg-primary/5 border border-primary/20"
+        >
+          <Tag className="w-3.5 h-3.5 shrink-0 text-primary ml-1" />
+          <input
+            autoFocus
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleRenameSubmit(task.id);
+              if (e.key === "Escape") { setRenamingTaskId(null); setRenameValue(""); }
+            }}
+            className="flex-1 bg-transparent text-sm font-medium text-foreground outline-none placeholder:text-muted-foreground/50 min-w-0"
+            placeholder="Task name"
+          />
+          <button
+            onClick={() => { setRenamingTaskId(null); setRenameValue(""); }}
+            className="p-1.5 rounded-lg text-muted-foreground/50 hover:text-muted-foreground hover:bg-secondary/60 transition-colors shrink-0"
+            aria-label="Cancel rename"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => handleRenameSubmit(task.id)}
+            disabled={!renameValue.trim() || updateTask.isPending}
+            className="p-1.5 mr-0.5 rounded-lg text-primary hover:bg-primary/10 transition-colors disabled:opacity-40 shrink-0"
+            aria-label="Confirm rename"
+          >
+            {updateTask.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
           </button>
         </div>
       );
@@ -268,6 +332,17 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
               <span className="text-xs text-muted-foreground/60 truncate shrink-0">{task.projectName}</span>
             )}
           </div>
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setRenamingTaskId(task.id);
+            setRenameValue(task.name);
+          }}
+          className="p-1.5 rounded-lg text-muted-foreground/30 hover:text-foreground/70 hover:bg-secondary/60 transition-colors opacity-0 group-hover/task:opacity-100 focus:opacity-100 shrink-0"
+          aria-label="Rename task"
+        >
+          <Pencil className="w-3.5 h-3.5" />
         </button>
         <button
           onClick={(e) => {

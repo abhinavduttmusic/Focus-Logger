@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, tasksTable, projectsTable } from "@workspace/db";
-import { CreateTaskBody } from "@workspace/api-zod";
+import { CreateTaskBody, UpdateTaskBody } from "@workspace/api-zod";
 import { desc, eq } from "drizzle-orm";
 
 const router: IRouter = Router();
@@ -40,6 +40,36 @@ router.post("/tasks", async (req, res) => {
   }
 
   res.status(201).json({ ...task, projectName });
+});
+
+router.patch("/tasks/:id", async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) {
+    res.status(400).json({ error: "Invalid id" });
+    return;
+  }
+  const body = UpdateTaskBody.parse(req.body);
+  const [updated] = await db
+    .update(tasksTable)
+    .set({ name: body.name })
+    .where(eq(tasksTable.id, id))
+    .returning();
+
+  if (!updated) {
+    res.status(404).json({ error: "Task not found" });
+    return;
+  }
+
+  let projectName: string | null = null;
+  if (updated.projectId) {
+    const [project] = await db
+      .select()
+      .from(projectsTable)
+      .where(eq(projectsTable.id, updated.projectId));
+    projectName = project?.name ?? null;
+  }
+
+  res.json({ ...updated, projectName });
 });
 
 router.delete("/tasks/:id", async (req, res): Promise<void> => {

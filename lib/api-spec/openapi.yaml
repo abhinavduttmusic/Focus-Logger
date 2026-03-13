@@ -135,6 +135,29 @@ paths:
                 $ref: "#/components/schemas/Task"
 
   /tasks/{id}:
+    patch:
+      operationId: updateTask
+      tags: [tasks]
+      summary: Update a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTaskRequest"
+      responses:
+        "200":
+          description: Task updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
     delete:
       operationId: deleteTask
       tags: [tasks]
@@ -387,6 +410,15 @@ components:
         projectId:
           type: integer
           nullable: true
+      required:
+        - name
+
+    UpdateTaskRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
       required:
         - name
 

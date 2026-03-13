@@ -115,6 +115,25 @@ export const CreateTaskBody = zod.object({
 });
 
 /**
+ * @summary Update a task
+ */
+export const UpdateTaskParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateTaskBody = zod.object({
+  name: zod.string().min(1),
+});
+
+export const UpdateTaskResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  projectId: zod.number().nullable(),
+  projectName: zod.string().nullable(),
+  createdAt: zod.date(),
+});
+
+/**
  * @summary Delete a task
  */
 export const DeleteTaskParams = zod.object({

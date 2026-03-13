@@ -76,6 +76,11 @@ export interface CreateTaskRequest {
   projectId?: number | null;
 }
 
+export interface UpdateTaskRequest {
+  /** @minLength 1 */
+  name: string;
+}
+
 export interface Project {
   id: number;
   name: string;
