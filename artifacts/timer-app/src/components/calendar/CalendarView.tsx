@@ -23,23 +23,26 @@ type TimeBlock = {
   endMinute: number;
 };
 
-const HOUR_HEIGHT = 60;
-const MIN_BLOCK_HEIGHT = 32;
+const PIXELS_PER_MINUTE = 5;
+const HOUR_HEIGHT = PIXELS_PER_MINUTE * 60;
+const MIN_BAR_HEIGHT = 4;
+const LABEL_THRESHOLD = 24;
+const TIME_THRESHOLD = 48;
 const DEFAULT_START_HOUR = 6;
 const DEFAULT_END_HOUR = 23;
 
 const TASK_COLORS = [
-  "bg-primary/15 border-primary/40 text-primary",
-  "bg-blue-500/15 border-blue-500/40 text-blue-700 dark:text-blue-400",
-  "bg-amber-500/15 border-amber-500/40 text-amber-700 dark:text-amber-400",
-  "bg-rose-500/15 border-rose-500/40 text-rose-700 dark:text-rose-400",
-  "bg-violet-500/15 border-violet-500/40 text-violet-700 dark:text-violet-400",
-  "bg-teal-500/15 border-teal-500/40 text-teal-700 dark:text-teal-400",
-  "bg-orange-500/15 border-orange-500/40 text-orange-700 dark:text-orange-400",
-  "bg-green-500/15 border-green-500/40 text-green-700 dark:text-green-400",
+  "bg-primary/25 text-primary",
+  "bg-blue-500/25 text-blue-700 dark:text-blue-400",
+  "bg-amber-500/25 text-amber-700 dark:text-amber-400",
+  "bg-rose-500/25 text-rose-700 dark:text-rose-400",
+  "bg-violet-500/25 text-violet-700 dark:text-violet-400",
+  "bg-teal-500/25 text-teal-700 dark:text-teal-400",
+  "bg-orange-500/25 text-orange-700 dark:text-orange-400",
+  "bg-green-500/25 text-green-700 dark:text-green-400",
 ];
 
-const NO_TASK_COLOR = "bg-muted/30 border-border/50 text-muted-foreground";
+const NO_TASK_COLOR = "bg-muted/40 text-muted-foreground";
 
 function getTaskColor(taskId: number | null): string {
   if (taskId == null) return NO_TASK_COLOR;
@@ -204,36 +207,43 @@ export function CalendarView() {
               {blocks.map((block) => {
                 const topPx = ((block.startMinute - baseMinute) / 60) * HOUR_HEIGHT;
                 const heightPx = Math.max(
-                  ((block.endMinute - block.startMinute) / 60) * HOUR_HEIGHT,
-                  MIN_BLOCK_HEIGHT
+                  (block.session.durationSeconds / 60) * PIXELS_PER_MINUTE,
+                  MIN_BAR_HEIGHT
                 );
                 const colorClass = getTaskColor(block.session.taskId);
+                const showLabel = heightPx >= LABEL_THRESHOLD;
+                const showTimeRange = heightPx >= TIME_THRESHOLD;
 
                 return (
                   <button
                     key={block.session.id}
                     onClick={() => setDetailSession(block.session)}
                     className={cn(
-                      "absolute left-0 right-0 rounded-lg border px-2.5 py-1.5 text-left transition-all hover:shadow-md hover:scale-[1.01] active:scale-[0.99] touch-manipulation overflow-hidden",
-                      colorClass
+                      "absolute left-0 right-0 rounded text-left transition-all hover:brightness-110 active:scale-[0.99] touch-manipulation overflow-hidden",
+                      colorClass,
+                      showLabel ? "px-2 py-0.5" : ""
                     )}
-                    style={{ top: topPx, height: heightPx }}
+                    style={{ top: topPx, height: heightPx, minHeight: MIN_BAR_HEIGHT }}
                   >
-                    <div className="flex items-start justify-between gap-1 h-full">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold truncate leading-tight">
-                          {block.session.taskName ?? "No task"}
-                        </p>
-                        {heightPx >= 44 && (
-                          <p className="text-[10px] opacity-70 mt-0.5 tabular-nums">
-                            {formatTimeRange(block.startMinute, block.endMinute)}
+                    {showLabel && (
+                      <div className="flex items-start justify-between gap-1 h-full">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] font-semibold truncate leading-tight">
+                            {block.session.taskName ?? "No task"}
                           </p>
+                          {showTimeRange && (
+                            <p className="text-[10px] opacity-70 mt-0.5 tabular-nums">
+                              {formatTimeRange(block.startMinute, block.endMinute)}
+                            </p>
+                          )}
+                        </div>
+                        {showTimeRange && (
+                          <span className="text-[10px] font-medium opacity-60 shrink-0 tabular-nums">
+                            {formatShortDuration(block.session.durationSeconds)}
+                          </span>
                         )}
                       </div>
-                      <span className="text-[10px] font-medium opacity-60 shrink-0 tabular-nums">
-                        {formatShortDuration(block.session.durationSeconds)}
-                      </span>
-                    </div>
+                    )}
                   </button>
                 );
               })}
