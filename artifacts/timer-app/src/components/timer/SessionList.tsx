@@ -487,68 +487,57 @@ export function SessionList({ onRestart }: SessionListProps) {
                                     />
                                   ) : (
                                     <div
-                                      className="group/session flex flex-col rounded-xl hover:bg-secondary/30 transition-colors"
+                                      className="group/session flex items-start gap-3 py-2 px-3 rounded-xl hover:bg-secondary/30 transition-colors"
                                     >
-                                      <div className="flex items-center gap-3 py-2 px-3">
-                                        <div className="flex-1 min-w-0">
-                                          {s.notes ? (
-                                            <button
-                                              type="button"
-                                              onClick={() => setExpandedNoteId(expandedNoteId === s.id ? null : s.id)}
-                                              aria-expanded={expandedNoteId === s.id}
-                                              className="flex items-start gap-1.5 text-left w-full touch-manipulation"
-                                            >
-                                              <ChevronDown className={cn(
-                                                "w-3 h-3 mt-0.5 shrink-0 text-muted-foreground/40 transition-transform duration-200",
-                                                expandedNoteId === s.id ? "rotate-0" : "-rotate-90"
-                                              )} />
-                                              {expandedNoteId !== s.id && (
-                                                <span className="text-sm text-foreground/70 truncate block">
-                                                  {s.notes}
-                                                </span>
-                                              )}
-                                              {expandedNoteId === s.id && (
-                                                <span className="text-sm text-foreground/70">
-                                                  Collapse note
-                                                </span>
-                                              )}
-                                            </button>
-                                          ) : (
-                                            <p className="text-sm italic text-muted-foreground/40">No notes</p>
-                                          )}
-                                          <p className="text-[11px] text-muted-foreground/50 mt-0.5">
-                                            {format(new Date(s.createdAt), "h:mm a")}
-                                          </p>
-                                        </div>
-                                        <span className="text-xs font-medium text-muted-foreground/60 tabular-nums shrink-0">
-                                          {formatShortDuration(s.durationSeconds)}
-                                        </span>
-                                        <div className="flex items-center gap-1 shrink-0">
+                                      <div className="flex-1 min-w-0">
+                                        {s.notes ? (
                                           <button
-                                            onClick={() => { setExpandedNoteId(null); setEditingId(s.id); }}
-                                            className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-foreground hover:bg-secondary/40 transition-colors"
-                                            aria-label="Edit session"
-                                            title="Edit"
+                                            type="button"
+                                            onClick={() => setExpandedNoteId(expandedNoteId === s.id ? null : s.id)}
+                                            aria-expanded={expandedNoteId === s.id}
+                                            className="flex items-start gap-1.5 text-left w-full touch-manipulation"
                                           >
-                                            <Pencil className="w-3.5 h-3.5" />
+                                            <ChevronDown className={cn(
+                                              "w-3 h-3 mt-0.5 shrink-0 text-muted-foreground/40 transition-transform duration-200",
+                                              expandedNoteId === s.id ? "rotate-0" : "-rotate-90"
+                                            )} />
+                                            <span className={cn(
+                                              "text-sm text-foreground/70",
+                                              expandedNoteId === s.id
+                                                ? "whitespace-pre-wrap break-words max-h-40 overflow-y-auto"
+                                                : "truncate block"
+                                            )}>
+                                              {s.notes}
+                                            </span>
                                           </button>
-                                          <button
-                                            onClick={() => setConfirmDeleteId(s.id)}
-                                            className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
-                                            aria-label="Delete session"
-                                            title="Delete"
-                                          >
-                                            <Trash2 className="w-3.5 h-3.5" />
-                                          </button>
-                                        </div>
+                                        ) : (
+                                          <p className="text-sm italic text-muted-foreground/40">No notes</p>
+                                        )}
+                                        <p className="text-[11px] text-muted-foreground/50 mt-0.5">
+                                          {format(new Date(s.createdAt), "h:mm a")}
+                                        </p>
                                       </div>
-                                      {expandedNoteId === s.id && s.notes && (
-                                        <div className="px-3 pb-2 -mt-1">
-                                          <div className="ml-[18px] text-sm text-foreground/70 whitespace-pre-wrap break-words max-h-40 overflow-y-auto">
-                                            {s.notes}
-                                          </div>
-                                        </div>
-                                      )}
+                                      <span className="text-xs font-medium text-muted-foreground/60 tabular-nums shrink-0 mt-2">
+                                        {formatShortDuration(s.durationSeconds)}
+                                      </span>
+                                      <div className="flex items-center gap-1 shrink-0">
+                                        <button
+                                          onClick={() => { setExpandedNoteId(null); setEditingId(s.id); }}
+                                          className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-foreground hover:bg-secondary/40 transition-colors"
+                                          aria-label="Edit session"
+                                          title="Edit"
+                                        >
+                                          <Pencil className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button
+                                          onClick={() => setConfirmDeleteId(s.id)}
+                                          className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                          aria-label="Delete session"
+                                          title="Delete"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
                                     </div>
                                   )}
                                   <AnimatePresence>
