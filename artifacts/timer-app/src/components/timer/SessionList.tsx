@@ -1,10 +1,11 @@
 import { useState, useRef, useMemo } from "react";
-import { useListSessions, useDeleteSession, useUpdateSession, getListSessionsQueryKey } from "@workspace/api-client-react";
+import { useListSessions, useDeleteSession, useUpdateSession, getListSessionsQueryKey, getListTasksQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { formatShortDuration, cn } from "@/lib/utils";
 import { Trash2, History, Tag, Play, Pause, ChevronDown, Mic, ListOrdered, Pencil, RotateCcw, Check, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { SessionTaskPicker } from "./SessionTaskPicker";
 
 const BASE = import.meta.env.BASE_URL;
 
@@ -170,7 +171,7 @@ function EditSessionForm({
   isSaving,
 }: {
   session: SessionItem;
-  onSave: (durationSeconds: number, createdAt: string | null) => void;
+  onSave: (durationSeconds: number, createdAt: string | null, taskId: number | null | undefined) => void;
   onCancel: () => void;
   isSaving: boolean;
 }) {
@@ -179,6 +180,9 @@ function EditSessionForm({
   const [startTime, setStartTime] = useState(
     format(new Date(session.createdAt), "HH:mm"),
   );
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(session.taskId);
+  const [selectedTaskName, setSelectedTaskName] = useState<string | null>(session.taskName);
+  const taskChanged = selectedTaskId !== session.taskId;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -192,60 +196,72 @@ function EditSessionForm({
       d.setHours(h, m);
       newCreatedAt = d.toISOString();
     }
-    onSave(totalSecs, newCreatedAt);
+    onSave(totalSecs, newCreatedAt, taskChanged ? selectedTaskId : undefined);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex items-center gap-2 py-2 px-3">
-      <div className="flex items-center gap-1">
-        <input
-          type="number"
-          min="0"
-          max="999"
-          value={minutes}
-          onChange={(e) => setMinutes(e.target.value)}
-          className="w-12 px-1.5 py-1 text-xs text-center rounded-md border border-border/50 bg-background/50 tabular-nums focus:outline-none focus:ring-1 focus:ring-primary/40"
-          aria-label="Minutes"
-        />
-        <span className="text-xs text-muted-foreground">m</span>
-        <input
-          type="number"
-          min="0"
-          max="59"
-          value={secs}
-          onChange={(e) => setSecs(e.target.value)}
-          className="w-12 px-1.5 py-1 text-xs text-center rounded-md border border-border/50 bg-background/50 tabular-nums focus:outline-none focus:ring-1 focus:ring-primary/40"
-          aria-label="Seconds"
-        />
-        <span className="text-xs text-muted-foreground">s</span>
+    <form onSubmit={handleSubmit} className="space-y-2 py-2 px-3">
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
+          <input
+            type="number"
+            min="0"
+            max="999"
+            value={minutes}
+            onChange={(e) => setMinutes(e.target.value)}
+            className="w-12 px-1.5 py-1 text-xs text-center rounded-md border border-border/50 bg-background/50 tabular-nums focus:outline-none focus:ring-1 focus:ring-primary/40"
+            aria-label="Minutes"
+          />
+          <span className="text-xs text-muted-foreground">m</span>
+          <input
+            type="number"
+            min="0"
+            max="59"
+            value={secs}
+            onChange={(e) => setSecs(e.target.value)}
+            className="w-12 px-1.5 py-1 text-xs text-center rounded-md border border-border/50 bg-background/50 tabular-nums focus:outline-none focus:ring-1 focus:ring-primary/40"
+            aria-label="Seconds"
+          />
+          <span className="text-xs text-muted-foreground">s</span>
+        </div>
+        <div className="flex items-center gap-1 ml-2">
+          <input
+            type="time"
+            value={startTime}
+            onChange={(e) => setStartTime(e.target.value)}
+            className="px-1.5 py-1 text-xs rounded-md border border-border/50 bg-background/50 tabular-nums focus:outline-none focus:ring-1 focus:ring-primary/40"
+            aria-label="Start time"
+          />
+        </div>
+        <div className="flex items-center gap-1 ml-auto">
+          <button
+            type="submit"
+            disabled={isSaving}
+            className="p-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+            aria-label="Save changes"
+          >
+            <Check className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={isSaving}
+            className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary/40 transition-colors disabled:opacity-50"
+            aria-label="Cancel edit"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
-      <div className="flex items-center gap-1 ml-2">
-        <input
-          type="time"
-          value={startTime}
-          onChange={(e) => setStartTime(e.target.value)}
-          className="px-1.5 py-1 text-xs rounded-md border border-border/50 bg-background/50 tabular-nums focus:outline-none focus:ring-1 focus:ring-primary/40"
-          aria-label="Start time"
+      <div className="max-w-[200px]">
+        <SessionTaskPicker
+          currentTaskId={selectedTaskId}
+          currentTaskName={selectedTaskName}
+          onSelect={(task) => {
+            setSelectedTaskId(task?.id ?? null);
+            setSelectedTaskName(task?.name ?? null);
+          }}
         />
-      </div>
-      <div className="flex items-center gap-1 ml-auto">
-        <button
-          type="submit"
-          disabled={isSaving}
-          className="p-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
-          aria-label="Save changes"
-        >
-          <Check className="w-3.5 h-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={isSaving}
-          className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary/40 transition-colors disabled:opacity-50"
-          aria-label="Cancel edit"
-        >
-          <X className="w-3.5 h-3.5" />
-        </button>
       </div>
     </form>
   );
@@ -325,13 +341,20 @@ export function SessionList({ onRestart }: SessionListProps) {
     );
   };
 
-  const handleUpdate = (id: number, durationSeconds: number, createdAt: string | null) => {
+  const handleUpdate = (id: number, durationSeconds: number, createdAt: string | null, taskId: number | null | undefined) => {
+    const data: Record<string, unknown> = { durationSeconds };
+    if (createdAt) data.createdAt = createdAt;
+    if (taskId !== undefined) data.taskId = taskId;
+
     updateSession.mutate(
-      { id, data: createdAt ? { durationSeconds, createdAt } : { durationSeconds } },
+      { id, data: data as any },
       {
         onSuccess: () => {
           setEditingId(null);
           queryClient.invalidateQueries({ queryKey: getListSessionsQueryKey() });
+          if (taskId !== undefined) {
+            queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
+          }
         },
       }
     );
@@ -466,7 +489,7 @@ export function SessionList({ onRestart }: SessionListProps) {
                                   {isEditing ? (
                                     <EditSessionForm
                                       session={s}
-                                      onSave={(dur, createdAt) => handleUpdate(s.id, dur, createdAt)}
+                                      onSave={(dur, createdAt, taskId) => handleUpdate(s.id, dur, createdAt, taskId)}
                                       onCancel={() => setEditingId(null)}
                                       isSaving={updateSession.isPending}
                                     />

@@ -60,6 +60,7 @@ export interface UpdateSessionRequest {
   /** @minimum 1 */
   durationSeconds?: number;
   createdAt?: string;
+  taskId?: number | null;
 }
 
 export interface Task {

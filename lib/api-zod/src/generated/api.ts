@@ -61,6 +61,7 @@ export const UpdateSessionParams = zod.object({
 export const UpdateSessionBody = zod.object({
   durationSeconds: zod.number().int().min(1).optional(),
   createdAt: zod.coerce.date().optional(),
+  taskId: zod.number().int().nullish(),
 });
 
 export const UpdateSessionResponse = zod.object({

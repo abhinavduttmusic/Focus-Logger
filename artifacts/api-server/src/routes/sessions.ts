@@ -104,6 +104,7 @@ router.patch("/sessions/:id", async (req, res) => {
   const updates: Record<string, unknown> = {};
   if (body.durationSeconds !== undefined) updates.durationSeconds = body.durationSeconds;
   if (body.createdAt !== undefined) updates.createdAt = new Date(body.createdAt);
+  if ("taskId" in req.body) updates.taskId = body.taskId ?? null;
 
   if (Object.keys(updates).length === 0) {
     res.status(400).json({ error: "No fields to update" });

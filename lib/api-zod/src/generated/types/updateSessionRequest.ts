@@ -10,4 +10,5 @@ export interface UpdateSessionRequest {
   /** @minimum 1 */
   durationSeconds?: number;
   createdAt?: Date;
+  taskId?: number | null;
 }
