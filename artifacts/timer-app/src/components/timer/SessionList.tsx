@@ -4,7 +4,7 @@ import type { UpdateSessionRequest } from "@workspace/api-client-react/src/gener
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { formatShortDuration, cn } from "@/lib/utils";
-import { Trash2, History, Tag, Play, Pause, ChevronDown, Mic, ListOrdered, Pencil, RotateCcw, Check, X } from "lucide-react";
+import { Trash2, History, Tag, Play, Pause, ChevronDown, Mic, ListOrdered, Pencil, Check, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { SessionTaskPicker } from "./SessionTaskPicker";
 
@@ -368,14 +368,6 @@ export function SessionList({ onRestart }: SessionListProps) {
     onRestart(task, latestSession?.notes ?? "", latestSession?.type ?? "simple");
   };
 
-  const handleSessionRestart = (s: SessionItem, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const task: TaskInfo | null = s.taskId != null && s.taskName != null
-      ? { id: s.taskId, name: s.taskName, projectId: s.projectId, projectName: s.projectName }
-      : null;
-    onRestart(task, s.notes ?? "", s.type);
-  };
-
   if (isLoading) {
     return (
       <div className="w-full py-12 flex flex-col items-center justify-center text-muted-foreground">
@@ -507,15 +499,7 @@ export function SessionList({ onRestart }: SessionListProps) {
                                       <span className="text-xs font-medium text-muted-foreground/60 tabular-nums shrink-0">
                                         {formatShortDuration(s.durationSeconds)}
                                       </span>
-                                      <div className="flex items-center gap-0.5 opacity-0 group-hover/session:opacity-100 focus-within:opacity-100 transition-opacity shrink-0">
-                                        <button
-                                          onClick={(e) => handleSessionRestart(s, e)}
-                                          className="p-1.5 rounded-lg text-primary/50 hover:text-primary hover:bg-primary/10 transition-colors"
-                                          aria-label="Restart this session"
-                                          title="Restart"
-                                        >
-                                          <RotateCcw className="w-3.5 h-3.5" />
-                                        </button>
+                                      <div className="flex items-center gap-1 shrink-0">
                                         <button
                                           onClick={() => setEditingId(s.id)}
                                           className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-foreground hover:bg-secondary/40 transition-colors"
