@@ -129,7 +129,7 @@ function PlayableRecording({ rec, indexInSession }: { rec: RecordingItem; indexI
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState<number | null>(null);
+  const [duration, setDuration] = useState<number>(rec.durationSeconds);
   const idRef = useRef(crypto.randomUUID());
 
   useEffect(() => {
@@ -171,6 +171,7 @@ function PlayableRecording({ rec, indexInSession }: { rec: RecordingItem; indexI
       <audio
         ref={audioRef}
         src={`${BASE}api/storage${rec.objectPath}`}
+        preload="metadata"
         onEnded={() => { setPlaying(false); setCurrentTime(0); }}
         onTimeUpdate={() => audioRef.current && setCurrentTime(audioRef.current.currentTime)}
         onLoadedMetadata={() => {

@@ -21,7 +21,7 @@ function ClipPlayer({ clip }: { clip: AudioClip }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState<number | null>(null);
+  const [duration, setDuration] = useState<number>(clip.durationSeconds);
   const idRef = useRef(crypto.randomUUID());
 
   useEffect(() => {
@@ -63,6 +63,7 @@ function ClipPlayer({ clip }: { clip: AudioClip }) {
       <audio
         ref={audioRef}
         src={clip.url}
+        preload="metadata"
         onEnded={() => { setPlaying(false); setCurrentTime(0); }}
         onTimeUpdate={() => audioRef.current && setCurrentTime(audioRef.current.currentTime)}
         onLoadedMetadata={() => {
