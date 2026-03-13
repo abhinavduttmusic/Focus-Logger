@@ -495,15 +495,23 @@ export function SessionList({ onRestart }: SessionListProps) {
                                             <button
                                               type="button"
                                               onClick={() => setExpandedNoteId(expandedNoteId === s.id ? null : s.id)}
+                                              aria-expanded={expandedNoteId === s.id}
                                               className="flex items-start gap-1.5 text-left w-full touch-manipulation"
                                             >
                                               <ChevronDown className={cn(
                                                 "w-3 h-3 mt-0.5 shrink-0 text-muted-foreground/40 transition-transform duration-200",
                                                 expandedNoteId === s.id ? "rotate-0" : "-rotate-90"
                                               )} />
-                                              <span className="text-sm text-foreground/70 truncate block">
-                                                {s.notes}
-                                              </span>
+                                              {expandedNoteId !== s.id && (
+                                                <span className="text-sm text-foreground/70 truncate block">
+                                                  {s.notes}
+                                                </span>
+                                              )}
+                                              {expandedNoteId === s.id && (
+                                                <span className="text-sm text-foreground/70">
+                                                  Collapse note
+                                                </span>
+                                              )}
                                             </button>
                                           ) : (
                                             <p className="text-sm italic text-muted-foreground/40">No notes</p>
