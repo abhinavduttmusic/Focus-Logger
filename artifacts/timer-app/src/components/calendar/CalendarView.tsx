@@ -102,7 +102,7 @@ export function CalendarView() {
 
   useEffect(() => {
     if (!scrollRef.current) return;
-    if (isToday(selectedDate) && daySessions.length === 0) {
+    if (isToday(selectedDate)) {
       const now = new Date();
       const currentMinute = now.getHours() * 60 + now.getMinutes();
       const offset = ((currentMinute - baseMinute) / 60) * HOUR_HEIGHT - 100;
