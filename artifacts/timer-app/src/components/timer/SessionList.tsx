@@ -365,8 +365,7 @@ export function SessionList({ onRestart }: SessionListProps) {
     const task: TaskInfo | null = group.taskId != null && group.taskName != null
       ? { id: group.taskId, name: group.taskName, projectId: group.projectId, projectName: group.projectName }
       : null;
-    const latestSession = group.sessions[group.sessions.length - 1];
-    onRestart(task, latestSession?.notes ?? "");
+    onRestart(task, "");
   };
 
   if (isLoading) {
