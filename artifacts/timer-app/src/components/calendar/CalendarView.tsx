@@ -215,11 +215,13 @@ export function CalendarView() {
                 const showTimeRange = heightPx >= TIME_THRESHOLD;
 
                 return (
-                  <button
+                  <motion.button
                     key={block.session.id}
                     onClick={() => setDetailSession(block.session)}
+                    whileTap={{ scale: 0.98 }}
+                    transition={{ duration: 0.12, ease: "easeOut" }}
                     className={cn(
-                      "absolute left-0 right-0 rounded text-left transition-all hover:brightness-110 active:scale-[0.99] touch-manipulation overflow-hidden",
+                      "absolute left-0 right-0 rounded text-left transition-all hover:brightness-110 touch-manipulation overflow-hidden",
                       colorClass,
                       showLabel ? "px-2 py-0.5" : ""
                     )}
@@ -244,7 +246,7 @@ export function CalendarView() {
                         )}
                       </div>
                     )}
-                  </button>
+                  </motion.button>
                 );
               })}
             </div>

@@ -10,10 +10,13 @@ export type AudioClip = {
 
 export function useVoiceRecorder(initialClips?: AudioClip[]) {
   const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [clips, setClips] = useState<AudioClip[]>(initialClips ?? []);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const startTimeRef = useRef(0);
+  const pausedDurationRef = useRef(0);
+  const pauseStartRef = useRef(0);
   const offsetRef = useRef(0);
   const stopResolveRef = useRef<((clip: AudioClip) => void) | null>(null);
   const discardNextRef = useRef(false);
@@ -29,6 +32,8 @@ export function useVoiceRecorder(initialClips?: AudioClip[]) {
 
       chunksRef.current = [];
       startTimeRef.current = Date.now();
+      pausedDurationRef.current = 0;
+      pauseStartRef.current = 0;
       offsetRef.current = sessionOffsetSeconds;
       mediaRecorderRef.current = mediaRecorder;
 
@@ -40,7 +45,9 @@ export function useVoiceRecorder(initialClips?: AudioClip[]) {
 
       mediaRecorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: mediaRecorder.mimeType });
-        const durationSeconds = Math.round((Date.now() - startTimeRef.current) / 1000);
+        const totalElapsed = Date.now() - startTimeRef.current;
+        const activeDuration = totalElapsed - pausedDurationRef.current;
+        const durationSeconds = Math.round(activeDuration / 1000);
 
         stream.getTracks().forEach((track) => track.stop());
         chunksRef.current = [];
@@ -77,22 +84,45 @@ export function useVoiceRecorder(initialClips?: AudioClip[]) {
 
       mediaRecorder.start(1000);
       setIsRecording(true);
+      setIsPaused(false);
     } catch (err) {
       console.error("Failed to start recording:", err);
     }
   }, []);
 
+  const pauseRecording = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+      mediaRecorderRef.current.pause();
+      pauseStartRef.current = Date.now();
+      setIsPaused(true);
+    }
+  }, []);
+
+  const resumeRecording = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "paused") {
+      pausedDurationRef.current += Date.now() - pauseStartRef.current;
+      pauseStartRef.current = 0;
+      mediaRecorderRef.current.resume();
+      setIsPaused(false);
+    }
+  }, []);
+
   const stopRecording = useCallback((): Promise<AudioClip> | null => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      if (isPaused && pauseStartRef.current > 0) {
+        pausedDurationRef.current += Date.now() - pauseStartRef.current;
+        pauseStartRef.current = 0;
+      }
       const promise = new Promise<AudioClip>((resolve) => {
         stopResolveRef.current = resolve;
       });
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+      setIsPaused(false);
       return promise;
     }
     return null;
-  }, []);
+  }, [isPaused]);
 
   const renameClip = useCallback((index: number, label: string) => {
     setClips((prev) => {
@@ -116,6 +146,7 @@ export function useVoiceRecorder(initialClips?: AudioClip[]) {
       discardNextRef.current = true;
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+      setIsPaused(false);
     }
   }, []);
 
@@ -125,8 +156,11 @@ export function useVoiceRecorder(initialClips?: AudioClip[]) {
 
   return {
     isRecording,
+    isPaused,
     clips,
     startRecording,
+    pauseRecording,
+    resumeRecording,
     stopRecording,
     renameClip,
     clearClips,

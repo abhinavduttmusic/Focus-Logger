@@ -1,5 +1,6 @@
 import { Timer, History, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 
 export type Tab = "timer" | "logs" | "calendar";
 
@@ -8,6 +9,8 @@ interface BottomNavProps {
   onChange: (tab: Tab) => void;
   sessionIsInProgress: boolean;
 }
+
+const TAP_SPRING = { duration: 0.12, ease: "easeOut" as const };
 
 const tabs: { id: Tab; label: string; Icon: typeof Timer }[] = [
   { id: "timer", label: "Timer", Icon: Timer },
@@ -22,9 +25,11 @@ export function BottomNav({ activeTab, onChange, sessionIsInProgress }: BottomNa
         {tabs.map(({ id, label, Icon }) => {
           const isActive = activeTab === id;
           return (
-            <button
+            <motion.button
               key={id}
               onClick={() => onChange(id)}
+              whileTap={{ scale: 0.92 }}
+              transition={TAP_SPRING}
               className={cn(
                 "flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors touch-manipulation relative",
                 isActive ? "text-primary" : "text-muted-foreground/60 hover:text-muted-foreground"
@@ -41,7 +46,7 @@ export function BottomNav({ activeTab, onChange, sessionIsInProgress }: BottomNa
               <span className={cn("text-[10px] font-medium", isActive && "font-semibold")}>
                 {label}
               </span>
-            </button>
+            </motion.button>
           );
         })}
       </div>

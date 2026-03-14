@@ -1,8 +1,11 @@
 import { useState, useRef, useEffect } from "react";
-import { Mic, Play, Pause } from "lucide-react";
+import { Mic, Play, Pause, Square } from "lucide-react";
 import type { AudioClip } from "@/hooks/use-voice-recorder";
+import { motion } from "framer-motion";
 
 const AUDIO_PLAY_EVENT = "flowstate-audio-play";
+
+const TAP_SPRING = { duration: 0.12, ease: "easeOut" as const };
 
 function formatOffset(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -78,8 +81,10 @@ function ClipPlayer({ clip }: { clip: AudioClip }) {
         }}
         className="hidden"
       />
-      <button
+      <motion.button
         onClick={toggle}
+        whileTap={{ scale: 0.92 }}
+        transition={TAP_SPRING}
         className="p-1.5 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-secondary/40 transition-colors shrink-0 min-w-[32px] min-h-[32px] flex items-center justify-center"
         aria-label={playing ? "Pause" : "Play"}
       >
@@ -88,7 +93,7 @@ function ClipPlayer({ clip }: { clip: AudioClip }) {
         ) : (
           <Play className="w-3.5 h-3.5" fill="currentColor" />
         )}
-      </button>
+      </motion.button>
       <span className="text-[10px] text-muted-foreground/50 tabular-nums shrink-0 w-[34px] text-right">
         {fmtTime(currentTime)}
       </span>
@@ -108,21 +113,65 @@ function ClipPlayer({ clip }: { clip: AudioClip }) {
   );
 }
 
+function RecordingElapsed({ isPaused }: { isPaused: boolean }) {
+  const [elapsed, setElapsed] = useState(0);
+  const startRef = useRef(Date.now());
+  const pausedAccumRef = useRef(0);
+  const pauseStartRef = useRef(0);
+
+  useEffect(() => {
+    startRef.current = Date.now();
+    pausedAccumRef.current = 0;
+    pauseStartRef.current = 0;
+    setElapsed(0);
+  }, []);
+
+  useEffect(() => {
+    if (isPaused) {
+      pauseStartRef.current = Date.now();
+      return;
+    }
+    if (pauseStartRef.current > 0) {
+      pausedAccumRef.current += Date.now() - pauseStartRef.current;
+      pauseStartRef.current = 0;
+    }
+
+    const interval = setInterval(() => {
+      const total = Date.now() - startRef.current - pausedAccumRef.current;
+      setElapsed(Math.floor(total / 1000));
+    }, 200);
+
+    return () => clearInterval(interval);
+  }, [isPaused]);
+
+  return (
+    <span className="text-sm font-medium tabular-nums text-destructive/80">
+      {formatOffset(elapsed)}
+    </span>
+  );
+}
+
 interface VoiceRecorderProps {
   isActive: boolean;
   isRecording: boolean;
+  isPaused: boolean;
   clips: AudioClip[];
   onStartRecording: () => void;
   onStopRecording: () => void;
+  onPauseRecording: () => void;
+  onResumeRecording: () => void;
   onRenameClip: (index: number, label: string) => void;
 }
 
 export function VoiceRecorder({
   isActive,
   isRecording,
+  isPaused,
   clips,
   onStartRecording,
   onStopRecording,
+  onPauseRecording,
+  onResumeRecording,
   onRenameClip,
 }: VoiceRecorderProps) {
   const prevCountRef = useRef(clips.length);
@@ -142,24 +191,59 @@ export function VoiceRecorder({
       {isActive && (
         <div className="flex items-center justify-center">
           {!isRecording ? (
-            <button
+            <motion.button
               onClick={onStartRecording}
+              whileTap={{ scale: 0.95 }}
+              transition={TAP_SPRING}
               className="flex items-center gap-2 px-4 py-2 rounded-full bg-card/60 border border-border/30 text-muted-foreground hover:text-foreground hover:bg-card/90 transition-all text-sm"
             >
               <Mic className="w-4 h-4" />
               Record
-            </button>
+            </motion.button>
           ) : (
-            <button
-              onClick={onStopRecording}
-              className="flex items-center gap-2 px-4 py-2 rounded-full bg-destructive/10 border border-destructive/20 text-destructive hover:bg-destructive/20 transition-all text-sm"
-            >
-              <span className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
+            <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-destructive/10 border border-destructive/20">
+              <span className="relative flex h-3 w-3 shrink-0">
+                {!isPaused && (
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
+                )}
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-destructive" />
               </span>
-              Recording...
-            </button>
+
+              <RecordingElapsed isPaused={isPaused} />
+
+              <div className="flex items-center gap-1">
+                {!isPaused ? (
+                  <motion.button
+                    onClick={onPauseRecording}
+                    whileTap={{ scale: 0.9 }}
+                    transition={TAP_SPRING}
+                    className="p-1.5 rounded-full text-destructive/70 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    aria-label="Pause recording"
+                  >
+                    <Pause className="w-4 h-4" />
+                  </motion.button>
+                ) : (
+                  <motion.button
+                    onClick={onResumeRecording}
+                    whileTap={{ scale: 0.9 }}
+                    transition={TAP_SPRING}
+                    className="p-1.5 rounded-full text-destructive/70 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    aria-label="Resume recording"
+                  >
+                    <Mic className="w-4 h-4" />
+                  </motion.button>
+                )}
+                <motion.button
+                  onClick={onStopRecording}
+                  whileTap={{ scale: 0.9 }}
+                  transition={TAP_SPRING}
+                  className="p-1.5 rounded-full text-destructive/70 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  aria-label="Stop recording"
+                >
+                  <Square className="w-3.5 h-3.5" fill="currentColor" />
+                </motion.button>
+              </div>
+            </div>
           )}
         </div>
       )}
