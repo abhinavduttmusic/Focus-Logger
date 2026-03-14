@@ -294,7 +294,8 @@ function Home({ restored }: { restored: RestoredSession | null }) {
               }
               style={{ pointerEvents: isActive ? "auto" : "none" }}
               aria-hidden={!isActive}
-              {...(!isActive ? { inert: "" as unknown as boolean } : {})}
+              // @ts-expect-error inert is a valid HTML attribute
+              inert={!isActive ? "" : undefined}
             >
               {tab === "timer" && (
                 <main className="w-full py-8 px-4 sm:px-6 flex flex-col items-center pb-6">

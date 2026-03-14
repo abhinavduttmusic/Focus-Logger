@@ -5,7 +5,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { formatShortDuration, cn } from "@/lib/utils";
 import { Trash2, History, Tag, Play, Pause, ChevronDown, Mic, ListOrdered, Pencil, Check, X } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, type Transition } from "framer-motion";
+
+const TAP_SPRING: Transition = { duration: 0.12, ease: "easeOut" };
 import { SessionTaskPicker } from "./SessionTaskPicker";
 
 const BASE = import.meta.env.BASE_URL;
@@ -512,18 +514,23 @@ export function SessionList({ onRestart }: SessionListProps) {
                         {formatShortDuration(group.totalSeconds)}
                       </span>
 
-                      <ChevronDown className={cn(
-                        "w-3.5 h-3.5 text-muted-foreground/40 transition-transform duration-200 shrink-0",
-                        isExpanded && "rotate-180"
-                      )} />
+                      <motion.span
+                        animate={{ rotate: isExpanded ? 180 : 0 }}
+                        transition={{ duration: 0.2, ease: "easeOut" }}
+                        className="shrink-0 flex items-center justify-center"
+                      >
+                        <ChevronDown className="w-3.5 h-3.5 text-muted-foreground/40" />
+                      </motion.span>
 
-                      <button
+                      <motion.button
                         onClick={(e) => handleRestart(group, e)}
+                        whileTap={{ scale: 0.9 }}
+                        transition={TAP_SPRING}
                         className="p-2 rounded-xl hover:bg-primary/10 text-primary/60 hover:text-primary transition-colors shrink-0"
                         aria-label="Restart this task"
                       >
                         <Play className="w-4 h-4" />
-                      </button>
+                      </motion.button>
                     </div>
 
                     <AnimatePresence>
@@ -564,10 +571,13 @@ export function SessionList({ onRestart }: SessionListProps) {
                                             aria-expanded={expandedNoteId === s.id}
                                             className="flex items-start gap-1.5 text-left w-full touch-manipulation"
                                           >
-                                            <ChevronDown className={cn(
-                                              "w-3 h-3 mt-0.5 shrink-0 text-muted-foreground/40 transition-transform duration-200",
-                                              expandedNoteId === s.id ? "rotate-0" : "-rotate-90"
-                                            )} />
+                                            <motion.span
+                                              animate={{ rotate: expandedNoteId === s.id ? 0 : -90 }}
+                                              transition={{ duration: 0.2, ease: "easeOut" }}
+                                              className="shrink-0 flex items-center justify-center mt-0.5"
+                                            >
+                                              <ChevronDown className="w-3 h-3 text-muted-foreground/40" />
+                                            </motion.span>
                                             <span className={cn(
                                               "text-sm text-foreground/70 flex-1 min-w-0",
                                               expandedNoteId === s.id
