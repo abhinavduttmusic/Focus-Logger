@@ -524,7 +524,7 @@ export function SessionList({ onRestart }: SessionListProps) {
 
                       <motion.button
                         onClick={(e) => handleRestart(group, e)}
-                        whileTap={{ scale: 0.9 }}
+                        whileTap={{ scale: 0.95 }}
                         transition={TAP_SPRING}
                         className="p-2 rounded-xl hover:bg-primary/10 text-primary/60 hover:text-primary transition-colors shrink-0"
                         aria-label="Restart this task"
