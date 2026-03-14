@@ -1,8 +1,9 @@
-const canVibrate =
-  typeof navigator !== "undefined" && typeof navigator.vibrate === "function";
+function canVibrate(): boolean {
+  return typeof navigator !== "undefined" && typeof navigator.vibrate === "function";
+}
 
 function haptic(pattern: number | number[]): void {
-  if (canVibrate) {
+  if (canVibrate()) {
     try {
       navigator.vibrate(pattern);
     } catch {
