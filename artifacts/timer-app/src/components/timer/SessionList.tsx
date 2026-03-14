@@ -332,45 +332,7 @@ function EditSessionForm({
   );
 }
 
-function ConfirmBanner({
-  message,
-  onConfirm,
-  onCancel,
-  confirmLabel = "Delete",
-  cancelLabel = "Cancel",
-}: {
-  message: string;
-  onConfirm: () => void;
-  onCancel: () => void;
-  confirmLabel?: string;
-  cancelLabel?: string;
-}) {
-  return (
-    <motion.div
-      initial={{ height: 0, opacity: 0 }}
-      animate={{ height: "auto", opacity: 1 }}
-      exit={{ height: 0, opacity: 0 }}
-      transition={{ duration: 0.15 }}
-      className="overflow-hidden"
-    >
-      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-destructive/5 border border-destructive/20 text-xs">
-        <span className="flex-1 text-foreground/80">{message}</span>
-        <button
-          onClick={onConfirm}
-          className="px-2 py-1 rounded-md bg-destructive/90 text-destructive-foreground text-[11px] font-medium hover:bg-destructive transition-colors"
-        >
-          {confirmLabel}
-        </button>
-        <button
-          onClick={onCancel}
-          className="px-2 py-1 rounded-md bg-secondary/60 text-foreground/70 text-[11px] font-medium hover:bg-secondary transition-colors"
-        >
-          {cancelLabel}
-        </button>
-      </div>
-    </motion.div>
-  );
-}
+import { ConfirmBanner } from "@/components/ui/confirm-banner";
 
 export function SessionList({ onRestart }: SessionListProps) {
   const { data: sessions, isLoading } = useListSessions();

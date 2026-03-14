@@ -12,7 +12,8 @@ import {
   type RestoredSession,
 } from "@/hooks/use-session-persistence";
 import { XCircle } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { ConfirmBannerInline, CONFIRM_TAP } from "@/components/ui/confirm-banner";
 
 import { TimerToggle } from "@/components/timer/TimerToggle";
 import { TimerDisplay } from "@/components/timer/TimerDisplay";
@@ -343,57 +344,54 @@ function Home({ restored }: { restored: RestoredSession | null }) {
 
                       {sessionIsInProgress && (
                         <div className="flex justify-center mt-4">
-                          {!showAbortConfirm ? (
-                            <motion.button
-                              onClick={() => setShowAbortConfirm(true)}
-                              whileTap={{ scale: 0.96 }}
-                              transition={{ duration: 0.12, ease: "easeOut" }}
-                              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
-                            >
-                              <XCircle className="w-3.5 h-3.5" />
-                              Abort Session
-                            </motion.button>
-                          ) : showAbortConfirm2 ? (
-                            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-destructive/5 border border-destructive/20">
-                              <span className="text-xs text-foreground/80">End session already? Progress won't be saved if you stop now.</span>
+                          <AnimatePresence mode="wait">
+                            {!showAbortConfirm ? (
                               <motion.button
-                                onClick={handleAbort}
+                                key="abort-trigger"
+                                onClick={() => setShowAbortConfirm(true)}
                                 whileTap={{ scale: 0.96 }}
                                 transition={{ duration: 0.12, ease: "easeOut" }}
-                                className="px-2.5 py-1 rounded-md bg-destructive/90 text-destructive-foreground text-[11px] font-medium hover:bg-destructive transition-colors"
+                                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
                               >
-                                Yes, abort it
+                                <XCircle className="w-3.5 h-3.5" />
+                                Abort Session
                               </motion.button>
-                              <motion.button
-                                onClick={() => { setShowAbortConfirm(false); setShowAbortConfirm2(false); }}
-                                whileTap={{ scale: 0.96 }}
-                                transition={{ duration: 0.12, ease: "easeOut" }}
-                                className="px-2.5 py-1 rounded-md bg-secondary/60 text-foreground/70 text-[11px] font-medium hover:bg-secondary transition-colors"
-                              >
-                                Keep going
-                              </motion.button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-destructive/5 border border-destructive/20">
-                              <span className="text-xs text-foreground/80">Abort this session? This session will not be saved.</span>
-                              <motion.button
-                                onClick={() => setShowAbortConfirm2(true)}
-                                whileTap={{ scale: 0.96 }}
-                                transition={{ duration: 0.12, ease: "easeOut" }}
-                                className="px-2.5 py-1 rounded-md bg-destructive/90 text-destructive-foreground text-[11px] font-medium hover:bg-destructive transition-colors"
-                              >
-                                Abort
-                              </motion.button>
-                              <motion.button
-                                onClick={() => setShowAbortConfirm(false)}
-                                whileTap={{ scale: 0.96 }}
-                                transition={{ duration: 0.12, ease: "easeOut" }}
-                                className="px-2.5 py-1 rounded-md bg-secondary/60 text-foreground/70 text-[11px] font-medium hover:bg-secondary transition-colors"
-                              >
-                                Cancel
-                              </motion.button>
-                            </div>
-                          )}
+                            ) : showAbortConfirm2 ? (
+                              <ConfirmBannerInline key="abort-step2" message="End session already? Progress won't be saved if you stop now.">
+                                <motion.button
+                                  onClick={handleAbort}
+                                  {...CONFIRM_TAP}
+                                  className="px-2.5 py-1 rounded-md bg-destructive/90 text-destructive-foreground text-[11px] font-medium hover:bg-destructive transition-colors"
+                                >
+                                  Yes, abort it
+                                </motion.button>
+                                <motion.button
+                                  onClick={() => { setShowAbortConfirm(false); setShowAbortConfirm2(false); }}
+                                  {...CONFIRM_TAP}
+                                  className="px-2.5 py-1 rounded-md bg-secondary/60 text-foreground/70 text-[11px] font-medium hover:bg-secondary transition-colors"
+                                >
+                                  Keep going
+                                </motion.button>
+                              </ConfirmBannerInline>
+                            ) : (
+                              <ConfirmBannerInline key="abort-step1" message="Abort this session? This session will not be saved.">
+                                <motion.button
+                                  onClick={() => setShowAbortConfirm2(true)}
+                                  {...CONFIRM_TAP}
+                                  className="px-2.5 py-1 rounded-md bg-destructive/90 text-destructive-foreground text-[11px] font-medium hover:bg-destructive transition-colors"
+                                >
+                                  Abort
+                                </motion.button>
+                                <motion.button
+                                  onClick={() => setShowAbortConfirm(false)}
+                                  {...CONFIRM_TAP}
+                                  className="px-2.5 py-1 rounded-md bg-secondary/60 text-foreground/70 text-[11px] font-medium hover:bg-secondary transition-colors"
+                                >
+                                  Cancel
+                                </motion.button>
+                              </ConfirmBannerInline>
+                            )}
+                          </AnimatePresence>
                         </div>
                       )}
                     </section>

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useLayoutEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { ConfirmBanner } from "@/components/ui/confirm-banner";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListTasks,
@@ -255,147 +256,133 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
 
     const isSecondConfirm = confirmDeleteId2 === task.id;
 
-    if (isSecondConfirm) {
-      return (
-        <div
-          key={task.id}
-          className="flex items-center gap-2 p-2.5 rounded-xl bg-destructive/5 border border-destructive/20"
-        >
-          <span className="flex-1 text-sm font-medium text-destructive truncate">Last chance &mdash; delete &ldquo;{task.name}&rdquo; forever?</span>
-          <button
-            onClick={() => { setConfirmDeleteId(null); setConfirmDeleteId2(null); }}
-            className="px-2.5 py-1 rounded-lg text-xs font-medium text-muted-foreground hover:bg-secondary/60 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => deleteTask.mutate({ id: task.id })}
-            disabled={deleteTask.isPending}
-            className="px-2.5 py-1 rounded-lg text-xs font-medium bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 transition-colors"
-          >
-            {deleteTask.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "Yes, delete it"}
-          </button>
-        </div>
-      );
-    }
-
-    if (isConfirming) {
-      return (
-        <div
-          key={task.id}
-          className="flex items-center gap-2 p-2.5 rounded-xl bg-destructive/5 border border-destructive/20"
-        >
-          <span className="flex-1 text-sm font-medium text-destructive truncate">Delete &ldquo;{task.name}&rdquo;?</span>
-          <button
-            onClick={() => { setConfirmDeleteId(null); setConfirmDeleteId2(null); }}
-            className="px-2.5 py-1 rounded-lg text-xs font-medium text-muted-foreground hover:bg-secondary/60 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => setConfirmDeleteId2(task.id)}
-            disabled={deleteTask.isPending}
-            className="px-2.5 py-1 rounded-lg text-xs font-medium bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 transition-colors"
-          >
-            Delete
-          </button>
-        </div>
-      );
-    }
-
-    if (isRenaming) {
-      return (
-        <div
-          key={task.id}
-          className="flex items-center gap-2 p-1.5 rounded-xl bg-primary/5 border border-primary/20"
-        >
-          <Tag className="w-3.5 h-3.5 shrink-0 text-primary ml-1" />
-          <input
-            autoFocus
-            value={renameValue}
-            onChange={(e) => setRenameValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleRenameSubmit(task.id);
-              if (e.key === "Escape") { setRenamingTaskId(null); setRenameValue(""); }
-            }}
-            className="flex-1 bg-transparent text-sm font-medium text-foreground outline-none placeholder:text-muted-foreground/50 min-w-0"
-            placeholder="Task name"
-          />
-          <button
-            onClick={() => { setRenamingTaskId(null); setRenameValue(""); }}
-            className="p-1.5 rounded-lg text-muted-foreground/50 hover:text-muted-foreground hover:bg-secondary/60 transition-colors shrink-0"
-            aria-label="Cancel rename"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => handleRenameSubmit(task.id)}
-            disabled={!renameValue.trim() || updateTask.isPending}
-            className="p-1.5 mr-0.5 rounded-lg text-primary hover:bg-primary/10 transition-colors disabled:opacity-40 shrink-0"
-            aria-label="Confirm rename"
-          >
-            {updateTask.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-          </button>
-        </div>
-      );
-    }
+    const stateKey = isSecondConfirm
+      ? `del2-${task.id}`
+      : isConfirming
+        ? `del1-${task.id}`
+        : isRenaming
+          ? `rename-${task.id}`
+          : `row-${task.id}`;
 
     return (
-      <div
-        key={task.id}
-        className={cn(
-          "group/task flex items-center gap-2 rounded-xl transition-colors",
-          selectedTask?.id === task.id ? "bg-primary/10" : "hover:bg-secondary/60"
-        )}
-      >
-        <button
-          onClick={() => {
-            onSelectTask(task);
-            resetAndClose();
-          }}
-          className="flex-1 flex items-center gap-2.5 p-2.5 text-left touch-manipulation min-w-0"
-        >
-          <Tag className={cn("w-3.5 h-3.5 shrink-0", selectedTask?.id === task.id ? "text-primary" : "text-muted-foreground/50")} />
-          <div className="flex-1 flex items-baseline gap-2 min-w-0">
-            <span className={cn("font-medium text-sm truncate", selectedTask?.id === task.id ? "text-primary" : "text-foreground/80")}>
-              {task.name}
-            </span>
-            {isSearching && task.projectName && (
-              <span className="text-xs text-muted-foreground/60 truncate shrink-0">{task.projectName}</span>
+      <AnimatePresence mode="wait">
+        {isSecondConfirm ? (
+          <ConfirmBanner
+            key={stateKey}
+            message={<>Last chance &mdash; delete &ldquo;{task.name}&rdquo; forever?</>}
+            onCancel={() => { setConfirmDeleteId(null); setConfirmDeleteId2(null); }}
+            onConfirm={() => deleteTask.mutate({ id: task.id })}
+            confirmDisabled={deleteTask.isPending}
+            confirmContent={deleteTask.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "Yes, delete it"}
+            variant="md"
+          />
+        ) : isConfirming ? (
+          <ConfirmBanner
+            key={stateKey}
+            message={<>Delete &ldquo;{task.name}&rdquo;?</>}
+            onCancel={() => { setConfirmDeleteId(null); setConfirmDeleteId2(null); }}
+            onConfirm={() => setConfirmDeleteId2(task.id)}
+            confirmDisabled={deleteTask.isPending}
+            confirmLabel="Delete"
+            variant="md"
+          />
+        ) : isRenaming ? (
+          <motion.div
+            key={stateKey}
+            initial={{ opacity: 0, scale: 0.96, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0, transition: { duration: 0.24, ease: [0.22, 1, 0.36, 1] } }}
+            exit={{ opacity: 0, scale: 0.96, y: 8, transition: { duration: 0.2, ease: [0.22, 1, 0.36, 1] } }}
+            className="flex items-center gap-2 p-1.5 rounded-xl bg-primary/5 border border-primary/20"
+          >
+            <Tag className="w-3.5 h-3.5 shrink-0 text-primary ml-1" />
+            <input
+              autoFocus
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleRenameSubmit(task.id);
+                if (e.key === "Escape") { setRenamingTaskId(null); setRenameValue(""); }
+              }}
+              className="flex-1 bg-transparent text-sm font-medium text-foreground outline-none placeholder:text-muted-foreground/50 min-w-0"
+              placeholder="Task name"
+            />
+            <button
+              onClick={() => { setRenamingTaskId(null); setRenameValue(""); }}
+              className="p-1.5 rounded-lg text-muted-foreground/50 hover:text-muted-foreground hover:bg-secondary/60 transition-colors shrink-0"
+              aria-label="Cancel rename"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => handleRenameSubmit(task.id)}
+              disabled={!renameValue.trim() || updateTask.isPending}
+              className="p-1.5 mr-0.5 rounded-lg text-primary hover:bg-primary/10 transition-colors disabled:opacity-40 shrink-0"
+              aria-label="Confirm rename"
+            >
+              {updateTask.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+            </button>
+          </motion.div>
+        ) : (
+          <motion.div
+            key={stateKey}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1, transition: { duration: 0.15 } }}
+            exit={{ opacity: 0, transition: { duration: 0.1 } }}
+            className={cn(
+              "group/task flex items-center gap-2 rounded-xl transition-colors",
+              selectedTask?.id === task.id ? "bg-primary/10" : "hover:bg-secondary/60"
             )}
-          </div>
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setConfirmDeleteId(null);
-            setConfirmDeleteId2(null);
-            setConfirmDeleteProjectId(null);
-            setConfirmDeleteProjectId2(null);
-            setRenamingTaskId(task.id);
-            setRenameValue(task.name);
-          }}
-          className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-muted-foreground/60 hover:text-foreground/70 hover:bg-secondary/60 transition-colors shrink-0"
-          aria-label="Rename task"
-        >
-          <Pencil className="w-3.5 h-3.5" />
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setRenamingTaskId(null);
-            setRenameValue("");
-            setConfirmDeleteProjectId(null);
-            setConfirmDeleteProjectId2(null);
-            setConfirmDeleteId(task.id);
-            setConfirmDeleteId2(null);
-          }}
-          className="p-2.5 mr-1 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
-          aria-label="Delete task"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
-      </div>
+          >
+            <button
+              onClick={() => {
+                onSelectTask(task);
+                resetAndClose();
+              }}
+              className="flex-1 flex items-center gap-2.5 p-2.5 text-left touch-manipulation min-w-0"
+            >
+              <Tag className={cn("w-3.5 h-3.5 shrink-0", selectedTask?.id === task.id ? "text-primary" : "text-muted-foreground/50")} />
+              <div className="flex-1 flex items-baseline gap-2 min-w-0">
+                <span className={cn("font-medium text-sm truncate", selectedTask?.id === task.id ? "text-primary" : "text-foreground/80")}>
+                  {task.name}
+                </span>
+                {isSearching && task.projectName && (
+                  <span className="text-xs text-muted-foreground/60 truncate shrink-0">{task.projectName}</span>
+                )}
+              </div>
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setConfirmDeleteId(null);
+                setConfirmDeleteId2(null);
+                setConfirmDeleteProjectId(null);
+                setConfirmDeleteProjectId2(null);
+                setRenamingTaskId(task.id);
+                setRenameValue(task.name);
+              }}
+              className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-muted-foreground/60 hover:text-foreground/70 hover:bg-secondary/60 transition-colors shrink-0"
+              aria-label="Rename task"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setRenamingTaskId(null);
+                setRenameValue("");
+                setConfirmDeleteProjectId(null);
+                setConfirmDeleteProjectId2(null);
+                setConfirmDeleteId(task.id);
+                setConfirmDeleteId2(null);
+              }}
+              className="p-2.5 mr-1 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+              aria-label="Delete task"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     );
   }
 
@@ -464,63 +451,57 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
         )}
         {withProject.map(({ project, tasks: projectTasks }) => (
           <div key={project.id}>
-            {confirmDeleteProjectId2 === project.id ? (
-              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-destructive/5 border border-destructive/20">
-                <span className="flex-1 text-sm font-medium text-destructive truncate">Last chance &mdash; delete &ldquo;{project.name}&rdquo; forever?</span>
-                <button
-                  onClick={() => { setConfirmDeleteProjectId(null); setConfirmDeleteProjectId2(null); }}
-                  className="px-2.5 py-1 rounded-lg text-xs font-medium text-muted-foreground hover:bg-secondary/60 transition-colors"
+            <AnimatePresence mode="wait">
+              {confirmDeleteProjectId2 === project.id ? (
+                <ConfirmBanner
+                  key={`pdel2-${project.id}`}
+                  message={<>Last chance &mdash; delete &ldquo;{project.name}&rdquo; forever?</>}
+                  onCancel={() => { setConfirmDeleteProjectId(null); setConfirmDeleteProjectId2(null); }}
+                  onConfirm={() => deleteProject.mutate({ id: project.id })}
+                  confirmDisabled={deleteProject.isPending}
+                  confirmContent={deleteProject.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "Yes, delete it"}
+                  variant="md"
+                />
+              ) : confirmDeleteProjectId === project.id ? (
+                <ConfirmBanner
+                  key={`pdel1-${project.id}`}
+                  message={<>Delete &ldquo;{project.name}&rdquo;?</>}
+                  onCancel={() => { setConfirmDeleteProjectId(null); setConfirmDeleteProjectId2(null); }}
+                  onConfirm={() => setConfirmDeleteProjectId2(project.id)}
+                  confirmDisabled={deleteProject.isPending}
+                  confirmContent={deleteProject.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "Delete"}
+                  variant="md"
+                />
+              ) : (
+                <motion.div
+                  key={`prow-${project.id}`}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1, transition: { duration: 0.15 } }}
+                  exit={{ opacity: 0, transition: { duration: 0.1 } }}
+                  className="group/project flex items-center gap-2 px-2.5 py-1.5"
                 >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => deleteProject.mutate({ id: project.id })}
-                  disabled={deleteProject.isPending}
-                  className="px-2.5 py-1 rounded-lg text-xs font-medium bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 transition-colors"
-                >
-                  {deleteProject.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "Yes, delete it"}
-                </button>
-              </div>
-            ) : confirmDeleteProjectId === project.id ? (
-              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-destructive/5 border border-destructive/20">
-                <span className="flex-1 text-sm font-medium text-destructive truncate">Delete &ldquo;{project.name}&rdquo;?</span>
-                <button
-                  onClick={() => { setConfirmDeleteProjectId(null); setConfirmDeleteProjectId2(null); }}
-                  className="px-2.5 py-1 rounded-lg text-xs font-medium text-muted-foreground hover:bg-secondary/60 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => setConfirmDeleteProjectId2(project.id)}
-                  disabled={deleteProject.isPending}
-                  className="px-2.5 py-1 rounded-lg text-xs font-medium bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 transition-colors"
-                >
-                  {deleteProject.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "Delete"}
-                </button>
-              </div>
-            ) : (
-              <div className="group/project flex items-center gap-2 px-2.5 py-1.5">
-                <Folder className="w-3.5 h-3.5 text-primary/50" />
-                <span className="flex-1 text-[11px] font-bold uppercase tracking-wider text-foreground/70">
-                  {project.name}
-                </span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setConfirmDeleteId(null);
-                    setConfirmDeleteId2(null);
-                    setConfirmDeleteProjectId(project.id);
-                    setConfirmDeleteProjectId2(null);
-                    setRenamingTaskId(null);
-                    setRenameValue("");
-                  }}
-                  className="p-1 rounded-lg text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover/project:opacity-100 focus:opacity-100 shrink-0"
-                  aria-label="Delete project"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
-              </div>
-            )}
+                  <Folder className="w-3.5 h-3.5 text-primary/50" />
+                  <span className="flex-1 text-[11px] font-bold uppercase tracking-wider text-foreground/70">
+                    {project.name}
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setConfirmDeleteId(null);
+                      setConfirmDeleteId2(null);
+                      setConfirmDeleteProjectId(project.id);
+                      setConfirmDeleteProjectId2(null);
+                      setRenamingTaskId(null);
+                      setRenameValue("");
+                    }}
+                    className="p-1 rounded-lg text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover/project:opacity-100 focus:opacity-100 shrink-0"
+                    aria-label="Delete project"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
             {confirmDeleteProjectId !== project.id && confirmDeleteProjectId2 !== project.id && (
               projectTasks.length > 0 ? (
                 <div className="space-y-0.5 ml-1">
