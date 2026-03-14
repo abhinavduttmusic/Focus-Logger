@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { SessionType } from "@workspace/api-client-react/src/generated/api.schemas";
+import { hapticLight, hapticDouble } from "./use-haptics";
 
 export type TimerMode = "simple" | "pomodoro";
 export type PomodoroPhase = "focus" | "break";
@@ -100,6 +101,7 @@ export function useTimer({ onLogSession, initialState }: UseTimerProps) {
   const start = useCallback(() => {
     startTimestampRef.current = Date.now();
     setIsActive(true);
+    hapticLight();
   }, []);
 
   const pause = useCallback(() => {
@@ -113,6 +115,7 @@ export function useTimer({ onLogSession, initialState }: UseTimerProps) {
     startTimestampRef.current = null;
     elapsedAtPauseRef.current = 0;
     setIsActive(false);
+    hapticLight();
 
     if (elapsed > 0) {
       let sessionType: SessionType = "simple";
@@ -185,6 +188,7 @@ export function useTimer({ onLogSession, initialState }: UseTimerProps) {
       startTimestampRef.current = null;
       elapsedAtPauseRef.current = 0;
       setIsActive(false);
+      hapticDouble();
 
       const sessionType: SessionType = phase === "focus" ? "pomodoro_focus" : "pomodoro_break";
       onLogSessionRef.current(sessionType, elapsed);
