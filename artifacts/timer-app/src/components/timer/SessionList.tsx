@@ -449,7 +449,7 @@ export function SessionList({ onRestart }: SessionListProps) {
                       role="button"
                       tabIndex={0}
                       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleExpand(group.key); } }}
-                      whileTap={{ scale: 1.005, y: -1 }}
+                      whileTap={{ scale: 1.005, y: -1, backgroundColor: "rgba(0,0,0,0.04)" }}
                       transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
                       className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-card/60 border border-border/30 hover:bg-card/90 shadow-sm hover:shadow-md transition-all group touch-manipulation cursor-pointer"
                     >
