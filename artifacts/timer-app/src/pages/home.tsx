@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCreateSession, getListSessionsQueryKey } from "@workspace/api-client-react";
 import type { SessionType, Task } from "@workspace/api-client-react/src/generated/api.schemas";
-import { useTimer, type TimerInitialState } from "@/hooks/use-timer";
+import { useTimer, type TimerMode, type TimerInitialState } from "@/hooks/use-timer";
 import { useVoiceRecorder, type AudioClip } from "@/hooks/use-voice-recorder";
 import {
   loadSession,
@@ -163,6 +163,30 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     initialState: timerInitialState,
   });
 
+  // Swipe-to-switch-mode gesture state
+  const modeDir = useRef<"left" | "right">("left");
+  const swipeStart = useRef<{ x: number; y: number } | null>(null);
+
+  const handleModeChange = useCallback((newMode: TimerMode) => {
+    if (newMode === timer.mode) return;
+    modeDir.current = newMode === "simple" ? "left" : "right";
+    timer.setMode(newMode);
+  }, [timer]);
+
+  const handleSwipeStart = useCallback((e: React.PointerEvent) => {
+    swipeStart.current = { x: e.clientX, y: e.clientY };
+  }, []);
+
+  const handleSwipeEnd = useCallback((e: React.PointerEvent) => {
+    if (!swipeStart.current) return;
+    const dx = e.clientX - swipeStart.current.x;
+    const dy = e.clientY - swipeStart.current.y;
+    swipeStart.current = null;
+    if (Math.abs(dx) < 40) return;
+    if (Math.abs(dy) > Math.abs(dx)) return;
+    handleModeChange(dx < 0 ? "simple" : "pomodoro");
+  }, [handleModeChange]);
+
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -304,7 +328,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                 <main className="w-full pt-6 pb-6 px-4 sm:px-6 flex flex-col items-center">
                   <div className="w-full max-w-md space-y-4">
                     <div className="text-center">
-                      <TimerToggle mode={timer.mode} onChange={timer.setMode} />
+                      <TimerToggle mode={timer.mode} onChange={handleModeChange} />
                     </div>
 
                     <section className="relative">
@@ -331,15 +355,33 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                         />
                       </div>
 
-                      <TimerDisplay
-                        mode={timer.mode}
-                        phase={timer.phase}
-                        seconds={timer.seconds}
-                        isActive={timer.isActive}
-                        onStart={timer.start}
-                        onPause={timer.pause}
-                        onStop={timer.stop}
-                      />
+                      <div
+                        onPointerDown={handleSwipeStart}
+                        onPointerUp={handleSwipeEnd}
+                        onPointerCancel={() => { swipeStart.current = null; }}
+                        style={{ touchAction: "pan-y" }}
+                        className="select-none"
+                      >
+                        <AnimatePresence mode="wait" initial={false}>
+                          <motion.div
+                            key={timer.mode}
+                            initial={{ opacity: 0, x: modeDir.current === "left" ? 40 : -40 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: modeDir.current === "left" ? -40 : 40 }}
+                            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                          >
+                            <TimerDisplay
+                              mode={timer.mode}
+                              phase={timer.phase}
+                              seconds={timer.seconds}
+                              isActive={timer.isActive}
+                              onStart={timer.start}
+                              onPause={timer.pause}
+                              onStop={timer.stop}
+                            />
+                          </motion.div>
+                        </AnimatePresence>
+                      </div>
 
                       {sessionIsInProgress && (
                         <div className="flex justify-center mt-4">
