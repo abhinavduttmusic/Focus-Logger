@@ -420,7 +420,7 @@ export function SessionList({ onRestart }: SessionListProps) {
   }
 
   return (
-    <div className="w-full space-y-6">
+    <div className="-mx-4 sm:-mx-6 px-4 sm:px-6 -mt-4 pt-6 pb-8 min-h-full bg-[#F7F7F8] space-y-6">
       <h3 className="text-xl font-semibold flex items-center gap-2">
         <History className="w-5 h-5 text-muted-foreground" />
         Logs
@@ -452,14 +452,14 @@ export function SessionList({ onRestart }: SessionListProps) {
                       whileTap={{ scale: 0.98 }}
                       transition={{ duration: 0.12, ease: [0.22, 1, 0.36, 1] }}
                       className="w-full bg-white rounded-2xl px-4 py-4 touch-manipulation cursor-pointer"
-                      style={{ boxShadow: "0 4px 12px rgba(0,0,0,0.06)", borderRadius: "16px" }}
+                      style={{ boxShadow: "0 6px 18px rgba(0,0,0,0.08)", borderRadius: "16px" }}
                     >
                       {/* Row 1: task name + duration + controls */}
                       <div className="flex items-center gap-2">
                         <span className="flex-1 min-w-0 font-semibold text-[15px] text-foreground leading-snug truncate">
                           {group.taskName ?? "No task"}
                         </span>
-                        <span className="font-bold text-sm text-foreground tabular-nums shrink-0">
+                        <span className="font-bold text-[15px] text-foreground tabular-nums shrink-0 text-right">
                           {formatShortDuration(group.totalSeconds)}
                         </span>
                         <motion.span
