@@ -12,7 +12,7 @@ interface BottomNavProps {
 
 const TAP_SPRING = { duration: 0.12, ease: "easeOut" as const };
 
-const MICRO_EASE = [0.22, 1, 0.36, 1] as const;
+const MICRO_EASE: number[] = [0.22, 1, 0.36, 1];
 
 const ICON_ANIMATIONS: Record<Tab, { animate: Record<string, number[]>; duration: number }> = {
   timer: { animate: { rotate: [0, 6, 0] }, duration: 0.18 },
@@ -51,7 +51,7 @@ export function BottomNav({ activeTab, onChange, sessionIsInProgress }: BottomNa
                   key={isActive ? `${id}-active` : id}
                   className="relative"
                   animate={isActive ? anim.animate : {}}
-                  transition={{ duration: anim.duration, ease: MICRO_EASE as unknown as number[] }}
+                  transition={{ duration: anim.duration, ease: MICRO_EASE }}
                 >
                   <Icon className={cn("w-5 h-5", isActive && "stroke-[2.5]")} />
                   {id === "timer" && sessionIsInProgress && !isActive && (
