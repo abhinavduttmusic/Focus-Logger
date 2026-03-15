@@ -420,12 +420,7 @@ export function SessionList({ onRestart }: SessionListProps) {
   }
 
   return (
-    <div className="-mx-4 sm:-mx-6 px-4 sm:px-6 -mt-4 pt-6 pb-8 min-h-full bg-[#F7F7F8] space-y-6">
-      <h3 className="text-xl font-semibold flex items-center gap-2">
-        <History className="w-5 h-5 text-muted-foreground" />
-        Logs
-      </h3>
-
+    <div className="-mx-4 sm:-mx-6 px-4 sm:px-6 -mt-4 pt-4 pb-8 min-h-full bg-[#F7F7F8] space-y-6">
       <div className="space-y-8">
         {dayGroups.map(day => (
           <div key={day.dateKey} className="space-y-2">

@@ -11,8 +11,8 @@ import {
   buildPersistedState,
   type RestoredSession,
 } from "@/hooks/use-session-persistence";
-import { XCircle } from "lucide-react";
-import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
+import { XCircle, List, Calendar } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { ConfirmBannerInline, CONFIRM_TAP } from "@/components/ui/confirm-banner";
 
@@ -76,6 +76,7 @@ export default function HomeLoader() {
 function Home({ restored }: { restored: RestoredSession | null }) {
   const [activeTab, setActiveTab] = useState<Tab>("timer");
   const [activityView, setActivityView] = useState<"logs" | "calendar">("logs");
+  const [showActivityControls, setShowActivityControls] = useState(true);
   const [notes, setNotes] = useState(restored?.notes ?? "");
   const [selectedTask, setSelectedTask] = useState<Task | null>(
     restored?.selectedTask
@@ -186,6 +187,15 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     if (Math.abs(dy) > Math.abs(dx)) return;
     handleModeChange(dx < 0 ? "simple" : "pomodoro");
   }, [handleModeChange]);
+
+  const handleTabChange = useCallback((tab: Tab) => {
+    if (tab === activeTab && tab === "activity") {
+      setShowActivityControls(prev => !prev);
+    } else {
+      setActiveTab(tab);
+      if (tab === "activity") setShowActivityControls(true);
+    }
+  }, [activeTab]);
 
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -495,36 +505,39 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                     <CalendarView isActive={activeTab === "activity" && activityView === "calendar"} />
                   </motion.div>
 
-                  {/* Floating sub-toggle — anchored above the bottom nav */}
-                  <div className="absolute bottom-4 left-0 right-0 flex justify-center z-20 pointer-events-none">
-                    <LayoutGroup id="activity-view-toggle">
-                      <div className="pointer-events-auto flex items-center p-1.5 bg-background/85 backdrop-blur-md rounded-full border border-border/30 shadow-[0_4px_24px_rgba(0,0,0,0.10)]">
-                        {(["logs", "calendar"] as const).map((view) => (
+                  {/* Floating vertical icon stack — bottom-right thumb zone */}
+                  <AnimatePresence>
+                    {showActivityControls && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.85 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.85 }}
+                        transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                        className="absolute bottom-4 right-4 z-20 flex flex-col gap-3"
+                      >
+                        {([
+                          { view: "calendar" as const, Icon: Calendar, label: "Calendar" },
+                          { view: "logs" as const, Icon: List, label: "Logs" },
+                        ]).map(({ view, Icon, label }) => (
                           <motion.button
                             key={view}
-                            whileTap={{ scale: 0.97 }}
+                            whileTap={{ scale: 0.92 }}
                             transition={{ duration: 0.09, ease: "easeOut" }}
                             onClick={() => setActivityView(view)}
+                            aria-label={label}
                             className={cn(
-                              "relative px-6 py-2.5 rounded-full text-sm font-semibold transition-colors z-10",
+                              "w-12 h-12 rounded-full flex items-center justify-center border transition-colors duration-150 shadow-[0_2px_12px_rgba(0,0,0,0.10)]",
                               activityView === view
-                                ? "text-primary-foreground"
-                                : "text-muted-foreground hover:text-foreground"
+                                ? "bg-primary border-primary/20 text-primary-foreground"
+                                : "bg-background/90 backdrop-blur-sm border-border/40 text-neutral-500 hover:text-foreground"
                             )}
                           >
-                            {view === "logs" ? "Logs" : "Calendar"}
-                            {activityView === view && (
-                              <motion.div
-                                layoutId="activity-view-pill"
-                                className="absolute inset-0 bg-primary rounded-full -z-10 shadow-md"
-                                transition={{ type: "spring", stiffness: 700, damping: 38, mass: 0.5 }}
-                              />
-                            )}
+                            <Icon className="w-5 h-5" />
                           </motion.button>
                         ))}
-                      </div>
-                    </LayoutGroup>
-                  </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               )}
             </motion.div>
@@ -534,7 +547,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
 
       <BottomNav
         activeTab={activeTab}
-        onChange={setActiveTab}
+        onChange={handleTabChange}
         sessionIsInProgress={sessionIsInProgress}
       />
     </div>
