@@ -24,6 +24,7 @@ import { VoiceRecorder } from "@/components/timer/VoiceRecorder";
 import { BottomNav, type Tab } from "@/components/nav/BottomNav";
 import { CalendarView } from "@/components/calendar/CalendarView";
 import { TasksTab } from "@/components/tasks/TasksTab";
+import { StatsTab } from "@/components/stats/StatsTab";
 
 const BASE = import.meta.env.BASE_URL;
 
@@ -340,7 +341,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   return (
     <div className="h-[100dvh] flex flex-col overflow-hidden bg-background">
       <div className="flex-1 min-h-0 relative">
-        {(["timer", "activity", "tasks"] as const).map((tab) => {
+        {(["timer", "activity", "tasks", "stats"] as const).map((tab) => {
           const isActive = activeTab === tab;
           return (
             <motion.div
@@ -502,6 +503,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
               {tab === "tasks" && (
                 <TasksTab isActive={activeTab === "tasks"} />
               )}
+              {tab === "stats" && <StatsTab />}
               {tab === "activity" && (
                 <div className="absolute inset-0">
                   {/* Logs panel — both panels always mounted for scroll preservation */}

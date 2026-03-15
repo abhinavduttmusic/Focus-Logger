@@ -1,8 +1,8 @@
-import { Timer, History, CheckSquare } from "lucide-react";
+import { Timer, History, CheckSquare, BarChart2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
-export type Tab = "timer" | "activity" | "tasks";
+export type Tab = "timer" | "activity" | "tasks" | "stats";
 
 interface BottomNavProps {
   activeTab: Tab;
@@ -18,12 +18,14 @@ const ICON_ANIMATIONS: Record<Tab, { animate: Record<string, number[]>; duration
   timer: { animate: { rotate: [0, 6, 0] }, duration: 0.18 },
   activity: { animate: { scale: [1, 1.12, 1] }, duration: 0.18 },
   tasks: { animate: { scale: [1, 1.12, 1] }, duration: 0.18 },
+  stats: { animate: { scale: [1, 1.12, 1] }, duration: 0.18 },
 };
 
 const tabs: { id: Tab; label: string; Icon: typeof Timer }[] = [
   { id: "timer", label: "Timer", Icon: Timer },
   { id: "activity", label: "Activity", Icon: History },
   { id: "tasks", label: "Tasks", Icon: CheckSquare },
+  { id: "stats", label: "Stats", Icon: BarChart2 },
 ];
 
 export function BottomNav({ activeTab, onChange, sessionIsInProgress }: BottomNavProps) {
