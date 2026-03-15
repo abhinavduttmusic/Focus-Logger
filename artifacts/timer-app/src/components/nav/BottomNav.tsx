@@ -1,4 +1,4 @@
-import { Timer } from "lucide-react";
+import { Timer, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -19,28 +19,9 @@ const ICON_ANIMATIONS: Record<Tab, { animate: Record<string, number[]>; duration
   activity: { animate: { scale: [1, 1.12, 1] }, duration: 0.18 },
 };
 
-function TimelineIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <line x1="2" y1="12" x2="22" y2="12" />
-      <circle cx="5" cy="12" r="2" fill="currentColor" />
-      <circle cx="12" cy="12" r="2" fill="currentColor" />
-      <circle cx="19" cy="12" r="2" fill="currentColor" />
-    </svg>
-  );
-}
-
-const tabs: { id: Tab; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
+const tabs: { id: Tab; label: string; Icon: typeof Timer }[] = [
   { id: "timer", label: "Timer", Icon: Timer },
-  { id: "activity", label: "Activity", Icon: TimelineIcon },
+  { id: "activity", label: "Activity", Icon: History },
 ];
 
 export function BottomNav({ activeTab, onChange, sessionIsInProgress }: BottomNavProps) {
