@@ -299,14 +299,11 @@ function Home({ restored }: { restored: RestoredSession | null }) {
               inert={!isActive ? "" : undefined}
             >
               {tab === "timer" && (
-                <main className="w-full py-8 px-4 sm:px-6 flex flex-col items-center pb-6">
-                  <div className="w-full max-w-md space-y-8">
-                    <header className="text-center space-y-6">
-                      <h1 className="text-2xl font-extrabold tracking-tight bg-gradient-to-br from-foreground to-foreground/60 bg-clip-text text-transparent">
-                        Flow State
-                      </h1>
+                <main className="w-full pt-6 pb-6 px-4 sm:px-6 flex flex-col items-center">
+                  <div className="w-full max-w-md space-y-4">
+                    <div className="text-center">
                       <TimerToggle mode={timer.mode} onChange={timer.setMode} />
-                    </header>
+                    </div>
 
                     <section className="relative">
                       <div className="absolute inset-0 -z-10 flex items-center justify-center pointer-events-none">
