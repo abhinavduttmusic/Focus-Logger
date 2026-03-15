@@ -15,13 +15,6 @@ interface TimerDisplayProps {
 
 export function TimerDisplay({ mode, phase, seconds, isActive, onStart, onPause, onStop }: TimerDisplayProps) {
   const isPomodoro = mode === "pomodoro";
-  
-  // Theme coloring based on phase
-  const circleColorClass = cn(
-    "transition-colors duration-1000",
-    !isPomodoro ? "stroke-primary/20 text-primary" : 
-    phase === "focus" ? "stroke-focus/30 text-focus" : "stroke-break/30 text-break"
-  );
 
   return (
     <div className="flex flex-col items-center justify-center py-12">
