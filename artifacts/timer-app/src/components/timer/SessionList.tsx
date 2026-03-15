@@ -430,7 +430,7 @@ export function SessionList({ onRestart }: SessionListProps) {
         {dayGroups.map(day => (
           <div key={day.dateKey} className="space-y-2">
             <div className="flex items-center justify-between px-1 pb-3">
-              <span className="text-[13px] font-semibold text-muted-foreground/70 uppercase" style={{ letterSpacing: "0.05em" }}>
+              <span className="text-[13px] font-semibold text-muted-foreground/70 uppercase" style={{ letterSpacing: "0.04em" }}>
                 {day.dateLabel}
               </span>
               <span className="text-[13px] font-semibold text-muted-foreground/50 tabular-nums">
@@ -472,7 +472,7 @@ export function SessionList({ onRestart }: SessionListProps) {
                           </div>
                           {group.projectName && (
                             <p
-                              className="text-[12px] text-muted-foreground/55 truncate mt-0.5"
+                              className="text-[12px] font-normal text-muted-foreground/50 truncate mt-0.5"
                               style={{ paddingLeft: group.sessions.length > 1 ? "32px" : "0" }}
                             >
                               {group.projectName}
