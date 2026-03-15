@@ -79,7 +79,6 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const [activityView, setActivityView] = useState<"logs" | "calendar">("logs");
   const [showActivityControls, setShowActivityControls] = useState(true);
   const [isViewPickerOpen, setIsViewPickerOpen] = useState(false);
-  const fabRef = useRef<HTMLDivElement>(null);
   const autoHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [notes, setNotes] = useState(restored?.notes ?? "");
   const [selectedTask, setSelectedTask] = useState<Task | null>(
@@ -212,19 +211,17 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     }
   }
 
-  // Dismiss FAB when tapping any empty area (only when picker is closed)
+  // Auto-hide FAB: starts an 800ms timer whenever the FAB is visible and
+  // picker is closed. Cancels if picker opens or tab changes.
   useEffect(() => {
-    if (!showActivityControls || activeTab !== "activity" || isViewPickerOpen) return;
-    function handleDocClick(e: MouseEvent) {
-      if (fabRef.current && fabRef.current.contains(e.target as Node)) return;
-      setShowActivityControls(false);
-      setIsViewPickerOpen(false);
+    if (activeTab !== "activity" || !showActivityControls || isViewPickerOpen) {
       clearAutoHide();
+      return;
     }
-    document.addEventListener("click", handleDocClick);
-    return () => document.removeEventListener("click", handleDocClick);
+    startAutoHide();
+    return () => clearAutoHide();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showActivityControls, activeTab, isViewPickerOpen]);
+  }, [activeTab, showActivityControls, isViewPickerOpen]);
 
   const handleTabChange = useCallback((tab: Tab) => {
     clearAutoHide();
@@ -568,7 +565,6 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                   <AnimatePresence>
                     {showActivityControls && (
                       <motion.div
-                        ref={fabRef}
                         initial={{ opacity: 0, scale: 0.85, y: 6 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.85, y: 6 }}
@@ -598,7 +594,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                                     triggerHaptic();
                                     setActivityView(view);
                                     setIsViewPickerOpen(false);
-                                    startAutoHide();
+                                    // auto-hide effect kicks in automatically
                                   }}
                                   aria-label={label}
                                   className={cn(

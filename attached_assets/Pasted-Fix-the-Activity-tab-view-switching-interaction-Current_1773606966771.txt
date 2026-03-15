@@ -1,0 +1,109 @@
+Fix the Activity tab view-switching interaction. Currently the user cannot access Calendar view because the toggle control is not appearing when the Activity tab is tapped.
+
+This is a blocking usability bug and must be fixed.
+
+---
+
+1. DIAGNOSE WHY THE VIEW TOGGLE IS NOT APPEARING
+
+Investigate the Activity tab component and determine why the floating view toggle is not rendering.
+
+Possible causes to check:
+
+• the state controlling toggle visibility is never triggered
+• the Activity tab press event is not firing
+• the floating toggle component is not mounted
+• the toggle is rendered but hidden due to CSS positioning or z-index
+• an overlay element is blocking pointer events.
+
+Log the relevant state transitions to confirm when the toggle should appear.
+
+---
+
+2. ENSURE THE TOGGLE ALWAYS APPEARS WHEN ACTIVITY TAB IS TAPPED
+
+When the user taps the Activity tab in the bottom navigation bar:
+
+• the floating view icon must appear on screen
+• it should appear above the bottom navigation bar in the thumb zone
+• it should be visually prominent but not intrusive.
+
+Animation:
+
+fade in + slight upward motion (~8px)
+duration: ~180ms
+easing: cubic-bezier(0.22, 1, 0.36, 1)
+
+---
+
+3. ENABLE ACCESS TO CALENDAR VIEW
+
+When the user taps the floating icon:
+
+• the background should dim slightly
+• two view options must appear:
+
+[List view icon]   [Calendar view icon]
+
+The two options should appear horizontally side-by-side, not stacked vertically.
+
+Spacing between them: ~16–20px.
+
+---
+
+4. VIEW SWITCHING BEHAVIOR
+
+When the user taps:
+
+List icon → switch to list/log view
+Calendar icon → switch to calendar view.
+
+Switching views should animate smoothly.
+
+Animation:
+
+slide transition between views
+duration: ~200ms
+easing: cubic-bezier(0.22, 1, 0.36, 1)
+
+---
+
+5. DISMISSAL BEHAVIOR
+
+If the user taps anywhere outside the toggle options:
+
+• the dim overlay should disappear
+• the toggle options should close
+• the floating icon should remain visible briefly.
+
+If the user taps anywhere again on the screen:
+
+• the floating icon should fade out.
+
+---
+
+6. ENSURE TOUCH EVENTS ARE NOT BLOCKED
+
+Confirm that:
+
+• overlays do not block taps on the toggle buttons
+• pointer-events settings allow interaction
+• the toggle component is rendered above other UI layers (correct z-index).
+
+---
+
+7. TEST CASES
+
+Verify the following scenarios:
+
+• tapping Activity tab shows the floating toggle
+• tapping the floating icon reveals the List and Calendar options
+• selecting Calendar switches to the calendar view correctly
+• tapping outside dismisses the overlay
+• toggles animate smoothly.
+
+---
+
+Goal:
+
+Restore full access to Calendar view and ensure the Activity tab view-switching interaction works reliably with smooth, premium animations.
