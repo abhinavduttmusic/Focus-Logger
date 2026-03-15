@@ -2,7 +2,7 @@ import { useState, useRef, useMemo, useEffect } from "react";
 import { useListSessions, useDeleteSession, useUpdateSession, getListSessionsQueryKey, getListTasksQueryKey } from "@workspace/api-client-react";
 import type { UpdateSessionRequest } from "@workspace/api-client-react/src/generated/api.schemas";
 import { useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
+import { format, isToday, isYesterday } from "date-fns";
 import { formatShortDuration, cn } from "@/lib/utils";
 import { Trash2, History, Tag, Play, Pause, ChevronDown, Mic, ListOrdered, Pencil, Check, X } from "lucide-react";
 import { motion, AnimatePresence, type Transition } from "framer-motion";
@@ -69,7 +69,7 @@ function buildDayGroups(sessions: SessionItem[]): DayGroup[] {
   for (const s of sessions) {
     const date = new Date(s.createdAt);
     const dateKey = format(date, "yyyy-MM-dd");
-    const dateLabel = format(date, "MMM d").toUpperCase();
+    const dateLabel = isToday(date) ? "Today" : isYesterday(date) ? "Yesterday" : format(date, "MMM d");
 
     if (!dayMap.has(dateKey)) {
       dayMap.set(dateKey, { dateLabel, sessionsMap: new Map() });
@@ -421,19 +421,20 @@ export function SessionList({ onRestart }: SessionListProps) {
 
   return (
     <div className="w-full space-y-6">
-      <h3 className="text-xl font-bold flex items-center gap-2">
+      <h3 className="text-xl font-semibold flex items-center gap-2">
         <History className="w-5 h-5 text-muted-foreground" />
-        Recent History
+        Logs
       </h3>
 
       <div className="space-y-8">
         {dayGroups.map(day => (
           <div key={day.dateKey} className="space-y-2">
-            <div className="flex items-center justify-between px-1 pb-2 border-b border-border/40">
-              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            <div className="flex items-center gap-3 px-1 pb-2">
+              <span className="text-xs font-semibold text-muted-foreground shrink-0" style={{ letterSpacing: "0.03em" }}>
                 {day.dateLabel}
               </span>
-              <span className="text-xs font-semibold text-muted-foreground/70">
+              <div className="flex-1 h-px bg-border/30" />
+              <span className="text-xs font-semibold text-muted-foreground/60 shrink-0">
                 {formatShortDuration(day.totalSeconds)}
               </span>
             </div>
@@ -443,17 +444,19 @@ export function SessionList({ onRestart }: SessionListProps) {
                 const isExpanded = expanded.has(group.key);
                 return (
                   <div key={group.key}>
-                    <div
+                    <motion.div
                       onClick={() => toggleExpand(group.key)}
                       role="button"
                       tabIndex={0}
                       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleExpand(group.key); } }}
-                      className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-card/60 border border-border/30 hover:bg-card/90 hover:shadow-sm transition-all group touch-manipulation cursor-pointer"
+                      whileTap={{ scale: 1.005, y: -1 }}
+                      transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-card/60 border border-border/30 hover:bg-card/90 shadow-sm hover:shadow-md transition-all group touch-manipulation cursor-pointer"
                     >
                       <div className="flex-1 min-w-0 text-left">
                         <div className="flex items-center gap-2">
                           <Tag className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
-                          <span className="font-medium text-sm text-foreground/90 truncate">
+                          <span className="font-semibold text-sm text-foreground/90 truncate">
                             {group.taskName ?? "No task"}
                           </span>
                           {group.projectName && (
@@ -493,7 +496,7 @@ export function SessionList({ onRestart }: SessionListProps) {
                       >
                         <Play className="w-4 h-4" />
                       </motion.button>
-                    </div>
+                    </motion.div>
 
                     <AnimatePresence>
                       {isExpanded && (
