@@ -429,12 +429,11 @@ export function SessionList({ onRestart }: SessionListProps) {
       <div className="space-y-8">
         {dayGroups.map(day => (
           <div key={day.dateKey} className="space-y-2">
-            <div className="flex items-center gap-3 px-1 pb-2">
-              <span className="text-xs font-semibold text-muted-foreground shrink-0" style={{ letterSpacing: "0.03em" }}>
+            <div className="flex items-center justify-between px-1 pb-3">
+              <span className="text-[13px] font-semibold text-muted-foreground/70 uppercase" style={{ letterSpacing: "0.05em" }}>
                 {day.dateLabel}
               </span>
-              <div className="flex-1 h-px bg-border/20" />
-              <span className="text-xs font-semibold text-muted-foreground/60 shrink-0">
+              <span className="text-[13px] font-semibold text-muted-foreground/50 tabular-nums">
                 {formatShortDuration(day.totalSeconds)}
               </span>
             </div>
@@ -449,50 +448,62 @@ export function SessionList({ onRestart }: SessionListProps) {
                       role="button"
                       tabIndex={0}
                       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleExpand(group.key); } }}
-                      whileTap={{ scale: 0.98 }}
-                      transition={{ duration: 0.12, ease: [0.22, 1, 0.36, 1] }}
-                      className="w-full bg-white rounded-2xl px-4 py-4 touch-manipulation cursor-pointer"
-                      style={{ boxShadow: "0 6px 18px rgba(0,0,0,0.08)", borderRadius: "16px" }}
+                      whileTap={{ scale: 0.97 }}
+                      transition={{ duration: 0.12 }}
+                      className="w-full bg-white touch-manipulation cursor-pointer"
+                      style={{ borderRadius: "14px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", padding: "14px 16px" }}
                     >
-                      {/* Row 1: task name + duration + controls */}
-                      <div className="flex items-center gap-2">
-                        <span className="flex-1 min-w-0 font-semibold text-[15px] text-foreground leading-snug truncate">
-                          {group.taskName ?? "No task"}
-                        </span>
-                        <span className="font-bold text-[15px] text-foreground tabular-nums shrink-0 text-right">
-                          {formatShortDuration(group.totalSeconds)}
-                        </span>
-                        <motion.span
-                          animate={{ rotate: isExpanded ? 180 : 0 }}
-                          transition={{ duration: 0.2, ease: "easeOut" }}
-                          className="shrink-0 flex items-center justify-center"
-                        >
-                          <ChevronDown className="w-3.5 h-3.5 text-muted-foreground/40" />
-                        </motion.span>
-                        <motion.button
-                          onClick={(e) => handleRestart(group, e)}
-                          whileTap={{ scale: 0.95 }}
-                          transition={TAP_SPRING}
-                          className="p-1.5 rounded-xl hover:bg-primary/10 text-primary/60 hover:text-primary transition-colors shrink-0"
-                          aria-label="Restart this task"
-                        >
-                          <Play className="w-4 h-4" />
-                        </motion.button>
-                      </div>
+                      <div className="flex items-center gap-3">
 
-                      {/* Row 2: project name + session count */}
-                      {(group.projectName || group.sessions.length > 1) && (
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="flex-1 min-w-0 text-xs text-muted-foreground/60 truncate">
-                            {group.projectName ?? ""}
-                          </span>
-                          {group.sessions.length > 1 && (
-                            <span className="text-[11px] text-muted-foreground/50 shrink-0">
-                              {group.sessions.length} sessions
+                        {/* Left: badge + task name / project name */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            {group.sessions.length > 1 && (
+                              <span
+                                className="inline-flex items-center justify-center font-semibold text-[12px] text-foreground/50 bg-black/[0.04] shrink-0"
+                                style={{ height: "22px", minWidth: "22px", padding: "0 6px", borderRadius: "8px", border: "1px solid rgba(0,0,0,0.12)" }}
+                              >
+                                {group.sessions.length}
+                              </span>
+                            )}
+                            <span className="font-semibold text-[15px] text-foreground leading-snug truncate min-w-0">
+                              {group.taskName ?? "No task"}
                             </span>
+                          </div>
+                          {group.projectName && (
+                            <p
+                              className="text-[12px] text-muted-foreground/55 truncate mt-0.5"
+                              style={{ paddingLeft: group.sessions.length > 1 ? "32px" : "0" }}
+                            >
+                              {group.projectName}
+                            </p>
                           )}
                         </div>
-                      )}
+
+                        {/* Right: duration + chevron + restart */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="font-semibold text-[15px] text-foreground tabular-nums">
+                            {formatShortDuration(group.totalSeconds)}
+                          </span>
+                          <motion.span
+                            animate={{ rotate: isExpanded ? 180 : 0 }}
+                            transition={{ duration: 0.2, ease: "easeOut" }}
+                            className="flex items-center justify-center"
+                          >
+                            <ChevronDown className="w-3.5 h-3.5 text-muted-foreground/40" />
+                          </motion.span>
+                          <motion.button
+                            onClick={(e) => handleRestart(group, e)}
+                            whileTap={{ scale: 0.95 }}
+                            transition={TAP_SPRING}
+                            className="p-1.5 rounded-xl hover:bg-primary/10 text-primary/60 hover:text-primary transition-colors"
+                            aria-label="Restart this task"
+                          >
+                            <Play className="w-4 h-4" />
+                          </motion.button>
+                        </div>
+
+                      </div>
                     </motion.div>
 
                     <AnimatePresence>
