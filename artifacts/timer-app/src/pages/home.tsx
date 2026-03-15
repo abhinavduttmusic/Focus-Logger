@@ -78,7 +78,8 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const [activeTab, setActiveTab] = useState<Tab>("timer");
   const [activityView, setActivityView] = useState<"logs" | "calendar">("logs");
   const [showViewSwitcher, setShowViewSwitcher] = useState(true);
-  const lastScrollYRef = useRef(0);
+  const switcherRef = useRef<HTMLDivElement>(null);
+  const suppressDismissRef = useRef(false);
   const [notes, setNotes] = useState(restored?.notes ?? "");
   const [selectedTask, setSelectedTask] = useState<Task | null>(
     restored?.selectedTask
@@ -190,21 +191,37 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     handleModeChange(dx < 0 ? "simple" : "pomodoro");
   }, [handleModeChange]);
 
-  function handleLogsScroll(e: React.UIEvent<HTMLDivElement>) {
-    const { scrollTop } = e.currentTarget;
-    const dy = scrollTop - lastScrollYRef.current;
-    lastScrollYRef.current = scrollTop;
-    if (dy > 4) setShowViewSwitcher(false);
-    else if (dy < -4) setShowViewSwitcher(true);
-  }
+  // Dismiss switcher when tapping outside it.
+  // suppressDismissRef prevents the document listener from firing on the same
+  // click that toggled the switcher via the Activity tab (BottomNav double-tap).
+  useEffect(() => {
+    if (!showViewSwitcher || activeTab !== "activity") return;
+    function handleDocClick(e: MouseEvent) {
+      if (suppressDismissRef.current) {
+        suppressDismissRef.current = false;
+        return;
+      }
+      if (switcherRef.current?.contains(e.target as Node)) return;
+      setShowViewSwitcher(false);
+    }
+    document.addEventListener("click", handleDocClick);
+    return () => document.removeEventListener("click", handleDocClick);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showViewSwitcher, activeTab]);
 
   const handleTabChange = useCallback((tab: Tab) => {
-    setActiveTab(tab);
-    if (tab === "activity") {
-      setShowViewSwitcher(true);
-      lastScrollYRef.current = 0;
+    if (tab === activeTab && tab === "activity") {
+      // Double-tap Activity tab: toggle the switcher.
+      // Set the flag so the document listener (which fires on the same click
+      // as it bubbles to document) does not also dismiss the switcher.
+      suppressDismissRef.current = true;
+      setShowViewSwitcher(prev => !prev);
+    } else {
+      setActiveTab(tab);
+      if (tab === "activity") setShowViewSwitcher(true);
     }
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -496,7 +513,6 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                     aria-hidden={activityView !== "logs"}
                     // @ts-expect-error inert is valid HTML
                     inert={activityView !== "logs" ? "" : undefined}
-                    onScroll={handleLogsScroll}
                   >
                     <div className="w-full pt-4 pb-8 px-4 sm:px-6">
                       <div className="w-full max-w-2xl mx-auto">
@@ -527,14 +543,14 @@ function Home({ restored }: { restored: RestoredSession | null }) {
 
       {/* Activity view switcher — sits above the bottom nav in the thumb zone */}
       <AnimatePresence>
-        {activeTab === "activity" && (
+        {activeTab === "activity" && showViewSwitcher && (
           <motion.div
             key="view-switcher"
+            ref={switcherRef}
             initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: showViewSwitcher ? 1 : 0, y: 0 }}
+            animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 6 }}
             transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
-            style={{ pointerEvents: showViewSwitcher ? "auto" : "none" }}
             className="flex justify-center items-center py-1.5"
           >
             <div className="flex items-center gap-0.5 p-1 rounded-full bg-secondary/50 border border-border/30">
@@ -548,7 +564,6 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                   transition={{ duration: 0.1, ease: [0.22, 1, 0.36, 1] }}
                   onClick={() => {
                     setActivityView(view);
-                    setShowViewSwitcher(true);
                   }}
                   aria-label={label}
                   className={cn(
