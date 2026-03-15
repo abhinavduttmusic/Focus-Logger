@@ -28,8 +28,10 @@ const PIXELS_PER_MINUTE = HOUR_HEIGHT / 60;
 const MIN_BAR_HEIGHT = 3;
 const LABEL_THRESHOLD = 18;
 const TIME_THRESHOLD = 36;
-const DEFAULT_START_HOUR = 6;
-const DEFAULT_END_HOUR = 23;
+const START_HOUR = 0;
+const END_HOUR = 24;
+const TOTAL_HOURS = END_HOUR - START_HOUR;
+const TIMELINE_HEIGHT = TOTAL_HOURS * HOUR_HEIGHT;
 
 const TASK_COLORS = [
   "bg-primary/25 text-primary",
@@ -90,7 +92,7 @@ export function CalendarView() {
 
   const isTodayView = isToday(selectedDate);
 
-  const { blocks, startHour, endHour } = useMemo(() => {
+  const blocks = useMemo(() => {
     const timeBlocks: TimeBlock[] = daySessions.map((s) => {
       const endTime = new Date(s.createdAt);
       const startTime = new Date(endTime.getTime() - s.durationSeconds * 1000);
@@ -104,48 +106,25 @@ export function CalendarView() {
     });
 
     timeBlocks.sort((a, b) => a.startMinute - b.startMinute);
-
-    let sh = DEFAULT_START_HOUR;
-    let eh = DEFAULT_END_HOUR;
-
-    if (timeBlocks.length > 0) {
-      const minMinute = Math.min(...timeBlocks.map((b) => b.startMinute));
-      const maxMinute = Math.max(...timeBlocks.map((b) => b.endMinute));
-      sh = Math.min(sh, Math.floor(minMinute / 60));
-      eh = Math.max(eh, Math.ceil(maxMinute / 60));
-    }
-
-    if (isTodayView) {
-      const nowHour = Math.floor(nowMinute / 60);
-      sh = Math.min(sh, nowHour);
-      eh = Math.max(eh, nowHour + 1);
-    }
-
-    sh = Math.max(0, sh);
-    eh = Math.min(24, eh);
-
-    return { blocks: timeBlocks, startHour: sh, endHour: eh };
-  }, [daySessions, isTodayView, nowMinute]);
-
-  const totalHours = endHour - startHour;
-  const timelineHeight = totalHours * HOUR_HEIGHT;
-  const baseMinute = startHour * 60;
+    return timeBlocks;
+  }, [daySessions]);
 
   useEffect(() => {
     if (!scrollRef.current) return;
+    const viewportH = scrollRef.current.clientHeight;
     if (isTodayView) {
-      const offset = ((nowMinute - baseMinute) / 60) * HOUR_HEIGHT - 100;
+      const offset = nowMinute * PIXELS_PER_MINUTE - viewportH / 2;
       scrollRef.current.scrollTop = Math.max(0, offset);
     } else if (blocks.length > 0) {
       const firstBlock = blocks[0];
-      const offset = ((firstBlock.startMinute - baseMinute) / 60) * HOUR_HEIGHT - 40;
+      const offset = (firstBlock.startMinute / 60) * HOUR_HEIGHT - 40;
       scrollRef.current.scrollTop = Math.max(0, offset);
     }
-  }, [selectedDate, blocks, baseMinute, daySessions.length]);
+  }, [selectedDate, blocks, daySessions.length]);
 
   const totalDaySeconds = daySessions.reduce((sum, s) => sum + s.durationSeconds, 0);
 
-  const hours = Array.from({ length: totalHours + 1 }, (_, i) => startHour + i);
+  const hours = Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => START_HOUR + i);
 
   return (
     <div className="flex flex-col h-full">
@@ -204,9 +183,9 @@ export function CalendarView() {
             <p className="text-sm">Loading sessions...</p>
           </div>
         ) : (
-          <div className="relative px-2" style={{ height: timelineHeight }}>
+          <div className="relative px-2" style={{ height: TIMELINE_HEIGHT }}>
             {hours.map((hour) => {
-              const yPos = (hour - startHour) * HOUR_HEIGHT;
+              const yPos = hour * HOUR_HEIGHT;
               return (
                 <div key={hour} className="absolute left-0 right-0" style={{ top: yPos }}>
                   <div className="flex items-start">
@@ -230,7 +209,7 @@ export function CalendarView() {
               )}
 
               {blocks.map((block) => {
-                const topPx = ((block.startMinute - baseMinute) / 60) * HOUR_HEIGHT;
+                const topPx = (block.startMinute / 60) * HOUR_HEIGHT;
                 const heightPx = Math.max(
                   (block.session.durationSeconds / 60) * PIXELS_PER_MINUTE,
                   MIN_BAR_HEIGHT
@@ -277,8 +256,7 @@ export function CalendarView() {
             </div>
 
             {isTodayView && (() => {
-              if (nowMinute < baseMinute || nowMinute > endHour * 60) return null;
-              const topPx = ((nowMinute - baseMinute) / 60) * HOUR_HEIGHT;
+              const topPx = (nowMinute / 60) * HOUR_HEIGHT;
               return (
                 <div className="absolute left-12 right-2 pointer-events-none z-10" style={{ top: topPx }}>
                   <div className="flex items-center">
