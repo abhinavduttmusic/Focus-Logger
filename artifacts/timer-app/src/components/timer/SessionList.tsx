@@ -433,7 +433,7 @@ export function SessionList({ onRestart }: SessionListProps) {
               <span className="text-xs font-semibold text-muted-foreground shrink-0" style={{ letterSpacing: "0.03em" }}>
                 {day.dateLabel}
               </span>
-              <div className="flex-1 h-px bg-border/30" />
+              <div className="flex-1 h-px bg-border/20" />
               <span className="text-xs font-semibold text-muted-foreground/60 shrink-0">
                 {formatShortDuration(day.totalSeconds)}
               </span>
