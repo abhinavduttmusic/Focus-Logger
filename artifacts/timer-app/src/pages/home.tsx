@@ -464,11 +464,41 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                 </main>
               )}
               {tab === "activity" && (
-                <div className="absolute inset-0 flex flex-col">
-                  {/* Sub-toggle: Logs | Calendar */}
-                  <div className="shrink-0 flex justify-center pt-4 pb-2 px-4">
+                <div className="absolute inset-0">
+                  {/* Logs panel — both panels always mounted for scroll preservation */}
+                  <motion.div
+                    animate={{ opacity: activityView === "logs" ? 1 : 0 }}
+                    transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                    className="absolute inset-0 overflow-y-auto"
+                    style={{ pointerEvents: activeTab === "activity" && activityView === "logs" ? "auto" : "none" }}
+                    aria-hidden={activityView !== "logs"}
+                    // @ts-expect-error inert is valid HTML
+                    inert={activityView !== "logs" ? "" : undefined}
+                  >
+                    <div className="w-full pt-4 pb-24 px-4 sm:px-6">
+                      <div className="w-full max-w-2xl mx-auto">
+                        <SessionList onRestart={handleRestart} />
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  {/* Calendar panel */}
+                  <motion.div
+                    animate={{ opacity: activityView === "calendar" ? 1 : 0 }}
+                    transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                    className="absolute inset-0 overflow-hidden"
+                    style={{ pointerEvents: activeTab === "activity" && activityView === "calendar" ? "auto" : "none" }}
+                    aria-hidden={activityView !== "calendar"}
+                    // @ts-expect-error inert is valid HTML
+                    inert={activityView !== "calendar" ? "" : undefined}
+                  >
+                    <CalendarView isActive={activeTab === "activity" && activityView === "calendar"} />
+                  </motion.div>
+
+                  {/* Floating sub-toggle — anchored above the bottom nav */}
+                  <div className="absolute bottom-4 left-0 right-0 flex justify-center z-20 pointer-events-none">
                     <LayoutGroup id="activity-view-toggle">
-                      <div className="flex items-center p-1.5 bg-secondary/50 backdrop-blur-sm rounded-full w-fit border border-border/40 shadow-inner">
+                      <div className="pointer-events-auto flex items-center p-1.5 bg-background/85 backdrop-blur-md rounded-full border border-border/30 shadow-[0_4px_24px_rgba(0,0,0,0.10)]">
                         {(["logs", "calendar"] as const).map((view) => (
                           <motion.button
                             key={view}
@@ -476,7 +506,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                             transition={{ duration: 0.09, ease: "easeOut" }}
                             onClick={() => setActivityView(view)}
                             className={cn(
-                              "relative px-5 py-2 rounded-full text-sm font-semibold transition-colors z-10",
+                              "relative px-6 py-2.5 rounded-full text-sm font-semibold transition-colors z-10",
                               activityView === view
                                 ? "text-primary-foreground"
                                 : "text-muted-foreground hover:text-foreground"
@@ -494,37 +524,6 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                         ))}
                       </div>
                     </LayoutGroup>
-                  </div>
-
-                  {/* Content area — both panels always mounted for scroll preservation */}
-                  <div className="flex-1 min-h-0 relative">
-                    <motion.div
-                      animate={{ opacity: activityView === "logs" ? 1 : 0 }}
-                      transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-                      className="absolute inset-0 overflow-y-auto"
-                      style={{ pointerEvents: activeTab === "activity" && activityView === "logs" ? "auto" : "none" }}
-                      aria-hidden={activityView !== "logs"}
-                      // @ts-expect-error inert is valid HTML
-                      inert={activityView !== "logs" ? "" : undefined}
-                    >
-                      <div className="w-full py-4 px-4 sm:px-6">
-                        <div className="w-full max-w-2xl mx-auto pb-4">
-                          <SessionList onRestart={handleRestart} />
-                        </div>
-                      </div>
-                    </motion.div>
-
-                    <motion.div
-                      animate={{ opacity: activityView === "calendar" ? 1 : 0 }}
-                      transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-                      className="absolute inset-0 overflow-hidden"
-                      style={{ pointerEvents: activeTab === "activity" && activityView === "calendar" ? "auto" : "none" }}
-                      aria-hidden={activityView !== "calendar"}
-                      // @ts-expect-error inert is valid HTML
-                      inert={activityView !== "calendar" ? "" : undefined}
-                    >
-                      <CalendarView isActive={activeTab === "activity" && activityView === "calendar"} />
-                    </motion.div>
                   </div>
                 </div>
               )}
