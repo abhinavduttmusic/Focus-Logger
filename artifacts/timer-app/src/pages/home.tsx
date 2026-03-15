@@ -79,6 +79,8 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const [activityView, setActivityView] = useState<"logs" | "calendar">("logs");
   const [showActivityControls, setShowActivityControls] = useState(true);
   const [isViewPickerOpen, setIsViewPickerOpen] = useState(false);
+  const fabRef = useRef<HTMLDivElement>(null);
+  const autoHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [notes, setNotes] = useState(restored?.notes ?? "");
   const [selectedTask, setSelectedTask] = useState<Task | null>(
     restored?.selectedTask
@@ -190,7 +192,42 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     handleModeChange(dx < 0 ? "simple" : "pomodoro");
   }, [handleModeChange]);
 
+  function clearAutoHide() {
+    if (autoHideTimerRef.current) {
+      clearTimeout(autoHideTimerRef.current);
+      autoHideTimerRef.current = null;
+    }
+  }
+
+  function startAutoHide() {
+    clearAutoHide();
+    autoHideTimerRef.current = setTimeout(() => {
+      setShowActivityControls(false);
+    }, 800);
+  }
+
+  function triggerHaptic() {
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      navigator.vibrate(6);
+    }
+  }
+
+  // Dismiss FAB when tapping any empty area (only when picker is closed)
+  useEffect(() => {
+    if (!showActivityControls || activeTab !== "activity" || isViewPickerOpen) return;
+    function handleDocClick(e: MouseEvent) {
+      if (fabRef.current && fabRef.current.contains(e.target as Node)) return;
+      setShowActivityControls(false);
+      setIsViewPickerOpen(false);
+      clearAutoHide();
+    }
+    document.addEventListener("click", handleDocClick);
+    return () => document.removeEventListener("click", handleDocClick);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showActivityControls, activeTab, isViewPickerOpen]);
+
   const handleTabChange = useCallback((tab: Tab) => {
+    clearAutoHide();
     if (tab === activeTab && tab === "activity") {
       setShowActivityControls(prev => !prev);
       setIsViewPickerOpen(false);
@@ -199,6 +236,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
       setIsViewPickerOpen(false);
       if (tab === "activity") setShowActivityControls(true);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -512,7 +550,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                     <CalendarView isActive={activeTab === "activity" && activityView === "calendar"} />
                   </motion.div>
 
-                  {/* Dim overlay when picker is open */}
+                  {/* Dim overlay — shown when picker is open; tap to close picker */}
                   <AnimatePresence>
                     {isViewPickerOpen && (
                       <motion.div
@@ -526,41 +564,49 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                     )}
                   </AnimatePresence>
 
-                  {/* Single expandable view-switch FAB */}
+                  {/* View-switch FAB — fades in with slight upward slide */}
                   <AnimatePresence>
                     {showActivityControls && (
                       <motion.div
-                        initial={{ opacity: 0, scale: 0.85 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.85 }}
+                        ref={fabRef}
+                        initial={{ opacity: 0, scale: 0.85, y: 6 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.85, y: 6 }}
                         transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-                        className="absolute bottom-36 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-3"
+                        className="absolute bottom-36 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-4"
                       >
-                        {/* View options — appear above FAB */}
+                        {/* Side-by-side view toggles — appear above the FAB */}
                         <AnimatePresence>
                           {isViewPickerOpen && (
                             <motion.div
-                              initial={{ opacity: 0, y: 6, scale: 0.9 }}
+                              initial={{ opacity: 0, y: 8, scale: 0.9 }}
                               animate={{ opacity: 1, y: 0, scale: 1 }}
-                              exit={{ opacity: 0, y: 6, scale: 0.9 }}
+                              exit={{ opacity: 0, y: 8, scale: 0.9 }}
                               transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-                              className="flex flex-col gap-3"
+                              className="flex flex-row gap-5 items-center"
                             >
                               {([
-                                { view: "calendar" as const, Icon: Calendar, label: "Calendar" },
-                                { view: "logs" as const, Icon: LayoutList, label: "Logs" },
+                                { view: "logs" as const, Icon: LayoutList, label: "List view" },
+                                { view: "calendar" as const, Icon: Calendar, label: "Calendar view" },
                               ]).map(({ view, Icon, label }) => (
                                 <motion.button
                                   key={view}
-                                  whileTap={{ scale: 0.92 }}
-                                  transition={{ duration: 0.09, ease: "easeOut" }}
-                                  onClick={() => { setActivityView(view); setIsViewPickerOpen(false); }}
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.93 }}
+                                  transition={{ duration: 0.12, ease: [0.22, 1, 0.36, 1] }}
+                                  onClick={() => {
+                                    triggerHaptic();
+                                    setActivityView(view);
+                                    setIsViewPickerOpen(false);
+                                    startAutoHide();
+                                  }}
                                   aria-label={label}
                                   className={cn(
-                                    "w-12 h-12 rounded-full flex items-center justify-center border transition-colors duration-150 shadow-[0_2px_12px_rgba(0,0,0,0.10)]",
+                                    "w-[52px] h-[52px] rounded-full flex items-center justify-center border transition-colors duration-150",
+                                    "shadow-[0_4px_16px_rgba(0,0,0,0.14)]",
                                     activityView === view
                                       ? "bg-primary border-primary/20 text-primary-foreground"
-                                      : "bg-background/90 backdrop-blur-sm border-border/40 text-neutral-500"
+                                      : "bg-background/95 backdrop-blur-sm border-border/50 text-neutral-500"
                                   )}
                                 >
                                   <Icon className="w-5 h-5" />
@@ -570,26 +616,32 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                           )}
                         </AnimatePresence>
 
-                        {/* Main FAB */}
+                        {/* Main FAB — shows current view icon or X when expanded */}
                         <motion.button
-                          whileTap={{ scale: 0.92 }}
-                          transition={{ duration: 0.09, ease: "easeOut" }}
-                          onClick={() => setIsViewPickerOpen(prev => !prev)}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.93 }}
+                          transition={{ duration: 0.12, ease: [0.22, 1, 0.36, 1] }}
+                          onClick={() => {
+                            triggerHaptic();
+                            clearAutoHide();
+                            setIsViewPickerOpen(prev => !prev);
+                          }}
                           aria-label={isViewPickerOpen ? "Close view picker" : "Switch view"}
                           className={cn(
-                            "w-12 h-12 rounded-full flex items-center justify-center border transition-colors duration-150 shadow-[0_4px_20px_rgba(0,0,0,0.12)]",
+                            "w-12 h-12 rounded-full flex items-center justify-center border transition-colors duration-150",
+                            "shadow-[0_4px_20px_rgba(0,0,0,0.13)]",
                             isViewPickerOpen
-                              ? "bg-foreground/8 backdrop-blur-sm border-border/30 text-foreground/50"
-                              : "bg-background/90 backdrop-blur-sm border-border/40 text-neutral-500"
+                              ? "bg-foreground/[0.07] backdrop-blur-sm border-border/30 text-foreground/50"
+                              : "bg-background/95 backdrop-blur-sm border-border/50 text-neutral-500"
                           )}
                         >
                           <AnimatePresence mode="wait" initial={false}>
                             {isViewPickerOpen ? (
                               <motion.span
                                 key="close"
-                                initial={{ opacity: 0, scale: 0.7, rotate: -45 }}
+                                initial={{ opacity: 0, scale: 0.6, rotate: -45 }}
                                 animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                                exit={{ opacity: 0, scale: 0.7, rotate: 45 }}
+                                exit={{ opacity: 0, scale: 0.6, rotate: 45 }}
                                 transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
                               >
                                 <X className="w-5 h-5" />
@@ -597,9 +649,9 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                             ) : (
                               <motion.span
                                 key={activityView}
-                                initial={{ opacity: 0, scale: 0.7 }}
+                                initial={{ opacity: 0, scale: 0.6 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.7 }}
+                                exit={{ opacity: 0, scale: 0.6 }}
                                 transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
                               >
                                 {activityView === "logs"
