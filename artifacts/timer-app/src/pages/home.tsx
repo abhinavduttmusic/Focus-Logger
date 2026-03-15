@@ -11,7 +11,7 @@ import {
   buildPersistedState,
   type RestoredSession,
 } from "@/hooks/use-session-persistence";
-import { XCircle, LayoutList, Calendar } from "lucide-react";
+import { XCircle, LayoutList, Calendar, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { ConfirmBannerInline, CONFIRM_TAP } from "@/components/ui/confirm-banner";
@@ -78,6 +78,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const [activeTab, setActiveTab] = useState<Tab>("timer");
   const [activityView, setActivityView] = useState<"logs" | "calendar">("logs");
   const [showActivityControls, setShowActivityControls] = useState(true);
+  const [isViewPickerOpen, setIsViewPickerOpen] = useState(false);
   const [notes, setNotes] = useState(restored?.notes ?? "");
   const [selectedTask, setSelectedTask] = useState<Task | null>(
     restored?.selectedTask
@@ -192,8 +193,10 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const handleTabChange = useCallback((tab: Tab) => {
     if (tab === activeTab && tab === "activity") {
       setShowActivityControls(prev => !prev);
+      setIsViewPickerOpen(false);
     } else {
       setActiveTab(tab);
+      setIsViewPickerOpen(false);
       if (tab === "activity") setShowActivityControls(true);
     }
   }, [activeTab]);
@@ -509,7 +512,21 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                     <CalendarView isActive={activeTab === "activity" && activityView === "calendar"} />
                   </motion.div>
 
-                  {/* Floating vertical icon stack — bottom-right thumb zone */}
+                  {/* Dim overlay when picker is open */}
+                  <AnimatePresence>
+                    {isViewPickerOpen && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                        className="absolute inset-0 z-10 bg-black/[0.18]"
+                        onClick={() => setIsViewPickerOpen(false)}
+                      />
+                    )}
+                  </AnimatePresence>
+
+                  {/* Single expandable view-switch FAB */}
                   <AnimatePresence>
                     {showActivityControls && (
                       <motion.div
@@ -517,28 +534,82 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.85 }}
                         transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-                        className="absolute bottom-24 right-6 z-20 flex flex-col gap-3"
+                        className="absolute bottom-36 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-3"
                       >
-                        {([
-                          { view: "calendar" as const, Icon: Calendar, label: "Calendar" },
-                          { view: "logs" as const, Icon: LayoutList, label: "Logs" },
-                        ]).map(({ view, Icon, label }) => (
-                          <motion.button
-                            key={view}
-                            whileTap={{ scale: 0.92 }}
-                            transition={{ duration: 0.09, ease: "easeOut" }}
-                            onClick={() => setActivityView(view)}
-                            aria-label={label}
-                            className={cn(
-                              "w-12 h-12 rounded-full flex items-center justify-center border transition-colors duration-150 shadow-[0_2px_12px_rgba(0,0,0,0.10)]",
-                              activityView === view
-                                ? "bg-primary border-primary/20 text-primary-foreground"
-                                : "bg-background/90 backdrop-blur-sm border-border/40 text-neutral-500 hover:text-foreground"
+                        {/* View options — appear above FAB */}
+                        <AnimatePresence>
+                          {isViewPickerOpen && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 6, scale: 0.9 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: 6, scale: 0.9 }}
+                              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                              className="flex flex-col gap-3"
+                            >
+                              {([
+                                { view: "calendar" as const, Icon: Calendar, label: "Calendar" },
+                                { view: "logs" as const, Icon: LayoutList, label: "Logs" },
+                              ]).map(({ view, Icon, label }) => (
+                                <motion.button
+                                  key={view}
+                                  whileTap={{ scale: 0.92 }}
+                                  transition={{ duration: 0.09, ease: "easeOut" }}
+                                  onClick={() => { setActivityView(view); setIsViewPickerOpen(false); }}
+                                  aria-label={label}
+                                  className={cn(
+                                    "w-12 h-12 rounded-full flex items-center justify-center border transition-colors duration-150 shadow-[0_2px_12px_rgba(0,0,0,0.10)]",
+                                    activityView === view
+                                      ? "bg-primary border-primary/20 text-primary-foreground"
+                                      : "bg-background/90 backdrop-blur-sm border-border/40 text-neutral-500"
+                                  )}
+                                >
+                                  <Icon className="w-5 h-5" />
+                                </motion.button>
+                              ))}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+
+                        {/* Main FAB */}
+                        <motion.button
+                          whileTap={{ scale: 0.92 }}
+                          transition={{ duration: 0.09, ease: "easeOut" }}
+                          onClick={() => setIsViewPickerOpen(prev => !prev)}
+                          aria-label={isViewPickerOpen ? "Close view picker" : "Switch view"}
+                          className={cn(
+                            "w-12 h-12 rounded-full flex items-center justify-center border transition-colors duration-150 shadow-[0_4px_20px_rgba(0,0,0,0.12)]",
+                            isViewPickerOpen
+                              ? "bg-foreground/8 backdrop-blur-sm border-border/30 text-foreground/50"
+                              : "bg-background/90 backdrop-blur-sm border-border/40 text-neutral-500"
+                          )}
+                        >
+                          <AnimatePresence mode="wait" initial={false}>
+                            {isViewPickerOpen ? (
+                              <motion.span
+                                key="close"
+                                initial={{ opacity: 0, scale: 0.7, rotate: -45 }}
+                                animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                                exit={{ opacity: 0, scale: 0.7, rotate: 45 }}
+                                transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
+                              >
+                                <X className="w-5 h-5" />
+                              </motion.span>
+                            ) : (
+                              <motion.span
+                                key={activityView}
+                                initial={{ opacity: 0, scale: 0.7 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.7 }}
+                                transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
+                              >
+                                {activityView === "logs"
+                                  ? <LayoutList className="w-5 h-5" />
+                                  : <Calendar className="w-5 h-5" />
+                                }
+                              </motion.span>
                             )}
-                          >
-                            <Icon className="w-5 h-5" />
-                          </motion.button>
-                        ))}
+                          </AnimatePresence>
+                        </motion.button>
                       </motion.div>
                     )}
                   </AnimatePresence>
