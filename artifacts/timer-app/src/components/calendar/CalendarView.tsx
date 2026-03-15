@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useListSessions } from "@workspace/api-client-react";
 import { format, isSameDay, addDays, subDays, isToday } from "date-fns";
 import { ChevronLeft, ChevronRight, Clock, Tag, FileText, X } from "lucide-react";
@@ -32,6 +32,9 @@ const START_HOUR = 0;
 const END_HOUR = 24;
 const TOTAL_HOURS = END_HOUR - START_HOUR;
 const TIMELINE_HEIGHT = TOTAL_HOURS * HOUR_HEIGHT;
+
+const AXIS_LOCK_PX = 8;
+const SWIPE_COMMIT_PX = 50;
 
 const TASK_COLORS = [
   "bg-primary/25 text-primary",
@@ -70,6 +73,13 @@ function formatMinuteLabel(minute: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+const slideVariants = {
+  enter: (dir: number) => ({ x: dir > 0 ? "100%" : "-100%" }),
+  center: { x: 0 },
+  exit: (dir: number) => ({ x: dir > 0 ? "-100%" : "100%" }),
+};
+const slideTransition = { duration: 0.22, ease: [0.25, 0, 0, 1] as const };
+
 interface CalendarViewProps {
   isActive: boolean;
 }
@@ -80,10 +90,24 @@ export function CalendarView({ isActive }: CalendarViewProps) {
   const [detailSession, setDetailSession] = useState<SessionItem | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [nowMinute, setNowMinute] = useState(getNowMinute);
+  const [direction, setDirection] = useState(1);
+
+  const swipeStartX = useRef(0);
+  const swipeStartY = useRef(0);
+  const swipeAxis = useRef<"h" | "v" | null>(null);
 
   useEffect(() => {
     const id = setInterval(() => setNowMinute(getNowMinute()), 60_000);
     return () => clearInterval(id);
+  }, []);
+
+  const navigate = useCallback((delta: number, targetDate?: Date) => {
+    setDirection(delta);
+    if (targetDate) {
+      setSelectedDate(targetDate);
+    } else {
+      setSelectedDate((d) => delta > 0 ? addDays(d, 1) : subDays(d, 1));
+    }
   }, []);
 
   const daySessions = useMemo(() => {
@@ -114,27 +138,80 @@ export function CalendarView({ isActive }: CalendarViewProps) {
   }, [daySessions]);
 
   useEffect(() => {
-    if (!scrollRef.current) return;
-    if (isTodayView) {
-      const offset = nowMinute * PIXELS_PER_MINUTE - 30;
-      scrollRef.current.scrollTop = Math.max(0, offset);
-    } else if (blocks.length > 0) {
-      const firstBlock = blocks[0];
-      const offset = (firstBlock.startMinute / 60) * HOUR_HEIGHT - 40;
-      scrollRef.current.scrollTop = Math.max(0, offset);
-    }
-  }, [selectedDate, blocks, daySessions.length]);
+    const el = scrollRef.current;
+    if (!el) return;
+    const tid = setTimeout(() => {
+      if (isTodayView) {
+        el.scrollTop = Math.max(0, nowMinute * PIXELS_PER_MINUTE - 30);
+      } else if (blocks.length > 0) {
+        el.scrollTop = Math.max(0, (blocks[0].startMinute / 60) * HOUR_HEIGHT - 40);
+      } else {
+        el.scrollTop = 9 * HOUR_HEIGHT;
+      }
+    }, 60);
+    return () => clearTimeout(tid);
+  }, [selectedDate, blocks, daySessions.length, isTodayView, nowMinute]);
 
   useEffect(() => {
-    if (!isActive || !scrollRef.current) return;
-    if (isTodayView) {
-      const offset = nowMinute * PIXELS_PER_MINUTE - 30;
-      scrollRef.current.scrollTop = Math.max(0, offset);
-    } else if (blocks.length > 0) {
-      const offset = (blocks[0].startMinute / 60) * HOUR_HEIGHT - 40;
-      scrollRef.current.scrollTop = Math.max(0, offset);
-    }
+    if (!isActive) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    const tid = setTimeout(() => {
+      if (isTodayView) {
+        el.scrollTop = Math.max(0, nowMinute * PIXELS_PER_MINUTE - 30);
+      } else if (blocks.length > 0) {
+        el.scrollTop = Math.max(0, (blocks[0].startMinute / 60) * HOUR_HEIGHT - 40);
+      } else {
+        el.scrollTop = 9 * HOUR_HEIGHT;
+      }
+    }, 60);
+    return () => clearTimeout(tid);
   }, [isActive]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const navigateRef = navigate;
+
+    const onStart = (e: TouchEvent) => {
+      swipeStartX.current = e.touches[0].clientX;
+      swipeStartY.current = e.touches[0].clientY;
+      swipeAxis.current = null;
+    };
+
+    const onMove = (e: TouchEvent) => {
+      const dx = e.touches[0].clientX - swipeStartX.current;
+      const dy = e.touches[0].clientY - swipeStartY.current;
+      if (swipeAxis.current === null) {
+        if (Math.abs(dx) > AXIS_LOCK_PX || Math.abs(dy) > AXIS_LOCK_PX) {
+          swipeAxis.current = Math.abs(dx) > Math.abs(dy) ? "h" : "v";
+        }
+      }
+      if (swipeAxis.current === "h") {
+        e.preventDefault();
+      }
+    };
+
+    const onEnd = (e: TouchEvent) => {
+      if (swipeAxis.current !== "h") return;
+      const dx = e.changedTouches[0].clientX - swipeStartX.current;
+      if (Math.abs(dx) >= SWIPE_COMMIT_PX) {
+        navigateRef(dx < 0 ? 1 : -1);
+      }
+      swipeAxis.current = null;
+    };
+
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    el.addEventListener("touchend", onEnd, { passive: true });
+
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+    };
+  }, [navigate]);
 
   const totalDaySeconds = daySessions.reduce((sum, s) => sum + s.durationSeconds, 0);
 
@@ -145,7 +222,7 @@ export function CalendarView({ isActive }: CalendarViewProps) {
       <div className="shrink-0 px-4 py-3 border-b border-border/30 bg-background/80 backdrop-blur-sm">
         <div className="flex items-center justify-between max-w-lg mx-auto">
           <button
-            onClick={() => setSelectedDate((d) => subDays(d, 1))}
+            onClick={() => navigate(-1)}
             className="p-2.5 rounded-xl hover:bg-secondary/60 transition-colors touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
             aria-label="Previous day"
           >
@@ -154,7 +231,10 @@ export function CalendarView({ isActive }: CalendarViewProps) {
 
           <div className="text-center">
             <button
-              onClick={() => setSelectedDate(new Date())}
+              onClick={() => {
+                const today = new Date();
+                navigate(today >= selectedDate ? 1 : -1, today);
+              }}
               className="flex flex-col items-center gap-0.5 hover:opacity-80 transition-opacity touch-manipulation"
             >
               <span className="text-sm font-bold text-foreground">
@@ -173,7 +253,7 @@ export function CalendarView({ isActive }: CalendarViewProps) {
           </div>
 
           <button
-            onClick={() => setSelectedDate((d) => addDays(d, 1))}
+            onClick={() => navigate(1)}
             className="p-2.5 rounded-xl hover:bg-secondary/60 transition-colors touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
             aria-label="Next day"
           >
@@ -197,83 +277,97 @@ export function CalendarView({ isActive }: CalendarViewProps) {
             <p className="text-sm">Loading sessions...</p>
           </div>
         ) : (
-          <div className="relative px-2" style={{ height: TIMELINE_HEIGHT }}>
-            {hours.map((hour) => {
-              const yPos = hour * HOUR_HEIGHT;
-              return (
-                <div key={hour} className="absolute left-0 right-0" style={{ top: yPos }}>
-                  <div className="flex items-start">
-                    <span className="text-[10px] font-medium text-slate-400 tabular-nums w-12 text-right pr-2 -mt-[5px] shrink-0">
-                      {String(hour).padStart(2, "0")}:00
-                    </span>
-                    <div className="flex-1 border-t border-border/50" />
-                  </div>
-                </div>
-              );
-            })}
-
-            <div className="absolute left-14 right-2 top-0 bottom-0">
-              {blocks.map((block) => {
-                const topPx = (block.startMinute / 60) * HOUR_HEIGHT;
-                const heightPx = Math.max(
-                  (block.session.durationSeconds / 60) * PIXELS_PER_MINUTE,
-                  MIN_BAR_HEIGHT
-                );
-                const colorClass = getTaskColor(block.session.taskId);
-                const showLabel = heightPx >= LABEL_THRESHOLD;
-                const showTimeRange = heightPx >= TIME_THRESHOLD;
-
-                return (
-                  <motion.button
-                    key={block.session.id}
-                    onClick={() => setDetailSession(block.session)}
-                    whileTap={{ scale: 0.98 }}
-                    transition={{ duration: 0.12, ease: "easeOut" }}
-                    className={cn(
-                      "absolute left-0 right-0 rounded text-left transition-all hover:brightness-110 touch-manipulation overflow-hidden",
-                      colorClass,
-                      showLabel ? "px-2 py-0.5" : ""
-                    )}
-                    style={{ top: topPx, height: heightPx, minHeight: MIN_BAR_HEIGHT }}
-                  >
-                    {showLabel && (
-                      <div className="flex items-start justify-between gap-1 h-full">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-semibold truncate leading-tight">
-                            {block.session.taskName ?? "No task"}
-                          </p>
-                          {showTimeRange && (
-                            <p className="text-[10px] opacity-70 mt-0.5 tabular-nums">
-                              {formatTimeRange(block.startMinute, block.endMinute)}
-                            </p>
-                          )}
-                        </div>
-                        {showTimeRange && (
-                          <span className="text-[10px] font-medium opacity-60 shrink-0 tabular-nums">
-                            {formatShortDuration(block.session.durationSeconds)}
-                          </span>
-                        )}
+          <div style={{ position: "relative", height: TIMELINE_HEIGHT, overflow: "hidden" }}>
+            <AnimatePresence initial={false} custom={direction}>
+              <motion.div
+                key={format(selectedDate, "yyyy-MM-dd")}
+                custom={direction}
+                variants={slideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={slideTransition}
+                style={{ position: "absolute", inset: 0 }}
+                className="px-2"
+              >
+                {hours.map((hour) => {
+                  const yPos = hour * HOUR_HEIGHT;
+                  return (
+                    <div key={hour} className="absolute left-0 right-0" style={{ top: yPos }}>
+                      <div className="flex items-start">
+                        <span className="text-[10px] font-medium text-slate-400 tabular-nums w-12 text-right pr-2 -mt-[5px] shrink-0">
+                          {String(hour).padStart(2, "0")}:00
+                        </span>
+                        <div className="flex-1 border-t border-border/50" />
                       </div>
-                    )}
-                  </motion.button>
-                );
-              })}
-            </div>
+                    </div>
+                  );
+                })}
 
-            {isTodayView && (() => {
-              const topPx = (nowMinute / 60) * HOUR_HEIGHT;
-              return (
-                <div className="absolute left-12 right-2 pointer-events-none z-10" style={{ top: topPx }}>
-                  <div className="flex items-center">
-                    <span className="text-[9px] font-semibold text-destructive tabular-nums mr-1 -mt-px">
-                      {formatMinuteLabel(nowMinute)}
-                    </span>
-                    <div className="w-2 h-2 rounded-full bg-destructive shrink-0" />
-                    <div className="flex-1 h-px bg-destructive/50" />
-                  </div>
+                <div className="absolute left-14 right-2 top-0 bottom-0">
+                  {blocks.map((block) => {
+                    const topPx = (block.startMinute / 60) * HOUR_HEIGHT;
+                    const heightPx = Math.max(
+                      (block.session.durationSeconds / 60) * PIXELS_PER_MINUTE,
+                      MIN_BAR_HEIGHT
+                    );
+                    const colorClass = getTaskColor(block.session.taskId);
+                    const showLabel = heightPx >= LABEL_THRESHOLD;
+                    const showTimeRange = heightPx >= TIME_THRESHOLD;
+
+                    return (
+                      <motion.button
+                        key={block.session.id}
+                        onClick={() => setDetailSession(block.session)}
+                        whileTap={{ scale: 0.98 }}
+                        transition={{ duration: 0.12, ease: "easeOut" }}
+                        className={cn(
+                          "absolute left-0 right-0 rounded text-left transition-all hover:brightness-110 touch-manipulation overflow-hidden",
+                          colorClass,
+                          showLabel ? "px-2 py-0.5" : ""
+                        )}
+                        style={{ top: topPx, height: heightPx, minHeight: MIN_BAR_HEIGHT }}
+                      >
+                        {showLabel && (
+                          <div className="flex items-start justify-between gap-1 h-full">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[11px] font-semibold truncate leading-tight">
+                                {block.session.taskName ?? "No task"}
+                              </p>
+                              {showTimeRange && (
+                                <p className="text-[10px] opacity-70 mt-0.5 tabular-nums">
+                                  {formatTimeRange(block.startMinute, block.endMinute)}
+                                </p>
+                              )}
+                            </div>
+                            {showTimeRange && (
+                              <span className="text-[10px] font-medium opacity-60 shrink-0 tabular-nums">
+                                {formatShortDuration(block.session.durationSeconds)}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </motion.button>
+                    );
+                  })}
                 </div>
-              );
-            })()}
+
+                {isTodayView && (() => {
+                  const topPx = (nowMinute / 60) * HOUR_HEIGHT;
+                  return (
+                    <div className="absolute left-12 right-2 pointer-events-none z-10" style={{ top: topPx }}>
+                      <div className="flex items-center">
+                        <span className="text-[9px] font-semibold text-destructive tabular-nums mr-1 -mt-px">
+                          {formatMinuteLabel(nowMinute)}
+                        </span>
+                        <div className="w-2 h-2 rounded-full bg-destructive shrink-0" />
+                        <div className="flex-1 h-px bg-destructive/50" />
+                      </div>
+                    </div>
+                  );
+                })()}
+              </motion.div>
+            </AnimatePresence>
           </div>
         )}
       </div>
