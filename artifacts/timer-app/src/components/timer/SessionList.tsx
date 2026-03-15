@@ -4,7 +4,7 @@ import type { UpdateSessionRequest } from "@workspace/api-client-react/src/gener
 import { useQueryClient } from "@tanstack/react-query";
 import { format, isToday, isYesterday } from "date-fns";
 import { formatShortDuration, cn } from "@/lib/utils";
-import { Trash2, History, Tag, Play, Pause, ChevronDown, Mic, ListOrdered, Pencil, Check, X } from "lucide-react";
+import { Trash2, History, Play, Pause, ChevronDown, Mic, ListOrdered, Pencil, Check, X } from "lucide-react";
 import { motion, AnimatePresence, type Transition } from "framer-motion";
 
 const TAP_SPRING: Transition = { duration: 0.12, ease: "easeOut" };
@@ -439,7 +439,7 @@ export function SessionList({ onRestart }: SessionListProps) {
               </span>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               {day.taskGroups.map(group => {
                 const isExpanded = expanded.has(group.key);
                 return (
@@ -449,53 +449,50 @@ export function SessionList({ onRestart }: SessionListProps) {
                       role="button"
                       tabIndex={0}
                       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleExpand(group.key); } }}
-                      whileTap={{ scale: 1.005, y: -1, backgroundColor: "rgba(0,0,0,0.04)" }}
-                      transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
-                      className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-card/60 border border-border/30 hover:bg-card/90 shadow-sm hover:shadow-md transition-all group touch-manipulation cursor-pointer"
+                      whileTap={{ scale: 0.98 }}
+                      transition={{ duration: 0.12, ease: [0.22, 1, 0.36, 1] }}
+                      className="w-full bg-white rounded-2xl px-4 py-4 touch-manipulation cursor-pointer"
+                      style={{ boxShadow: "0 4px 12px rgba(0,0,0,0.06)", borderRadius: "16px" }}
                     >
-                      <div className="flex-1 min-w-0 text-left">
-                        <div className="flex items-center gap-2">
-                          <Tag className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
-                          <span className="font-semibold text-sm text-foreground/90 truncate">
-                            {group.taskName ?? "No task"}
-                          </span>
-                          {group.projectName && (
-                            <>
-                              <span className="text-muted-foreground/30 text-xs">&middot;</span>
-                              <span className="text-xs text-muted-foreground/60 truncate shrink-0">
-                                {group.projectName}
-                              </span>
-                            </>
-                          )}
-                        </div>
-                        {group.sessions.length > 1 && (
-                          <span className="text-[11px] text-muted-foreground/50 ml-5.5 pl-[22px]">
-                            {group.sessions.length} sessions
-                          </span>
-                        )}
+                      {/* Row 1: task name + duration + controls */}
+                      <div className="flex items-center gap-2">
+                        <span className="flex-1 min-w-0 font-semibold text-[15px] text-foreground leading-snug truncate">
+                          {group.taskName ?? "No task"}
+                        </span>
+                        <span className="font-bold text-sm text-foreground tabular-nums shrink-0">
+                          {formatShortDuration(group.totalSeconds)}
+                        </span>
+                        <motion.span
+                          animate={{ rotate: isExpanded ? 180 : 0 }}
+                          transition={{ duration: 0.2, ease: "easeOut" }}
+                          className="shrink-0 flex items-center justify-center"
+                        >
+                          <ChevronDown className="w-3.5 h-3.5 text-muted-foreground/40" />
+                        </motion.span>
+                        <motion.button
+                          onClick={(e) => handleRestart(group, e)}
+                          whileTap={{ scale: 0.95 }}
+                          transition={TAP_SPRING}
+                          className="p-1.5 rounded-xl hover:bg-primary/10 text-primary/60 hover:text-primary transition-colors shrink-0"
+                          aria-label="Restart this task"
+                        >
+                          <Play className="w-4 h-4" />
+                        </motion.button>
                       </div>
 
-                      <span className="text-sm font-semibold text-foreground/70 tabular-nums shrink-0">
-                        {formatShortDuration(group.totalSeconds)}
-                      </span>
-
-                      <motion.span
-                        animate={{ rotate: isExpanded ? 180 : 0 }}
-                        transition={{ duration: 0.2, ease: "easeOut" }}
-                        className="shrink-0 flex items-center justify-center"
-                      >
-                        <ChevronDown className="w-3.5 h-3.5 text-muted-foreground/40" />
-                      </motion.span>
-
-                      <motion.button
-                        onClick={(e) => handleRestart(group, e)}
-                        whileTap={{ scale: 0.95 }}
-                        transition={TAP_SPRING}
-                        className="p-2 rounded-xl hover:bg-primary/10 text-primary/60 hover:text-primary transition-colors shrink-0"
-                        aria-label="Restart this task"
-                      >
-                        <Play className="w-4 h-4" />
-                      </motion.button>
+                      {/* Row 2: project name + session count */}
+                      {(group.projectName || group.sessions.length > 1) && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="flex-1 min-w-0 text-xs text-muted-foreground/60 truncate">
+                            {group.projectName ?? ""}
+                          </span>
+                          {group.sessions.length > 1 && (
+                            <span className="text-[11px] text-muted-foreground/50 shrink-0">
+                              {group.sessions.length} sessions
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </motion.div>
 
                     <AnimatePresence>
