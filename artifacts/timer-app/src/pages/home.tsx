@@ -428,7 +428,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                   </div>
                 </div>
               )}
-              {tab === "calendar" && <CalendarView />}
+              {tab === "calendar" && <CalendarView isActive={activeTab === "calendar"} />}
             </motion.div>
           );
         })}

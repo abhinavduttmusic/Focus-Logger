@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useListSessions } from "@workspace/api-client-react";
 import { format, isSameDay, addDays, subDays, isToday } from "date-fns";
-import { ChevronLeft, ChevronRight, CalendarDays, Clock, Tag, FileText, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, Tag, FileText, X } from "lucide-react";
 import { formatShortDuration, cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -70,7 +70,11 @@ function formatMinuteLabel(minute: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-export function CalendarView() {
+interface CalendarViewProps {
+  isActive: boolean;
+}
+
+export function CalendarView({ isActive }: CalendarViewProps) {
   const { data: sessions, isLoading } = useListSessions();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [detailSession, setDetailSession] = useState<SessionItem | null>(null);
@@ -111,9 +115,8 @@ export function CalendarView() {
 
   useEffect(() => {
     if (!scrollRef.current) return;
-    const viewportH = scrollRef.current.clientHeight;
     if (isTodayView) {
-      const offset = nowMinute * PIXELS_PER_MINUTE - viewportH / 2;
+      const offset = nowMinute * PIXELS_PER_MINUTE - 30;
       scrollRef.current.scrollTop = Math.max(0, offset);
     } else if (blocks.length > 0) {
       const firstBlock = blocks[0];
@@ -121,6 +124,17 @@ export function CalendarView() {
       scrollRef.current.scrollTop = Math.max(0, offset);
     }
   }, [selectedDate, blocks, daySessions.length]);
+
+  useEffect(() => {
+    if (!isActive || !scrollRef.current) return;
+    if (isTodayView) {
+      const offset = nowMinute * PIXELS_PER_MINUTE - 30;
+      scrollRef.current.scrollTop = Math.max(0, offset);
+    } else if (blocks.length > 0) {
+      const offset = (blocks[0].startMinute / 60) * HOUR_HEIGHT - 40;
+      scrollRef.current.scrollTop = Math.max(0, offset);
+    }
+  }, [isActive]);
 
   const totalDaySeconds = daySessions.reduce((sum, s) => sum + s.durationSeconds, 0);
 
@@ -199,15 +213,6 @@ export function CalendarView() {
             })}
 
             <div className="absolute left-14 right-2 top-0 bottom-0">
-              {blocks.length === 0 && (
-                <div className="absolute inset-x-0 top-8 flex flex-col items-center pointer-events-none">
-                  <CalendarDays className="w-8 h-8 mb-2 text-muted-foreground/15" />
-                  <p className="text-xs text-muted-foreground/40">
-                    {isTodayView ? "No sessions yet today" : "No sessions"}
-                  </p>
-                </div>
-              )}
-
               {blocks.map((block) => {
                 const topPx = (block.startMinute / 60) * HOUR_HEIGHT;
                 const heightPx = Math.max(
