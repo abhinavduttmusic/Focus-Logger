@@ -1,8 +1,8 @@
-import { Timer, History, CalendarDays } from "lucide-react";
+import { Timer, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
-export type Tab = "timer" | "logs" | "calendar";
+export type Tab = "timer" | "activity";
 
 interface BottomNavProps {
   activeTab: Tab;
@@ -16,14 +16,12 @@ const MICRO_EASE: number[] = [0.22, 1, 0.36, 1];
 
 const ICON_ANIMATIONS: Record<Tab, { animate: Record<string, number[]>; duration: number }> = {
   timer: { animate: { rotate: [0, 6, 0] }, duration: 0.18 },
-  logs: { animate: { rotate: [0, 15, 0] }, duration: 0.16 },
-  calendar: { animate: { y: [0, -2, 0], scale: [1, 1.04, 1] }, duration: 0.18 },
+  activity: { animate: { scale: [1, 1.12, 1] }, duration: 0.18 },
 };
 
 const tabs: { id: Tab; label: string; Icon: typeof Timer }[] = [
   { id: "timer", label: "Timer", Icon: Timer },
-  { id: "logs", label: "Logs", Icon: History },
-  { id: "calendar", label: "Calendar", Icon: CalendarDays },
+  { id: "activity", label: "Activity", Icon: Activity },
 ];
 
 export function BottomNav({ activeTab, onChange, sessionIsInProgress }: BottomNavProps) {

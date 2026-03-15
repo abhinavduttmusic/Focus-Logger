@@ -12,7 +12,8 @@ import {
   type RestoredSession,
 } from "@/hooks/use-session-persistence";
 import { XCircle } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
+import { cn } from "@/lib/utils";
 import { ConfirmBannerInline, CONFIRM_TAP } from "@/components/ui/confirm-banner";
 
 import { TimerToggle } from "@/components/timer/TimerToggle";
@@ -74,6 +75,7 @@ export default function HomeLoader() {
 
 function Home({ restored }: { restored: RestoredSession | null }) {
   const [activeTab, setActiveTab] = useState<Tab>("timer");
+  const [activityView, setActivityView] = useState<"logs" | "calendar">("logs");
   const [notes, setNotes] = useState(restored?.notes ?? "");
   const [selectedTask, setSelectedTask] = useState<Task | null>(
     restored?.selectedTask
@@ -278,7 +280,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   return (
     <div className="h-[100dvh] flex flex-col overflow-hidden bg-background">
       <div className="flex-1 min-h-0 relative">
-        {(["timer", "logs", "calendar"] as const).map((tab) => {
+        {(["timer", "activity"] as const).map((tab) => {
           const isActive = activeTab === tab;
           return (
             <motion.div
@@ -289,9 +291,9 @@ function Home({ restored }: { restored: RestoredSession | null }) {
               }}
               transition={TAB_TRANSITION}
               className={
-                tab === "calendar"
-                  ? "absolute inset-0 overflow-hidden"
-                  : "absolute inset-0 overflow-y-auto"
+                tab === "timer"
+                  ? "absolute inset-0 overflow-y-auto"
+                  : "absolute inset-0 overflow-hidden"
               }
               style={{ pointerEvents: isActive ? "auto" : "none" }}
               aria-hidden={!isActive}
@@ -419,14 +421,71 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                   </div>
                 </main>
               )}
-              {tab === "logs" && (
-                <div className="w-full py-4 px-4 sm:px-6">
-                  <div className="w-full max-w-2xl mx-auto pb-4">
-                    <SessionList onRestart={handleRestart} />
+              {tab === "activity" && (
+                <div className="absolute inset-0 flex flex-col">
+                  {/* Sub-toggle: Logs | Calendar */}
+                  <div className="shrink-0 flex justify-center pt-4 pb-2 px-4">
+                    <LayoutGroup id="activity-view-toggle">
+                      <div className="flex items-center p-1.5 bg-secondary/50 backdrop-blur-sm rounded-full w-fit border border-border/40 shadow-inner">
+                        {(["logs", "calendar"] as const).map((view) => (
+                          <motion.button
+                            key={view}
+                            whileTap={{ scale: 0.97 }}
+                            transition={{ duration: 0.09, ease: "easeOut" }}
+                            onClick={() => setActivityView(view)}
+                            className={cn(
+                              "relative px-5 py-2 rounded-full text-sm font-semibold transition-colors z-10",
+                              activityView === view
+                                ? "text-primary-foreground"
+                                : "text-muted-foreground hover:text-foreground"
+                            )}
+                          >
+                            {view === "logs" ? "Logs" : "Calendar"}
+                            {activityView === view && (
+                              <motion.div
+                                layoutId="activity-view-pill"
+                                className="absolute inset-0 bg-primary rounded-full -z-10 shadow-md"
+                                transition={{ type: "spring", stiffness: 700, damping: 38, mass: 0.5 }}
+                              />
+                            )}
+                          </motion.button>
+                        ))}
+                      </div>
+                    </LayoutGroup>
+                  </div>
+
+                  {/* Content area — both panels always mounted for scroll preservation */}
+                  <div className="flex-1 min-h-0 relative">
+                    <motion.div
+                      animate={{ opacity: activityView === "logs" ? 1 : 0 }}
+                      transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                      className="absolute inset-0 overflow-y-auto"
+                      style={{ pointerEvents: activityView === "logs" ? "auto" : "none" }}
+                      aria-hidden={activityView !== "logs"}
+                      // @ts-expect-error inert is valid HTML
+                      inert={activityView !== "logs" ? "" : undefined}
+                    >
+                      <div className="w-full py-4 px-4 sm:px-6">
+                        <div className="w-full max-w-2xl mx-auto pb-4">
+                          <SessionList onRestart={handleRestart} />
+                        </div>
+                      </div>
+                    </motion.div>
+
+                    <motion.div
+                      animate={{ opacity: activityView === "calendar" ? 1 : 0 }}
+                      transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                      className="absolute inset-0 overflow-hidden"
+                      style={{ pointerEvents: activityView === "calendar" ? "auto" : "none" }}
+                      aria-hidden={activityView !== "calendar"}
+                      // @ts-expect-error inert is valid HTML
+                      inert={activityView !== "calendar" ? "" : undefined}
+                    >
+                      <CalendarView isActive={activeTab === "activity" && activityView === "calendar"} />
+                    </motion.div>
                   </div>
                 </div>
               )}
-              {tab === "calendar" && <CalendarView isActive={activeTab === "calendar"} />}
             </motion.div>
           );
         })}
