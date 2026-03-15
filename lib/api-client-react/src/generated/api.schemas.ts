@@ -78,7 +78,8 @@ export interface CreateTaskRequest {
 
 export interface UpdateTaskRequest {
   /** @minLength 1 */
-  name: string;
+  name?: string;
+  projectId?: number | null;
 }
 
 export interface Project {
@@ -88,6 +89,10 @@ export interface Project {
 }
 
 export interface CreateProjectRequest {
+  name: string;
+}
+
+export interface UpdateProjectRequest {
   name: string;
 }
 

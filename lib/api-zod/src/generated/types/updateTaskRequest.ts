@@ -8,5 +8,6 @@
 
 export interface UpdateTaskRequest {
   /** @minLength 1 */
-  name: string;
+  name?: string;
+  projectId?: number | null;
 }

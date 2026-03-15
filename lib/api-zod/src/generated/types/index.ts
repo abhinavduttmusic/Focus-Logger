@@ -18,6 +18,7 @@ export * from "./recording";
 export * from "./session";
 export * from "./sessionType";
 export * from "./task";
+export * from "./updateProjectRequest";
 export * from "./updateSessionRequest";
 export * from "./updateTaskRequest";
 export * from "./uploadUrlRequest";

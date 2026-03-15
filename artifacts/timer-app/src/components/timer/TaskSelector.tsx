@@ -417,7 +417,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
           )}
           {filteredTasks.length > 0 ? (
             <div className="space-y-0.5">
-              {filteredTasks.map(task => renderTaskRow(task))}
+              {filteredTasks.map(task => <div key={task.id}>{renderTaskRow(task)}</div>)}
             </div>
           ) : !showInlineCreate && !createTask.isPending ? (
             <div className="text-center p-6 text-sm text-muted-foreground">
@@ -505,7 +505,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
             {confirmDeleteProjectId !== project.id && confirmDeleteProjectId2 !== project.id && (
               projectTasks.length > 0 ? (
                 <div className="space-y-0.5 ml-1">
-                  {projectTasks.map(task => renderTaskRow(task))}
+                  {projectTasks.map(task => <div key={task.id}>{renderTaskRow(task)}</div>)}
                 </div>
               ) : (
                 <div className="ml-6 py-1.5 text-xs italic text-muted-foreground/40">
@@ -527,7 +527,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
               </div>
             )}
             <div className="space-y-0.5 ml-1">
-              {independent.map(task => renderTaskRow(task))}
+              {independent.map(task => <div key={task.id}>{renderTaskRow(task)}</div>)}
             </div>
           </div>
         )}

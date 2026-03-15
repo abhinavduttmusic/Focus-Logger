@@ -122,7 +122,8 @@ export const UpdateTaskParams = zod.object({
 });
 
 export const UpdateTaskBody = zod.object({
-  name: zod.string().min(1),
+  name: zod.string().min(1).optional(),
+  projectId: zod.number().int().nullable().optional(),
 });
 
 export const UpdateTaskResponse = zod.object({
@@ -155,6 +156,17 @@ export const ListProjectsResponse = zod.array(ListProjectsResponseItem);
  */
 export const CreateProjectBody = zod.object({
   name: zod.string(),
+});
+
+/**
+ * @summary Update a project
+ */
+export const UpdateProjectParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateProjectBody = zod.object({
+  name: zod.string().min(1),
 });
 
 /**

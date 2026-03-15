@@ -49,9 +49,16 @@ router.patch("/tasks/:id", async (req, res): Promise<void> => {
     return;
   }
   const body = UpdateTaskBody.parse(req.body);
+  if (body.name === undefined && body.projectId === undefined) {
+    res.status(400).json({ error: "At least one field (name, projectId) must be provided" });
+    return;
+  }
+  const updateData: { name?: string; projectId?: number | null } = {};
+  if (body.name !== undefined) updateData.name = body.name;
+  if (body.projectId !== undefined) updateData.projectId = body.projectId;
   const [updated] = await db
     .update(tasksTable)
-    .set({ name: body.name })
+    .set(updateData)
     .where(eq(tasksTable.id, id))
     .returning();
 
