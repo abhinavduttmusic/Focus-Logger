@@ -2,7 +2,7 @@ import { useState, useRef, useMemo, useEffect } from "react";
 import { useListSessions, useDeleteSession, useUpdateSession, getListSessionsQueryKey, getListTasksQueryKey } from "@workspace/api-client-react";
 import type { UpdateSessionRequest } from "@workspace/api-client-react/src/generated/api.schemas";
 import { useQueryClient } from "@tanstack/react-query";
-import { format, isToday, isYesterday } from "date-fns";
+import { format } from "date-fns";
 import { formatShortDuration, cn } from "@/lib/utils";
 import { Trash2, History, Play, Pause, ChevronDown, Mic, ListOrdered, Pencil, Check, X } from "lucide-react";
 import { motion, AnimatePresence, type Transition } from "framer-motion";
@@ -69,7 +69,7 @@ function buildDayGroups(sessions: SessionItem[]): DayGroup[] {
   for (const s of sessions) {
     const date = new Date(s.createdAt);
     const dateKey = format(date, "yyyy-MM-dd");
-    const dateLabel = isToday(date) ? "Today" : isYesterday(date) ? "Yesterday" : format(date, "MMM d");
+    const dateLabel = format(date, "EEE, d MMM");
 
     if (!dayMap.has(dateKey)) {
       dayMap.set(dateKey, { dateLabel, sessionsMap: new Map() });
@@ -433,7 +433,7 @@ export function SessionList({ onRestart }: SessionListProps) {
               <span className="text-[13px] font-semibold text-muted-foreground/70 uppercase" style={{ letterSpacing: "0.04em" }}>
                 {day.dateLabel}
               </span>
-              <span className="text-[13px] font-semibold text-muted-foreground/50 tabular-nums">
+              <span className="text-[13px] font-bold text-muted-foreground/60 tabular-nums">
                 {formatShortDuration(day.totalSeconds)}
               </span>
             </div>
@@ -499,7 +499,7 @@ export function SessionList({ onRestart }: SessionListProps) {
                             className="p-1.5 rounded-xl hover:bg-primary/10 text-primary/60 hover:text-primary transition-colors"
                             aria-label="Restart this task"
                           >
-                            <Play className="w-4 h-4" />
+                            <Play className="w-4 h-4" fill="currentColor" strokeWidth={0} />
                           </motion.button>
                         </div>
 
@@ -516,7 +516,7 @@ export function SessionList({ onRestart }: SessionListProps) {
                           className="overflow-hidden"
                         >
                           <div className="ml-4 mr-2 mt-1 mb-2 border-l-2 border-border/30 pl-4 space-y-1">
-                            {group.sessions.map(s => {
+                            {group.sessions.map((s, sIdx) => {
                               const sortedRecs = s.recordings
                                 ? [...s.recordings].sort((a, b) => a.offsetSeconds - b.offsetSeconds)
                                 : [];
@@ -524,7 +524,13 @@ export function SessionList({ onRestart }: SessionListProps) {
                               const isConfirmingDelete = confirmDeleteId === s.id;
 
                               return (
-                                <div key={s.id} className="space-y-1">
+                                <motion.div
+                                  key={s.id}
+                                  className="space-y-1"
+                                  initial={{ opacity: 0, y: -6 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ duration: 0.22, delay: sIdx * 0.04, ease: "easeOut" }}
+                                >
                                   {isEditing ? (
                                     <EditSessionForm
                                       session={s}
@@ -620,7 +626,7 @@ export function SessionList({ onRestart }: SessionListProps) {
                                       ))}
                                     </div>
                                   )}
-                                </div>
+                                </motion.div>
                               );
                             })}
                           </div>
