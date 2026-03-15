@@ -124,7 +124,7 @@ export function CalendarView() {
 
   const totalDaySeconds = daySessions.reduce((sum, s) => sum + s.durationSeconds, 0);
 
-  const hours = Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => START_HOUR + i);
+  const hours = Array.from({ length: TOTAL_HOURS }, (_, i) => START_HOUR + i);
 
   return (
     <div className="flex flex-col h-full">
