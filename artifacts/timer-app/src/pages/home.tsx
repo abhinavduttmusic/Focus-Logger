@@ -11,7 +11,7 @@ import {
   buildPersistedState,
   type RestoredSession,
 } from "@/hooks/use-session-persistence";
-import { XCircle, List, Calendar } from "lucide-react";
+import { XCircle, LayoutList, Calendar } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { ConfirmBannerInline, CONFIRM_TAP } from "@/components/ui/confirm-banner";
@@ -513,11 +513,11 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.85 }}
                         transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-                        className="absolute bottom-4 right-4 z-20 flex flex-col gap-3"
+                        className="absolute bottom-24 right-6 z-20 flex flex-col gap-3"
                       >
                         {([
                           { view: "calendar" as const, Icon: Calendar, label: "Calendar" },
-                          { view: "logs" as const, Icon: List, label: "Logs" },
+                          { view: "logs" as const, Icon: LayoutList, label: "Logs" },
                         ]).map(({ view, Icon, label }) => (
                           <motion.button
                             key={view}
