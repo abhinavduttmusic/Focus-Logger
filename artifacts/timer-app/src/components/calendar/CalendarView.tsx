@@ -23,11 +23,11 @@ type TimeBlock = {
   endMinute: number;
 };
 
-const PIXELS_PER_MINUTE = 5;
-const HOUR_HEIGHT = PIXELS_PER_MINUTE * 60;
-const MIN_BAR_HEIGHT = 4;
-const LABEL_THRESHOLD = 24;
-const TIME_THRESHOLD = 48;
+const HOUR_HEIGHT = 70;
+const PIXELS_PER_MINUTE = HOUR_HEIGHT / 60;
+const MIN_BAR_HEIGHT = 3;
+const LABEL_THRESHOLD = 18;
+const TIME_THRESHOLD = 36;
 const DEFAULT_START_HOUR = 6;
 const DEFAULT_END_HOUR = 23;
 
@@ -210,10 +210,10 @@ export function CalendarView() {
               return (
                 <div key={hour} className="absolute left-0 right-0" style={{ top: yPos }}>
                   <div className="flex items-start">
-                    <span className="text-[10px] text-muted-foreground/40 tabular-nums w-12 text-right pr-2 -mt-[5px] shrink-0">
+                    <span className="text-[10px] font-medium text-slate-400 tabular-nums w-12 text-right pr-2 -mt-[5px] shrink-0">
                       {String(hour).padStart(2, "0")}:00
                     </span>
-                    <div className="flex-1 border-t border-border/20" />
+                    <div className="flex-1 border-t border-border/50" />
                   </div>
                 </div>
               );
