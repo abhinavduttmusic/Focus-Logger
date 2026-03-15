@@ -39,7 +39,7 @@ export function BottomNav({ activeTab, onChange, sessionIsInProgress }: BottomNa
               transition={TAP_SPRING}
               className={cn(
                 "flex flex-col items-center justify-center gap-0.5 flex-1 h-full touch-manipulation relative",
-                isActive ? "text-primary" : "text-muted-foreground/50 hover:text-muted-foreground/80"
+                isActive ? "text-primary" : "text-neutral-500 hover:text-neutral-600"
               )}
               aria-label={label}
               aria-current={isActive ? "page" : undefined}
@@ -62,13 +62,11 @@ export function BottomNav({ activeTab, onChange, sessionIsInProgress }: BottomNa
                   </motion.div>
                 </AnimatePresence>
               </motion.div>
-              <motion.span
-                animate={{ opacity: isActive ? 1 : 0.55 }}
-                transition={LIFT_TRANSITION}
-                className={cn("text-[10px] font-medium", isActive && "font-semibold")}
+              <span
+                className={cn("text-[10px] transition-[font-weight] duration-150", isActive ? "font-semibold" : "font-medium")}
               >
                 {label}
-              </motion.span>
+              </span>
             </motion.button>
           );
         })}
