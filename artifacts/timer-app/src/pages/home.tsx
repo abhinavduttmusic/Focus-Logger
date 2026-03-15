@@ -460,7 +460,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                       animate={{ opacity: activityView === "logs" ? 1 : 0 }}
                       transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                       className="absolute inset-0 overflow-y-auto"
-                      style={{ pointerEvents: activityView === "logs" ? "auto" : "none" }}
+                      style={{ pointerEvents: activeTab === "activity" && activityView === "logs" ? "auto" : "none" }}
                       aria-hidden={activityView !== "logs"}
                       // @ts-expect-error inert is valid HTML
                       inert={activityView !== "logs" ? "" : undefined}
@@ -476,7 +476,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                       animate={{ opacity: activityView === "calendar" ? 1 : 0 }}
                       transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                       className="absolute inset-0 overflow-hidden"
-                      style={{ pointerEvents: activityView === "calendar" ? "auto" : "none" }}
+                      style={{ pointerEvents: activeTab === "activity" && activityView === "calendar" ? "auto" : "none" }}
                       aria-hidden={activityView !== "calendar"}
                       // @ts-expect-error inert is valid HTML
                       inert={activityView !== "calendar" ? "" : undefined}
