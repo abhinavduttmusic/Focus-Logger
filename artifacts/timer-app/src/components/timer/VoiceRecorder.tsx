@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { Mic, Play, Pause, Square } from "lucide-react";
+import { Mic, Play, Pause, Square, X } from "lucide-react";
 import type { AudioClip } from "@/hooks/use-voice-recorder";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 const AUDIO_PLAY_EVENT = "flowstate-audio-play";
 
@@ -161,6 +161,7 @@ interface VoiceRecorderProps {
   onPauseRecording: () => void;
   onResumeRecording: () => void;
   onRenameClip: (index: number, label: string) => void;
+  onCancelRecording: () => void;
 }
 
 export function VoiceRecorder({
@@ -173,9 +174,11 @@ export function VoiceRecorder({
   onPauseRecording,
   onResumeRecording,
   onRenameClip,
+  onCancelRecording,
 }: VoiceRecorderProps) {
   const prevCountRef = useRef(clips.length);
   const [newestIndex, setNewestIndex] = useState<number | null>(null);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   useEffect(() => {
     if (clips.length > prevCountRef.current) {
@@ -183,6 +186,10 @@ export function VoiceRecorder({
     }
     prevCountRef.current = clips.length;
   }, [clips.length]);
+
+  useEffect(() => {
+    if (!isRecording) setShowCancelConfirm(false);
+  }, [isRecording]);
 
   if (!isActive && clips.length === 0) return null;
 
@@ -201,49 +208,98 @@ export function VoiceRecorder({
               Record
             </motion.button>
           ) : (
-            <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-destructive/10 border border-destructive/20">
-              <span className="relative flex h-3 w-3 shrink-0">
-                {!isPaused && (
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
-                )}
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-destructive" />
-              </span>
-
-              <RecordingElapsed isPaused={isPaused} />
-
-              <div className="flex items-center gap-1">
-                {!isPaused ? (
-                  <motion.button
-                    onClick={onPauseRecording}
-                    whileTap={{ scale: 0.9 }}
-                    transition={TAP_SPRING}
-                    className="p-1.5 rounded-full text-destructive/70 hover:text-destructive hover:bg-destructive/10 transition-colors"
-                    aria-label="Pause recording"
-                  >
-                    <Pause className="w-4 h-4" />
-                  </motion.button>
-                ) : (
-                  <motion.button
-                    onClick={onResumeRecording}
-                    whileTap={{ scale: 0.9 }}
-                    transition={TAP_SPRING}
-                    className="p-1.5 rounded-full text-destructive/70 hover:text-destructive hover:bg-destructive/10 transition-colors"
-                    aria-label="Resume recording"
-                  >
-                    <Mic className="w-4 h-4" />
-                  </motion.button>
-                )}
-                <motion.button
-                  onClick={onStopRecording}
-                  whileTap={{ scale: 0.9 }}
-                  transition={TAP_SPRING}
-                  className="p-1.5 rounded-full text-destructive/70 hover:text-destructive hover:bg-destructive/10 transition-colors"
-                  aria-label="Stop recording"
+            <AnimatePresence mode="wait">
+              {showCancelConfirm ? (
+                <motion.div
+                  key="confirm"
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.96 }}
+                  transition={{ duration: 0.12 }}
+                  className="flex items-center gap-3 px-4 py-2 rounded-full bg-destructive/10 border border-destructive/20"
                 >
-                  <Square className="w-3.5 h-3.5" fill="currentColor" />
-                </motion.button>
-              </div>
-            </div>
+                  <span className="text-sm font-medium text-destructive/80">Discard this recording?</span>
+                  <div className="flex items-center gap-2">
+                    <motion.button
+                      onClick={() => setShowCancelConfirm(false)}
+                      whileTap={{ scale: 0.95 }}
+                      transition={TAP_SPRING}
+                      className="px-3 py-1 rounded-full text-xs font-semibold text-muted-foreground hover:text-foreground bg-black/[0.06] hover:bg-black/[0.10] transition-colors"
+                    >
+                      Keep
+                    </motion.button>
+                    <motion.button
+                      onClick={() => { setShowCancelConfirm(false); onCancelRecording(); }}
+                      whileTap={{ scale: 0.95 }}
+                      transition={TAP_SPRING}
+                      className="px-3 py-1 rounded-full text-xs font-semibold text-destructive bg-destructive/15 hover:bg-destructive/25 transition-colors"
+                    >
+                      Discard
+                    </motion.button>
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="recording"
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.96 }}
+                  transition={{ duration: 0.12 }}
+                  className="flex items-center gap-3 px-4 py-2 rounded-full bg-destructive/10 border border-destructive/20"
+                >
+                  <span className="relative flex h-3 w-3 shrink-0">
+                    {!isPaused && (
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
+                    )}
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-destructive" />
+                  </span>
+
+                  <RecordingElapsed isPaused={isPaused} />
+
+                  <div className="flex items-center gap-1">
+                    {!isPaused ? (
+                      <motion.button
+                        onClick={onPauseRecording}
+                        whileTap={{ scale: 0.9 }}
+                        transition={TAP_SPRING}
+                        className="p-1.5 rounded-full text-destructive/70 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        aria-label="Pause recording"
+                      >
+                        <Pause className="w-4 h-4" />
+                      </motion.button>
+                    ) : (
+                      <motion.button
+                        onClick={onResumeRecording}
+                        whileTap={{ scale: 0.9 }}
+                        transition={TAP_SPRING}
+                        className="p-1.5 rounded-full text-destructive/70 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        aria-label="Resume recording"
+                      >
+                        <Mic className="w-4 h-4" />
+                      </motion.button>
+                    )}
+                    <motion.button
+                      onClick={onStopRecording}
+                      whileTap={{ scale: 0.9 }}
+                      transition={TAP_SPRING}
+                      className="p-1.5 rounded-full text-destructive/70 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      aria-label="Stop recording"
+                    >
+                      <Square className="w-3.5 h-3.5" fill="currentColor" />
+                    </motion.button>
+                    <motion.button
+                      onClick={() => setShowCancelConfirm(true)}
+                      whileTap={{ scale: 0.9 }}
+                      transition={TAP_SPRING}
+                      className="p-1.5 rounded-full text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      aria-label="Cancel recording"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </motion.button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           )}
         </div>
       )}

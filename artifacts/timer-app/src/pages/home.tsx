@@ -407,6 +407,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                         onPauseRecording={recorder.pauseRecording}
                         onResumeRecording={recorder.resumeRecording}
                         onRenameClip={recorder.renameClip}
+                        onCancelRecording={recorder.discardAndStop}
                       />
                       <NotesArea
                         value={notes}
