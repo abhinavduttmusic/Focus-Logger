@@ -1,4 +1,4 @@
-import { Timer, Activity } from "lucide-react";
+import { Timer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -10,8 +10,8 @@ interface BottomNavProps {
   sessionIsInProgress: boolean;
 }
 
-const TAP_SPRING = { duration: 0.12, ease: "easeOut" as const };
-
+const LIFT_TRANSITION = { duration: 0.14, ease: [0.22, 1, 0.36, 1] as const };
+const TAP_SPRING = { duration: 0.09, ease: "easeOut" as const };
 const MICRO_EASE: number[] = [0.22, 1, 0.36, 1];
 
 const ICON_ANIMATIONS: Record<Tab, { animate: Record<string, number[]>; duration: number }> = {
@@ -19,9 +19,28 @@ const ICON_ANIMATIONS: Record<Tab, { animate: Record<string, number[]>; duration
   activity: { animate: { scale: [1, 1.12, 1] }, duration: 0.18 },
 };
 
-const tabs: { id: Tab; label: string; Icon: typeof Timer }[] = [
+function TimelineIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <line x1="2" y1="12" x2="22" y2="12" />
+      <circle cx="5" cy="12" r="2" fill="currentColor" />
+      <circle cx="12" cy="12" r="2" fill="currentColor" />
+      <circle cx="19" cy="12" r="2" fill="currentColor" />
+    </svg>
+  );
+}
+
+const tabs: { id: Tab; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "timer", label: "Timer", Icon: Timer },
-  { id: "activity", label: "Activity", Icon: Activity },
+  { id: "activity", label: "Activity", Icon: TimelineIcon },
 ];
 
 export function BottomNav({ activeTab, onChange, sessionIsInProgress }: BottomNavProps) {
@@ -38,28 +57,37 @@ export function BottomNav({ activeTab, onChange, sessionIsInProgress }: BottomNa
               whileTap={{ scale: 0.92 }}
               transition={TAP_SPRING}
               className={cn(
-                "flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors duration-200 touch-manipulation relative",
-                isActive ? "text-primary" : "text-muted-foreground/60 hover:text-muted-foreground"
+                "flex flex-col items-center justify-center gap-0.5 flex-1 h-full touch-manipulation relative",
+                isActive ? "text-primary" : "text-muted-foreground/50 hover:text-muted-foreground/80"
               )}
               aria-label={label}
               aria-current={isActive ? "page" : undefined}
             >
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.div
-                  key={isActive ? `${id}-active` : id}
-                  className="relative"
-                  animate={isActive ? anim.animate : {}}
-                  transition={{ duration: anim.duration, ease: MICRO_EASE }}
-                >
-                  <Icon className={cn("w-5 h-5", isActive && "stroke-[2.5]")} />
-                  {id === "timer" && sessionIsInProgress && !isActive && (
-                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary animate-pulse" />
-                  )}
-                </motion.div>
-              </AnimatePresence>
-              <span className={cn("text-[10px] font-medium transition-colors duration-200", isActive && "font-semibold")}>
+              <motion.div
+                animate={{ y: isActive ? -2 : 0 }}
+                transition={LIFT_TRANSITION}
+              >
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={isActive ? `${id}-active` : id}
+                    className="relative"
+                    animate={isActive ? anim.animate : {}}
+                    transition={{ duration: anim.duration, ease: MICRO_EASE }}
+                  >
+                    <Icon className={cn("w-5 h-5", isActive && "stroke-[2.5]")} />
+                    {id === "timer" && sessionIsInProgress && !isActive && (
+                      <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary animate-pulse" />
+                    )}
+                  </motion.div>
+                </AnimatePresence>
+              </motion.div>
+              <motion.span
+                animate={{ opacity: isActive ? 1 : 0.55 }}
+                transition={LIFT_TRANSITION}
+                className={cn("text-[10px] font-medium", isActive && "font-semibold")}
+              >
                 {label}
-              </span>
+              </motion.span>
             </motion.button>
           );
         })}

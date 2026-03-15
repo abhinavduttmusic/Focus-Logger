@@ -57,14 +57,16 @@ export function TimerDisplay({ mode, phase, seconds, isActive, onStart, onPause,
           </button>
         )}
 
-        <button
+        <motion.button
           onClick={onStop}
           disabled={seconds === 0 && !isActive}
-          className="flex items-center justify-center w-16 h-16 rounded-full bg-card text-muted-foreground shadow-md transition-all duration-300 hover:text-foreground hover:shadow-lg active:scale-95 border border-border/50 disabled:opacity-40 disabled:pointer-events-none"
+          whileTap={{ scale: 0.96 }}
+          transition={{ duration: 0.12, ease: [0.22, 1, 0.36, 1] }}
+          className="flex items-center justify-center w-16 h-16 rounded-full border border-destructive/25 bg-destructive/5 text-destructive/50 shadow-sm hover:bg-destructive/10 hover:border-destructive/40 hover:text-destructive/70 transition-colors duration-150 disabled:opacity-30 disabled:pointer-events-none"
           aria-label="Stop Timer"
         >
           <Square className="w-5 h-5" fill="currentColor" />
-        </button>
+        </motion.button>
       </div>
     </div>
   );
