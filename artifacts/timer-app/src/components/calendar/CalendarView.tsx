@@ -172,8 +172,6 @@ export function CalendarView({ isActive }: CalendarViewProps) {
     const el = scrollRef.current;
     if (!el) return;
 
-    const navigateRef = navigate;
-
     const onStart = (e: TouchEvent) => {
       swipeStartX.current = e.touches[0].clientX;
       swipeStartY.current = e.touches[0].clientY;
@@ -197,19 +195,25 @@ export function CalendarView({ isActive }: CalendarViewProps) {
       if (swipeAxis.current !== "h") return;
       const dx = e.changedTouches[0].clientX - swipeStartX.current;
       if (Math.abs(dx) >= SWIPE_COMMIT_PX) {
-        navigateRef(dx < 0 ? 1 : -1);
+        navigate(dx < 0 ? 1 : -1);
       }
+      swipeAxis.current = null;
+    };
+
+    const onCancel = () => {
       swipeAxis.current = null;
     };
 
     el.addEventListener("touchstart", onStart, { passive: true });
     el.addEventListener("touchmove", onMove, { passive: false });
     el.addEventListener("touchend", onEnd, { passive: true });
+    el.addEventListener("touchcancel", onCancel, { passive: true });
 
     return () => {
       el.removeEventListener("touchstart", onStart);
       el.removeEventListener("touchmove", onMove);
       el.removeEventListener("touchend", onEnd);
+      el.removeEventListener("touchcancel", onCancel);
     };
   }, [navigate]);
 
