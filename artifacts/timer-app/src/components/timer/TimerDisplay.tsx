@@ -1,6 +1,6 @@
 import { formatTime, cn } from "@/lib/utils";
 import type { TimerMode, PomodoroPhase } from "@/hooks/use-timer";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Play, Square, Pause } from "lucide-react";
 
 interface TimerDisplayProps {
@@ -26,26 +26,6 @@ export function TimerDisplay({ mode, phase, seconds, isActive, onStart, onPause,
   return (
     <div className="flex flex-col items-center justify-center py-12">
       
-      {/* Phase Indicator */}
-      <AnimatePresence mode="wait">
-        {isPomodoro && (
-          <motion.div
-            key={phase}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className={cn(
-              "mb-8 px-5 py-1.5 rounded-full text-sm font-bold tracking-widest uppercase shadow-sm border",
-              phase === "focus" 
-                ? "bg-focus/10 text-focus border-focus/20" 
-                : "bg-break/10 text-break border-break/20"
-            )}
-          >
-            {phase === "focus" ? "Deep Focus" : "Rest & Recover"}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Main Timer Display */}
       <div className="relative flex items-center justify-center group">
         <motion.div 
