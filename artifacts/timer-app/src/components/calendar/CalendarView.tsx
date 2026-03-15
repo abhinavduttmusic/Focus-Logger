@@ -4,6 +4,7 @@ import { format, isSameDay, addDays, subDays, isToday } from "date-fns";
 import { ChevronLeft, ChevronRight, Clock, Tag, FileText, X } from "lucide-react";
 import { formatShortDuration, cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import { hapticLight } from "@/hooks/use-haptics";
 
 type SessionItem = {
   id: number;
@@ -103,6 +104,7 @@ export function CalendarView({ isActive }: CalendarViewProps) {
 
   const navigate = useCallback((delta: number, targetDate?: Date) => {
     setDirection(delta);
+    hapticLight();
     if (targetDate) {
       setSelectedDate(targetDate);
     } else {
