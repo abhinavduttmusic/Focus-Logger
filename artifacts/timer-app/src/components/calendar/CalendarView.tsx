@@ -57,11 +57,28 @@ function formatTimeRange(startMinute: number, endMinute: number): string {
   return `${String(sh).padStart(2, "0")}:${String(sm).padStart(2, "0")} – ${String(eh).padStart(2, "0")}:${String(em).padStart(2, "0")}`;
 }
 
+function getNowMinute(): number {
+  const now = new Date();
+  return now.getHours() * 60 + now.getMinutes();
+}
+
+function formatMinuteLabel(minute: number): string {
+  const h = Math.floor(minute / 60);
+  const m = minute % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
 export function CalendarView() {
   const { data: sessions, isLoading } = useListSessions();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [detailSession, setDetailSession] = useState<SessionItem | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [nowMinute, setNowMinute] = useState(getNowMinute);
+
+  useEffect(() => {
+    const id = setInterval(() => setNowMinute(getNowMinute()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   const daySessions = useMemo(() => {
     if (!sessions) return [];
@@ -71,11 +88,9 @@ export function CalendarView() {
     });
   }, [sessions, selectedDate]);
 
-  const { blocks, startHour, endHour } = useMemo(() => {
-    if (daySessions.length === 0) {
-      return { blocks: [] as TimeBlock[], startHour: DEFAULT_START_HOUR, endHour: DEFAULT_END_HOUR };
-    }
+  const isTodayView = isToday(selectedDate);
 
+  const { blocks, startHour, endHour } = useMemo(() => {
     const timeBlocks: TimeBlock[] = daySessions.map((s) => {
       const endTime = new Date(s.createdAt);
       const startTime = new Date(endTime.getTime() - s.durationSeconds * 1000);
@@ -90,14 +105,27 @@ export function CalendarView() {
 
     timeBlocks.sort((a, b) => a.startMinute - b.startMinute);
 
-    const minMinute = Math.min(...timeBlocks.map((b) => b.startMinute));
-    const maxMinute = Math.max(...timeBlocks.map((b) => b.endMinute));
+    let sh = DEFAULT_START_HOUR;
+    let eh = DEFAULT_END_HOUR;
 
-    const sh = Math.max(0, Math.min(DEFAULT_START_HOUR, Math.floor(minMinute / 60)));
-    const eh = Math.min(24, Math.max(DEFAULT_END_HOUR, Math.ceil(maxMinute / 60)));
+    if (timeBlocks.length > 0) {
+      const minMinute = Math.min(...timeBlocks.map((b) => b.startMinute));
+      const maxMinute = Math.max(...timeBlocks.map((b) => b.endMinute));
+      sh = Math.min(sh, Math.floor(minMinute / 60));
+      eh = Math.max(eh, Math.ceil(maxMinute / 60));
+    }
+
+    if (isTodayView) {
+      const nowHour = Math.floor(nowMinute / 60);
+      sh = Math.min(sh, nowHour);
+      eh = Math.max(eh, nowHour + 1);
+    }
+
+    sh = Math.max(0, sh);
+    eh = Math.min(24, eh);
 
     return { blocks: timeBlocks, startHour: sh, endHour: eh };
-  }, [daySessions]);
+  }, [daySessions, isTodayView, nowMinute]);
 
   const totalHours = endHour - startHour;
   const timelineHeight = totalHours * HOUR_HEIGHT;
@@ -105,10 +133,8 @@ export function CalendarView() {
 
   useEffect(() => {
     if (!scrollRef.current) return;
-    if (isToday(selectedDate)) {
-      const now = new Date();
-      const currentMinute = now.getHours() * 60 + now.getMinutes();
-      const offset = ((currentMinute - baseMinute) / 60) * HOUR_HEIGHT - 100;
+    if (isTodayView) {
+      const offset = ((nowMinute - baseMinute) / 60) * HOUR_HEIGHT - 100;
       scrollRef.current.scrollTop = Math.max(0, offset);
     } else if (blocks.length > 0) {
       const firstBlock = blocks[0];
@@ -141,7 +167,7 @@ export function CalendarView() {
               <span className="text-sm font-bold text-foreground">
                 {format(selectedDate, "EEEE, MMM d")}
               </span>
-              {isToday(selectedDate) ? (
+              {isTodayView ? (
                 <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">
                   Today
                 </span>
@@ -177,16 +203,6 @@ export function CalendarView() {
             <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin mb-4" />
             <p className="text-sm">Loading sessions...</p>
           </div>
-        ) : daySessions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground px-6">
-            <CalendarDays className="w-12 h-12 mb-4 opacity-20" />
-            <p className="text-lg font-medium text-foreground/70">No sessions</p>
-            <p className="text-sm mt-1 text-center">
-              {isToday(selectedDate)
-                ? "Start the timer to log your first session today."
-                : `No sessions were recorded on ${format(selectedDate, "MMM d")}.`}
-            </p>
-          </div>
         ) : (
           <div className="relative px-2" style={{ height: timelineHeight }}>
             {hours.map((hour) => {
@@ -204,6 +220,15 @@ export function CalendarView() {
             })}
 
             <div className="absolute left-14 right-2 top-0 bottom-0">
+              {blocks.length === 0 && (
+                <div className="absolute inset-x-0 top-8 flex flex-col items-center pointer-events-none">
+                  <CalendarDays className="w-8 h-8 mb-2 text-muted-foreground/15" />
+                  <p className="text-xs text-muted-foreground/40">
+                    {isTodayView ? "No sessions yet today" : "No sessions"}
+                  </p>
+                </div>
+              )}
+
               {blocks.map((block) => {
                 const topPx = ((block.startMinute - baseMinute) / 60) * HOUR_HEIGHT;
                 const heightPx = Math.max(
@@ -251,14 +276,15 @@ export function CalendarView() {
               })}
             </div>
 
-            {isToday(selectedDate) && (() => {
-              const now = new Date();
-              const nowMinute = now.getHours() * 60 + now.getMinutes();
+            {isTodayView && (() => {
               if (nowMinute < baseMinute || nowMinute > endHour * 60) return null;
               const topPx = ((nowMinute - baseMinute) / 60) * HOUR_HEIGHT;
               return (
-                <div className="absolute left-12 right-2 pointer-events-none" style={{ top: topPx }}>
+                <div className="absolute left-12 right-2 pointer-events-none z-10" style={{ top: topPx }}>
                   <div className="flex items-center">
+                    <span className="text-[9px] font-semibold text-destructive tabular-nums mr-1 -mt-px">
+                      {formatMinuteLabel(nowMinute)}
+                    </span>
                     <div className="w-2 h-2 rounded-full bg-destructive shrink-0" />
                     <div className="flex-1 h-px bg-destructive/50" />
                   </div>
