@@ -10,7 +10,8 @@ import {
   buildPersistedState,
   type RestoredSession,
 } from "@/hooks/use-session-persistence";
-import { LayoutList, Calendar } from "lucide-react";
+import { useVoiceRecorder, type AudioClip } from "@/hooks/use-voice-recorder";
+import { XCircle, LayoutList, Calendar } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -18,12 +19,46 @@ import { TimerToggle } from "@/components/timer/TimerToggle";
 import { TimerDisplay } from "@/components/timer/TimerDisplay";
 import { NotesArea } from "@/components/timer/NotesArea";
 import { SessionList } from "@/components/timer/SessionList";
+import { VoiceRecorder } from "@/components/timer/VoiceRecorder";
 import { BottomNav, type Tab } from "@/components/nav/BottomNav";
 import { CalendarView } from "@/components/calendar/CalendarView";
 import { TasksTab } from "@/components/tasks/TasksTab";
 import { StatsTab } from "@/components/stats/StatsTab";
 
+const BASE = import.meta.env.BASE_URL;
+
 const TAB_TRANSITION = { duration: 0.2, ease: [0.22, 1, 0.36, 1] as const };
+
+async function uploadClips(sessionId: number, clips: AudioClip[]) {
+  for (const clip of clips) {
+    const urlRes = await fetch(`${BASE}api/storage/uploads/request-url`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: `recording-${Date.now()}.webm`,
+        size: clip.blob.size,
+        contentType: clip.blob.type || "audio/webm",
+      }),
+    });
+    const { uploadURL, objectPath } = await urlRes.json();
+    await fetch(uploadURL, {
+      method: "PUT",
+      headers: { "Content-Type": clip.blob.type || "audio/webm" },
+      body: clip.blob,
+    });
+    await fetch(`${BASE}api/recordings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId,
+        objectPath,
+        label: clip.label || null,
+        durationSeconds: clip.durationSeconds,
+        offsetSeconds: clip.offsetSeconds,
+      }),
+    });
+  }
+}
 
 export default function HomeLoader() {
   const [restored, setRestored] = useState<RestoredSession | null | undefined>(undefined);
@@ -67,14 +102,29 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     : undefined;
 
   const queryClient = useQueryClient();
+  const recorder = useVoiceRecorder(restored?.clips);
+  const pendingClipsRef = useRef<AudioClip[]>([]);
+  const recorderRef = useRef(recorder);
+  recorderRef.current = recorder;
 
   const createSession = useCreateSession({
     mutation: {
-      onSuccess: async () => {
+      onSuccess: async (session) => {
+        const clipsToUpload = pendingClipsRef.current;
+        pendingClipsRef.current = [];
         clearSession();
         queryClient.invalidateQueries({ queryKey: getListSessionsQueryKey() });
         setNotes("");
         setSelectedTask(null);
+        recorderRef.current.clearClips();
+        if (clipsToUpload.length > 0) {
+          try {
+            await uploadClips(session.id, clipsToUpload);
+            queryClient.invalidateQueries({ queryKey: getListSessionsQueryKey() });
+          } catch (err) {
+            console.error("Failed to upload recordings:", err);
+          }
+        }
       },
       onError: (err) => {
         console.error("Failed to create session:", err);
@@ -84,6 +134,13 @@ function Home({ restored }: { restored: RestoredSession | null }) {
 
   const handleLogSession = useCallback(
     async (type: SessionType, durationSeconds: number) => {
+      const rec = recorderRef.current;
+      const allClips = [...rec.clips];
+      if (rec.isRecording) {
+        const finalClip = await rec.stopRecording();
+        if (finalClip) allClips.push(finalClip);
+      }
+      pendingClipsRef.current = allClips;
       createSession.mutate({
         data: {
           type,
@@ -152,6 +209,26 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
+  const handleStartRecording = useCallback(() => {
+    const elapsed =
+      timer.mode === "simple" ? timer.seconds : 25 * 60 - timer.seconds;
+    recorder.startRecording(elapsed);
+  }, [recorder, timer.mode, timer.seconds]);
+
+  const handleAbort = useCallback(() => {
+    timer.reset();
+    if (recorderRef.current.isRecording) {
+      recorderRef.current.discardAndStop();
+    }
+    recorderRef.current.clearClips();
+    setNotes("");
+    setSelectedTask(null);
+    clearSession();
+  }, [timer]);
+
+  const sessionIsInProgress =
+    timer.isActive || timer.elapsedAtPause > 0 || (timer.mode === "simple" && timer.seconds > 0);
+
   // Session persistence — debounced save
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -164,6 +241,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
         timer.startTimestamp !== null ||
         timer.elapsedAtPause > 0 ||
         (timer.mode === "simple" && timer.seconds > 0) ||
+        recorder.clips.length > 0 ||
         notes.trim().length > 0 ||
         selectedTask !== null;
 
@@ -185,9 +263,9 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                 projectName: selectedTask.projectName ?? null,
               }
             : null,
-          [],
+          recorder.clips,
         );
-        saveSession(state, []);
+        saveSession(state, recorder.clips);
       } else {
         clearSession();
       }
@@ -204,6 +282,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     timer.elapsedAtPause,
     notes,
     selectedTask,
+    recorder.clips,
   ]);
 
   const handleRestart = useCallback(
@@ -302,6 +381,46 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                       </div>
                     </section>
 
+                    {/* Abort + Record — only while a session is in progress */}
+                    <AnimatePresence>
+                      {sessionIsInProgress && (
+                        <motion.section
+                          key="session-controls"
+                          initial={{ opacity: 0, y: -6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -6 }}
+                          transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                          className="flex flex-col items-center gap-3"
+                        >
+                          <motion.button
+                            onClick={handleAbort}
+                            whileTap={{ scale: 0.96 }}
+                            transition={{ duration: 0.12, ease: "easeOut" }}
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          >
+                            <XCircle className="w-3.5 h-3.5" />
+                            Abort Session
+                          </motion.button>
+
+                          <VoiceRecorder
+                            isActive={
+                              timer.isActive &&
+                              (timer.mode === "simple" || timer.phase === "focus")
+                            }
+                            isRecording={recorder.isRecording}
+                            isPaused={recorder.isPaused}
+                            clips={recorder.clips}
+                            onStartRecording={handleStartRecording}
+                            onStopRecording={recorder.stopRecording}
+                            onPauseRecording={recorder.pauseRecording}
+                            onResumeRecording={recorder.resumeRecording}
+                            onRenameClip={recorder.renameClip}
+                            onCancelRecording={recorder.discardAndStop}
+                          />
+                        </motion.section>
+                      )}
+                    </AnimatePresence>
+
                     {/* Session Notes & Goals */}
                     <section>
                       <NotesArea
@@ -399,7 +518,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
       <BottomNav
         activeTab={activeTab}
         onChange={handleTabChange}
-        sessionIsInProgress={false}
+        sessionIsInProgress={sessionIsInProgress}
       />
     </div>
   );
