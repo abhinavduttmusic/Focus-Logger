@@ -16,8 +16,9 @@ import {
 } from "@workspace/api-client-react";
 import type { Task, Project } from "@workspace/api-client-react/src/generated/api.schemas";
 import {
-  Plus, Folder, FolderOpen, Tag, ChevronRight,
-  Pencil, Trash2, Check, X, Loader2, FolderInput,
+  Folder, FolderOpen, FolderPlus, FolderInput,
+  CircleCheck, CirclePlus,
+  ChevronRight, Pencil, Trash2, Check, X, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,18 +28,56 @@ interface TasksTabProps {
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
-const ICON_BTN = "p-1.5 min-w-[30px] min-h-[30px] flex items-center justify-center rounded-lg transition-colors duration-100 shrink-0";
+const ICON_BTN =
+  "p-1.5 min-w-[30px] min-h-[30px] flex items-center justify-center rounded-lg transition-colors duration-100 shrink-0";
 
-const ACCENT_COLORS = [
-  "#6366f1",
-  "#8b5cf6",
-  "#10b981",
-  "#f59e0b",
-  "#3b82f6",
-  "#ec4899",
-  "#06b6d4",
-  "#f97316",
-];
+// ─── Project Status ───────────────────────────────────────────────────────────
+
+type ProjectStatus = "ongoing" | "suspended" | "completed";
+
+const STATUS_CYCLE: Record<ProjectStatus, ProjectStatus> = {
+  ongoing: "suspended",
+  suspended: "completed",
+  completed: "ongoing",
+};
+
+const STATUS_LABELS: Record<ProjectStatus, string> = {
+  ongoing: "Ongoing",
+  suspended: "Suspended",
+  completed: "Completed",
+};
+
+const STATUS_STYLES: Record<ProjectStatus, string> = {
+  ongoing:
+    "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+  suspended:
+    "bg-amber-500/10 text-amber-700 dark:text-amber-500",
+  completed:
+    "bg-secondary/70 text-muted-foreground/55",
+};
+
+function useProjectStatuses() {
+  const [statuses, setStatuses] = useState<Record<number, ProjectStatus>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("tm-project-statuses") ?? "{}");
+    } catch {
+      return {};
+    }
+  });
+  useEffect(() => {
+    localStorage.setItem("tm-project-statuses", JSON.stringify(statuses));
+  }, [statuses]);
+  function getStatus(id: number): ProjectStatus {
+    return statuses[id] ?? "ongoing";
+  }
+  function cycleStatus(id: number, e: React.MouseEvent) {
+    e.stopPropagation();
+    setStatuses(prev => ({ ...prev, [id]: STATUS_CYCLE[prev[id] ?? "ongoing"] }));
+  }
+  return { getStatus, cycleStatus };
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export function TasksTab({ isActive }: TasksTabProps) {
   const queryClient = useQueryClient();
@@ -64,12 +103,13 @@ export function TasksTab({ isActive }: TasksTabProps) {
 
   const [movingTaskId, setMovingTaskId] = useState<number | null>(null);
 
-  const [showFab, setShowFab] = useState(false);
   const [addMode, setAddMode] = useState<"task" | "project" | null>(null);
   const [newName, setNewName] = useState("");
   const [newTaskProjectId, setNewTaskProjectId] = useState<number | null>(null);
 
   const addInputRef = useRef<HTMLInputElement>(null);
+
+  const { getStatus, cycleStatus } = useProjectStatuses();
 
   useEffect(() => {
     if (addMode && addInputRef.current) {
@@ -95,6 +135,8 @@ export function TasksTab({ isActive }: TasksTabProps) {
 
   const movingTask = movingTaskId !== null ? tasks.find(t => t.id === movingTaskId) : null;
 
+  // ── mutations ────────────────────────────────────────────────────────────────
+
   const createTask = useCreateTask({
     mutation: {
       onSuccess: () => {
@@ -102,7 +144,6 @@ export function TasksTab({ isActive }: TasksTabProps) {
         setAddMode(null);
         setNewName("");
         setNewTaskProjectId(null);
-        setShowFab(false);
       },
     },
   });
@@ -113,7 +154,6 @@ export function TasksTab({ isActive }: TasksTabProps) {
         queryClient.invalidateQueries({ queryKey: getListProjectsQueryKey() });
         setAddMode(null);
         setNewName("");
-        setShowFab(false);
       },
     },
   });
@@ -162,6 +202,8 @@ export function TasksTab({ isActive }: TasksTabProps) {
       },
     },
   });
+
+  // ── helpers ──────────────────────────────────────────────────────────────────
 
   function toggleCollapse(id: number) {
     setCollapsedProjects(prev => {
@@ -240,7 +282,30 @@ export function TasksTab({ isActive }: TasksTabProps) {
     }
   }
 
-  const isPending = createTask.isPending || createProject.isPending || updateTask.isPending || updateProject.isPending || deleteTask.isPending || deleteProject.isPending;
+  function openAddTask(projectId: number | null = null) {
+    clearEditing();
+    setMovingTaskId(null);
+    setAddMode("task");
+    setNewName("");
+    setNewTaskProjectId(projectId);
+  }
+
+  function openAddProject() {
+    clearEditing();
+    setMovingTaskId(null);
+    setAddMode("project");
+    setNewName("");
+  }
+
+  const isPending =
+    createTask.isPending ||
+    createProject.isPending ||
+    updateTask.isPending ||
+    updateProject.isPending ||
+    deleteTask.isPending ||
+    deleteProject.isPending;
+
+  // ── task row ─────────────────────────────────────────────────────────────────
 
   function renderTaskRow(task: Task, inProject: boolean) {
     const isEditing = editingTaskId === task.id;
@@ -257,7 +322,9 @@ export function TasksTab({ isActive }: TasksTabProps) {
           transition={{ duration: 0.14, ease: EASE }}
           className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-destructive/10 border border-destructive/20"
         >
-          <span className="flex-1 text-xs text-destructive font-medium truncate">Delete &ldquo;{task.name}&rdquo; permanently?</span>
+          <span className="flex-1 text-xs text-destructive font-medium truncate">
+            Delete &ldquo;{task.name}&rdquo; permanently?
+          </span>
           <button
             onClick={() => deleteTask.mutate({ id: task.id })}
             disabled={deleteTask.isPending}
@@ -285,7 +352,9 @@ export function TasksTab({ isActive }: TasksTabProps) {
           transition={{ duration: 0.14, ease: EASE }}
           className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-muted/50 border border-border/30"
         >
-          <span className="flex-1 text-xs text-foreground/80 truncate">Delete &ldquo;{task.name}&rdquo;?</span>
+          <span className="flex-1 text-xs text-foreground/80 truncate">
+            Delete &ldquo;{task.name}&rdquo;?
+          </span>
           <button
             onClick={() => setDeletingTaskId2(task.id)}
             className="px-2.5 py-1 rounded-lg bg-destructive/90 text-destructive-foreground text-[11px] font-semibold shrink-0"
@@ -313,7 +382,7 @@ export function TasksTab({ isActive }: TasksTabProps) {
           className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-3"
         >
           <div className="flex items-center gap-2">
-            <Tag className="w-3.5 h-3.5 text-primary shrink-0" />
+            <CircleCheck className="w-3.5 h-3.5 text-primary shrink-0" />
             <input
               autoFocus
               value={editingTaskName}
@@ -330,7 +399,9 @@ export function TasksTab({ isActive }: TasksTabProps) {
             <FolderInput className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
             <select
               value={editingTaskProjectId ?? ""}
-              onChange={e => setEditingTaskProjectId(e.target.value ? Number(e.target.value) : null)}
+              onChange={e =>
+                setEditingTaskProjectId(e.target.value ? Number(e.target.value) : null)
+              }
               className="flex-1 bg-secondary/40 border border-border/40 rounded-lg px-2.5 py-1.5 text-xs outline-none text-foreground/80 min-w-0"
             >
               <option value="">Independent (no project)</option>
@@ -351,7 +422,9 @@ export function TasksTab({ isActive }: TasksTabProps) {
               disabled={updateTask.isPending}
               className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-50"
             >
-              {updateTask.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+              {updateTask.isPending
+                ? <Loader2 className="w-3 h-3 animate-spin" />
+                : <Check className="w-3 h-3" />}
               Save
             </button>
           </div>
@@ -367,13 +440,15 @@ export function TasksTab({ isActive }: TasksTabProps) {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, x: -20 }}
         transition={{ duration: 0.18, ease: EASE }}
-        className="flex items-center gap-2 rounded-xl px-3 min-h-[48px] py-2"
+        className="flex items-center gap-2.5 rounded-xl px-3 min-h-[48px] py-2"
       >
-        <Tag className="w-3.5 h-3.5 text-muted-foreground/35 shrink-0" />
+        <CircleCheck className="w-3.5 h-3.5 text-muted-foreground/35 shrink-0" />
         <span className="flex-1 text-sm font-medium text-foreground/85 truncate min-w-0">
           {task.name}
           {!inProject && task.projectName && (
-            <span className="ml-2 text-xs font-normal text-muted-foreground/50">{task.projectName}</span>
+            <span className="ml-2 text-xs font-normal text-muted-foreground/50">
+              {task.projectName}
+            </span>
           )}
         </span>
         <div className="flex items-center gap-0.5 shrink-0 opacity-60 hover:opacity-100 transition-opacity duration-100">
@@ -408,144 +483,167 @@ export function TasksTab({ isActive }: TasksTabProps) {
     );
   }
 
-  function renderProjectSection(
-    { project, tasks: projectTasks }: { project: Project; tasks: Task[] },
-    index: number
-  ) {
+  // ── project section ───────────────────────────────────────────────────────────
+
+  function renderProjectSection({
+    project,
+    tasks: projectTasks,
+  }: {
+    project: Project;
+    tasks: Task[];
+  }) {
     const isCollapsed = collapsedProjects.has(project.id);
     const isEditing = editingProjectId === project.id;
     const isDeleting1 = deletingProjectId === project.id;
     const isDeleting2 = deletingProjectId2 === project.id;
-    const accentColor = ACCENT_COLORS[index % ACCENT_COLORS.length];
+    const status = getStatus(project.id);
 
     return (
       <motion.div
         key={project.id}
         layout
-        className="rounded-[18px] border border-border/25 bg-card shadow-[0_4px_16px_rgba(0,0,0,0.06)] overflow-hidden flex"
+        className="rounded-[18px] border border-border/25 bg-card shadow-[0_4px_16px_rgba(0,0,0,0.06)] overflow-hidden"
       >
-        {/* Left accent bar */}
-        <div
-          className="w-[3px] shrink-0 self-stretch"
-          style={{ backgroundColor: accentColor, opacity: 0.75 }}
-        />
-
-        {/* Card content */}
-        <div className="flex-1 min-w-0">
-          {isDeleting2 ? (
-            <div className="flex items-center gap-2 px-4 py-3.5 bg-destructive/10">
-              <span className="flex-1 text-xs text-destructive font-medium">Delete &ldquo;{project.name}&rdquo; permanently? Tasks will become independent.</span>
-              <button
-                onClick={() => deleteProject.mutate({ id: project.id })}
-                disabled={deleteProject.isPending}
-                className="px-2.5 py-1 rounded-lg bg-destructive text-destructive-foreground text-[11px] font-semibold disabled:opacity-50 shrink-0"
-              >
-                {deleteProject.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "Yes"}
-              </button>
-              <button
-                onClick={() => { setDeletingProjectId(null); setDeletingProjectId2(null); }}
-                className="px-2.5 py-1 rounded-lg bg-secondary text-foreground/70 text-[11px] font-medium shrink-0"
-              >
-                No
-              </button>
-            </div>
-          ) : isDeleting1 ? (
-            <div className="flex items-center gap-2 px-4 py-3.5 bg-muted/40">
-              <span className="flex-1 text-xs text-foreground/80">Delete project &ldquo;{project.name}&rdquo;?</span>
-              <button
-                onClick={() => setDeletingProjectId2(project.id)}
-                className="px-2.5 py-1 rounded-lg bg-destructive/90 text-destructive-foreground text-[11px] font-semibold shrink-0"
-              >
-                Delete
-              </button>
-              <button
-                onClick={() => setDeletingProjectId(null)}
-                className="px-2.5 py-1 rounded-lg bg-secondary text-foreground/70 text-[11px] font-medium shrink-0"
-              >
-                Cancel
-              </button>
-            </div>
-          ) : isEditing ? (
-            <div className="flex items-center gap-2 px-4 py-4 bg-primary/5 border-b border-primary/10">
-              <Folder className="w-4 h-4 text-primary shrink-0" />
-              <input
-                autoFocus
-                value={editingProjectName}
-                onChange={e => setEditingProjectName(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === "Enter") submitProjectRename();
-                  if (e.key === "Escape") clearEditing();
-                }}
-                className="flex-1 bg-transparent text-sm font-semibold text-foreground outline-none placeholder:text-muted-foreground/50 min-w-0"
-              />
-              <button
-                onClick={clearEditing}
-                className="p-1.5 rounded-lg text-muted-foreground/50 hover:text-muted-foreground transition-colors shrink-0"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={submitProjectRename}
-                disabled={!editingProjectName.trim() || updateProject.isPending}
-                className="p-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors disabled:opacity-40 shrink-0"
-              >
-                {updateProject.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-              </button>
-            </div>
-          ) : (
-            <div
-              className="flex items-center gap-3 px-4 py-4 cursor-pointer select-none active:bg-secondary/30 transition-colors"
-              onClick={() => toggleCollapse(project.id)}
+        {isDeleting2 ? (
+          <div className="flex items-center gap-2 px-4 py-3.5 bg-destructive/10">
+            <span className="flex-1 text-xs text-destructive font-medium">
+              Delete &ldquo;{project.name}&rdquo; permanently? Tasks will become independent.
+            </span>
+            <button
+              onClick={() => deleteProject.mutate({ id: project.id })}
+              disabled={deleteProject.isPending}
+              className="px-2.5 py-1 rounded-lg bg-destructive text-destructive-foreground text-[11px] font-semibold disabled:opacity-50 shrink-0"
             >
-              {isCollapsed
-                ? <Folder className="w-4 h-4 shrink-0" style={{ color: accentColor, opacity: 0.7 }} />
-                : <FolderOpen className="w-4 h-4 shrink-0" style={{ color: accentColor }} />
-              }
-              <span className="flex-1 text-[15px] font-semibold text-foreground truncate min-w-0">
-                {project.name}
-              </span>
-              {/* Task count pill — always visible */}
-              <span className="text-[11px] font-medium text-muted-foreground/55 bg-secondary/70 px-2 py-0.5 rounded-full shrink-0 tabular-nums">
-                {projectTasks.length}
-              </span>
-              <div className="flex items-center gap-0.5 shrink-0">
-                <span
-                  role="button"
-                  onClick={e => { e.stopPropagation(); startEditProject(project); }}
-                  className={cn(ICON_BTN, "text-muted-foreground/45 hover:text-foreground/80 hover:bg-secondary/60 active:text-foreground")}
-                  aria-label="Rename project"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                </span>
-                <span
-                  role="button"
-                  onClick={e => { e.stopPropagation(); clearEditing(); setMovingTaskId(null); setDeletingProjectId(project.id); }}
-                  className={cn(ICON_BTN, "text-muted-foreground/45 hover:text-destructive hover:bg-destructive/8 active:text-destructive")}
-                  aria-label="Delete project"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </span>
-              </div>
-              <motion.div
-                animate={{ rotate: isCollapsed ? 0 : 90 }}
-                transition={{ duration: 0.2, ease: EASE }}
-                className="shrink-0 text-muted-foreground/35"
+              {deleteProject.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "Yes"}
+            </button>
+            <button
+              onClick={() => { setDeletingProjectId(null); setDeletingProjectId2(null); }}
+              className="px-2.5 py-1 rounded-lg bg-secondary text-foreground/70 text-[11px] font-medium shrink-0"
+            >
+              No
+            </button>
+          </div>
+        ) : isDeleting1 ? (
+          <div className="flex items-center gap-2 px-4 py-3.5 bg-muted/40">
+            <span className="flex-1 text-xs text-foreground/80">
+              Delete project &ldquo;{project.name}&rdquo;?
+            </span>
+            <button
+              onClick={() => setDeletingProjectId2(project.id)}
+              className="px-2.5 py-1 rounded-lg bg-destructive/90 text-destructive-foreground text-[11px] font-semibold shrink-0"
+            >
+              Delete
+            </button>
+            <button
+              onClick={() => setDeletingProjectId(null)}
+              className="px-2.5 py-1 rounded-lg bg-secondary text-foreground/70 text-[11px] font-medium shrink-0"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : isEditing ? (
+          <div className="flex items-center gap-2 px-4 py-4 bg-primary/5 border-b border-primary/10">
+            <Folder className="w-4 h-4 text-primary shrink-0" />
+            <input
+              autoFocus
+              value={editingProjectName}
+              onChange={e => setEditingProjectName(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter") submitProjectRename();
+                if (e.key === "Escape") clearEditing();
+              }}
+              className="flex-1 bg-transparent text-sm font-semibold text-foreground outline-none placeholder:text-muted-foreground/50 min-w-0"
+            />
+            <button
+              onClick={clearEditing}
+              className="p-1.5 rounded-lg text-muted-foreground/50 hover:text-muted-foreground transition-colors shrink-0"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={submitProjectRename}
+              disabled={!editingProjectName.trim() || updateProject.isPending}
+              className="p-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors disabled:opacity-40 shrink-0"
+            >
+              {updateProject.isPending
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : <Check className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+        ) : (
+          /* Normal header */
+          <div
+            className="flex items-center gap-3 px-4 py-3.5 cursor-pointer select-none active:bg-secondary/30 transition-colors"
+            onClick={() => toggleCollapse(project.id)}
+          >
+            {isCollapsed
+              ? <Folder className="w-4 h-4 text-muted-foreground/55 shrink-0" />
+              : <FolderOpen className="w-4 h-4 text-muted-foreground/55 shrink-0" />
+            }
+            <span className="flex-1 text-[14px] font-semibold text-foreground truncate min-w-0">
+              {project.name}
+            </span>
+            {/* Task count */}
+            <span className="text-[11px] font-medium text-muted-foreground/55 bg-secondary/70 px-2 py-0.5 rounded-full shrink-0 tabular-nums">
+              {projectTasks.length}
+            </span>
+            {/* Status badge — tap to cycle */}
+            <button
+              onClick={e => cycleStatus(project.id, e)}
+              className={cn(
+                "text-[11px] font-medium px-2 py-0.5 rounded-full shrink-0 transition-colors duration-150",
+                STATUS_STYLES[status]
+              )}
+              aria-label={`Status: ${STATUS_LABELS[status]} — tap to change`}
+            >
+              {STATUS_LABELS[status]}
+            </button>
+            {/* Action icons */}
+            <div className="flex items-center gap-0.5 shrink-0">
+              <span
+                role="button"
+                onClick={e => { e.stopPropagation(); startEditProject(project); }}
+                className={cn(ICON_BTN, "text-muted-foreground/45 hover:text-foreground/80 hover:bg-secondary/60 active:text-foreground")}
+                aria-label="Rename project"
               >
-                <ChevronRight className="w-4 h-4" />
-              </motion.div>
+                <Pencil className="w-3.5 h-3.5" />
+              </span>
+              <span
+                role="button"
+                onClick={e => {
+                  e.stopPropagation();
+                  clearEditing();
+                  setMovingTaskId(null);
+                  setDeletingProjectId(project.id);
+                }}
+                className={cn(ICON_BTN, "text-muted-foreground/45 hover:text-destructive hover:bg-destructive/8 active:text-destructive")}
+                aria-label="Delete project"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </span>
             </div>
-          )}
+            <motion.div
+              animate={{ rotate: isCollapsed ? 0 : 90 }}
+              transition={{ duration: 0.2, ease: EASE }}
+              className="shrink-0 text-muted-foreground/35"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </motion.div>
+          </div>
+        )}
 
-          <AnimatePresence initial={false}>
-            {!isCollapsed && !isDeleting1 && !isDeleting2 && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2, ease: EASE }}
-                className="overflow-hidden"
-              >
-                <div className="border-t border-border/15 px-2 py-1.5 space-y-0.5">
+        {/* Task list */}
+        <AnimatePresence initial={false}>
+          {!isCollapsed && !isDeleting1 && !isDeleting2 && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2, ease: EASE }}
+              className="overflow-hidden"
+            >
+              <div className="border-t border-border/15">
+                <div className="px-2 py-1 space-y-0.5">
                   <AnimatePresence initial={false}>
                     {projectTasks.length > 0
                       ? projectTasks.map(t => renderTaskRow(t, true))
@@ -556,7 +654,7 @@ export function TasksTab({ isActive }: TasksTabProps) {
                           animate={{ opacity: 1 }}
                           exit={{ opacity: 0 }}
                           transition={{ duration: 0.14 }}
-                          className="px-3 py-3.5 text-xs italic text-muted-foreground/40"
+                          className="px-3 py-3 text-xs italic text-muted-foreground/40"
                         >
                           No tasks yet.
                         </motion.p>
@@ -564,132 +662,96 @@ export function TasksTab({ isActive }: TasksTabProps) {
                     }
                   </AnimatePresence>
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+                {/* Add Task inside project */}
+                <div className="border-t border-border/12">
+                  <button
+                    onClick={e => { e.stopPropagation(); openAddTask(project.id); }}
+                    className="flex items-center gap-2.5 w-full px-4 py-3 text-muted-foreground/45 hover:text-muted-foreground/70 hover:bg-secondary/20 active:bg-secondary/30 transition-colors"
+                  >
+                    <CirclePlus className="w-3.5 h-3.5 shrink-0" />
+                    <span className="text-[13px] font-medium">Add Task</span>
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     );
   }
 
-  const isEmpty = grouped.withProject.length === 0 && grouped.independent.length === 0;
+  // ── render ────────────────────────────────────────────────────────────────────
 
   return (
     <div className="relative h-full">
-      <div className="overflow-y-auto h-full pb-32 pt-6 px-4 sm:px-6">
-        <div className="w-full max-w-2xl mx-auto space-y-3">
+      <div className="overflow-y-auto h-full pt-6 pb-10 px-4 sm:px-6">
+        <div className="w-full max-w-2xl mx-auto">
+
+          {/* Page title */}
+          <div className="mb-6">
+            <h1 className="text-2xl font-semibold text-foreground tracking-tight">
+              Task Manager
+            </h1>
+          </div>
+
           {loading ? (
-            <div className="flex justify-center pt-16">
-              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : isEmpty ? (
-            <div className="flex flex-col items-center justify-center pt-20 gap-4 text-center">
-              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
-                <Tag className="w-7 h-7 text-primary/60" />
-              </div>
-              <div>
-                <p className="font-semibold text-foreground/80">No tasks yet</p>
-                <p className="text-sm text-muted-foreground/60 mt-1">Tap + to create a task or project</p>
-              </div>
+            <div className="flex justify-center pt-12">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <>
-              {grouped.withProject.length > 0 && (
-                <div className="space-y-3">
-                  {grouped.withProject.map((g, i) => renderProjectSection(g, i))}
-                </div>
-              )}
+            <div className="space-y-8">
 
-              {grouped.independent.length > 0 && (
+              {/* Projects section */}
+              <section>
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/50 mb-3 px-0.5">
+                  Projects
+                </p>
+                <div className="space-y-2">
+                  {grouped.withProject.map(g => renderProjectSection(g))}
+                </div>
+                {/* Add Project row */}
+                <button
+                  onClick={openAddProject}
+                  className="mt-2 flex items-center gap-3 w-full px-4 py-3.5 rounded-[14px] border border-dashed border-border/50 text-muted-foreground/50 hover:text-muted-foreground/75 hover:bg-secondary/20 active:bg-secondary/30 transition-colors"
+                >
+                  <FolderPlus className="w-4 h-4 shrink-0" />
+                  <span className="text-sm font-medium">Add Project</span>
+                </button>
+              </section>
+
+              {/* Independent Tasks section */}
+              <section>
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/50 mb-3 px-0.5">
+                  Independent Tasks
+                </p>
                 <div className="rounded-[18px] border border-border/25 bg-card shadow-[0_4px_16px_rgba(0,0,0,0.06)] overflow-hidden">
-                  <div className="flex items-center gap-3 px-4 py-4 border-b border-border/15">
-                    <Tag className="w-4 h-4 text-muted-foreground/45 shrink-0" />
-                    <span className="flex-1 text-[15px] font-semibold text-foreground/75">Independent Tasks</span>
-                    <span className="text-[11px] font-medium text-muted-foreground/55 bg-secondary/70 px-2 py-0.5 rounded-full shrink-0 tabular-nums">
-                      {grouped.independent.length}
-                    </span>
-                  </div>
-                  <div className="px-2 py-1.5 space-y-0.5">
-                    <AnimatePresence initial={false}>
-                      {grouped.independent.map(t => renderTaskRow(t, false))}
-                    </AnimatePresence>
+                  {grouped.independent.length === 0 ? (
+                    <p className="px-4 py-3.5 text-sm text-muted-foreground/40 italic">
+                      No independent tasks.
+                    </p>
+                  ) : (
+                    <div className="px-2 py-1 space-y-0.5">
+                      <AnimatePresence initial={false}>
+                        {grouped.independent.map(t => renderTaskRow(t, false))}
+                      </AnimatePresence>
+                    </div>
+                  )}
+                  {/* Add Task row */}
+                  <div className={cn("border-t border-border/15", grouped.independent.length === 0 && "border-t-0")}>
+                    <button
+                      onClick={() => openAddTask(null)}
+                      className="flex items-center gap-3 w-full px-4 py-3.5 text-muted-foreground/50 hover:text-muted-foreground/70 hover:bg-secondary/20 active:bg-secondary/30 transition-colors"
+                    >
+                      <CirclePlus className="w-4 h-4 shrink-0" />
+                      <span className="text-sm font-medium">Add Task</span>
+                    </button>
                   </div>
                 </div>
-              )}
-            </>
+              </section>
+
+            </div>
           )}
         </div>
-      </div>
-
-      {/* FAB */}
-      <div className="absolute bottom-6 right-6 z-20">
-        <AnimatePresence>
-          {showFab && addMode === null && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.12, ease: EASE }}
-              className="absolute bottom-16 right-0 flex flex-col gap-2 items-end"
-            >
-              {/* New Task — appears second (top), slight delay */}
-              <motion.button
-                initial={{ opacity: 0, y: 10, scale: 0.88 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.88 }}
-                transition={{ duration: 0.18, ease: EASE, delay: 0.05 }}
-                onClick={() => { setAddMode("task"); setNewName(""); setNewTaskProjectId(null); }}
-                className="flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-card border border-border/50 shadow-[0_4px_16px_rgba(0,0,0,0.10)] text-sm font-medium text-foreground/80 hover:bg-secondary/40 transition-colors whitespace-nowrap"
-              >
-                <Tag className="w-4 h-4 text-primary/70" />
-                New Task
-              </motion.button>
-              {/* New Project — appears first (bottom, closer to FAB), no delay */}
-              <motion.button
-                initial={{ opacity: 0, y: 10, scale: 0.88 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.88 }}
-                transition={{ duration: 0.18, ease: EASE, delay: 0 }}
-                onClick={() => { setAddMode("project"); setNewName(""); }}
-                className="flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-card border border-border/50 shadow-[0_4px_16px_rgba(0,0,0,0.10)] text-sm font-medium text-foreground/80 hover:bg-secondary/40 transition-colors whitespace-nowrap"
-              >
-                <Folder className="w-4 h-4 text-primary/70" />
-                New Project
-              </motion.button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <motion.button
-          whileTap={{ scale: 0.92 }}
-          transition={{ duration: 0.09 }}
-          onClick={() => {
-            if (addMode !== null) {
-              setAddMode(null);
-              setNewName("");
-              setNewTaskProjectId(null);
-              setShowFab(false);
-            } else {
-              setShowFab(prev => !prev);
-              clearEditing();
-              setMovingTaskId(null);
-            }
-          }}
-          className={cn(
-            "w-14 h-14 rounded-full flex items-center justify-center shadow-[0_4px_20px_rgba(0,0,0,0.15)] border transition-colors duration-150",
-            showFab || addMode !== null
-              ? "bg-foreground/10 border-border/30 text-foreground/60"
-              : "bg-primary border-primary/20 text-primary-foreground"
-          )}
-          aria-label={showFab ? "Close menu" : "Add task or project"}
-        >
-          <motion.div
-            animate={{ rotate: showFab || addMode !== null ? 45 : 0 }}
-            transition={{ duration: 0.16, ease: EASE }}
-          >
-            <Plus className="w-6 h-6" />
-          </motion.div>
-        </motion.button>
       </div>
 
       {/* Add form sheet */}
@@ -706,13 +768,13 @@ export function TasksTab({ isActive }: TasksTabProps) {
               <div className="flex items-center gap-3">
                 {addMode === "project"
                   ? <Folder className="w-4 h-4 text-primary shrink-0" />
-                  : <Tag className="w-4 h-4 text-primary shrink-0" />
+                  : <CircleCheck className="w-4 h-4 text-primary shrink-0" />
                 }
                 <span className="text-sm font-semibold text-foreground">
                   {addMode === "project" ? "New Project" : "New Task"}
                 </span>
                 <button
-                  onClick={() => { setAddMode(null); setNewName(""); setNewTaskProjectId(null); setShowFab(false); }}
+                  onClick={() => { setAddMode(null); setNewName(""); setNewTaskProjectId(null); }}
                   className="ml-auto p-1.5 rounded-lg text-muted-foreground/50 hover:text-muted-foreground transition-colors"
                 >
                   <X className="w-4 h-4" />
@@ -725,7 +787,7 @@ export function TasksTab({ isActive }: TasksTabProps) {
                 onChange={e => setNewName(e.target.value)}
                 onKeyDown={e => {
                   if (e.key === "Enter") handleAddSubmit();
-                  if (e.key === "Escape") { setAddMode(null); setNewName(""); setShowFab(false); }
+                  if (e.key === "Escape") { setAddMode(null); setNewName(""); }
                 }}
                 placeholder={addMode === "project" ? "Project name" : "Task name"}
                 className="w-full bg-secondary/30 border border-border/50 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50"
@@ -788,7 +850,9 @@ export function TasksTab({ isActive }: TasksTabProps) {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-foreground">Move Task</p>
                     {movingTask && (
-                      <p className="text-xs text-muted-foreground/60 truncate">&ldquo;{movingTask.name}&rdquo;</p>
+                      <p className="text-xs text-muted-foreground/60 truncate">
+                        &ldquo;{movingTask.name}&rdquo;
+                      </p>
                     )}
                   </div>
                   <button
@@ -810,7 +874,7 @@ export function TasksTab({ isActive }: TasksTabProps) {
                         : "bg-secondary/20 border-border/30 text-foreground/80 hover:bg-secondary/40"
                     )}
                   >
-                    <Tag className="w-4 h-4 text-muted-foreground/60 shrink-0" />
+                    <CircleCheck className="w-4 h-4 text-muted-foreground/60 shrink-0" />
                     <span className="text-sm font-medium">Independent Tasks</span>
                     {movingTask?.projectId == null && (
                       <span className="ml-auto text-xs text-primary/70 font-medium">current</span>
@@ -829,7 +893,7 @@ export function TasksTab({ isActive }: TasksTabProps) {
                           : "bg-secondary/20 border-border/30 text-foreground/80 hover:bg-secondary/40"
                       )}
                     >
-                      <Folder className="w-4 h-4 text-primary/60 shrink-0" />
+                      <Folder className="w-4 h-4 text-muted-foreground/60 shrink-0" />
                       <span className="text-sm font-medium truncate">{p.name}</span>
                       {movingTask?.projectId === p.id && (
                         <span className="ml-auto text-xs text-primary/70 font-medium shrink-0">current</span>

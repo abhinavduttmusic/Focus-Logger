@@ -1,4 +1,4 @@
-import { Timer, History, CheckSquare, BarChart2 } from "lucide-react";
+import { Timer, History, ClipboardCheck, BarChart2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -24,7 +24,7 @@ const ICON_ANIMATIONS: Record<Tab, { animate: Record<string, number[]>; duration
 const tabs: { id: Tab; label: string; Icon: typeof Timer }[] = [
   { id: "timer", label: "Timer", Icon: Timer },
   { id: "activity", label: "Activity", Icon: History },
-  { id: "tasks", label: "Tasks", Icon: CheckSquare },
+  { id: "tasks", label: "Tasks", Icon: ClipboardCheck },
   { id: "stats", label: "Stats", Icon: BarChart2 },
 ];
 
