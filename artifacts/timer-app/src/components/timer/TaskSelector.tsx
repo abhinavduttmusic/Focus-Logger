@@ -6,7 +6,7 @@ import {
   useListProjects,
 } from "@workspace/api-client-react";
 import type { Task } from "@workspace/api-client-react/src/generated/api.schemas";
-import { CircleCheck, X, Folder, Loader2, Plus } from "lucide-react";
+import { CircleCheck, X, Folder, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TaskSelectorProps {
@@ -292,7 +292,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
           onClick={toggle}
           className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-dashed border-muted-foreground/25 text-muted-foreground/55 hover:text-muted-foreground/80 hover:border-muted-foreground/40 transition-colors text-sm touch-manipulation"
         >
-          <Plus className="w-3.5 h-3.5 shrink-0" />
+          <CircleCheck className="w-3.5 h-3.5 shrink-0" />
           <span className="font-medium">Select Task</span>
         </button>
       )}
