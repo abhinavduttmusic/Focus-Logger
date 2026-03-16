@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import WaveSurfer from "wavesurfer.js";
 import { FileText, Mic, Pause, Square, X, Play, Trash2, Pencil } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Task } from "@workspace/api-client-react/src/generated/api.schemas";
@@ -52,79 +53,83 @@ function RecordingTimer({ isPaused }: { isPaused: boolean }) {
   );
 }
 
-function ClipPlayer({ clip }: { clip: AudioClip }) {
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const [playing, setPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(clip.durationSeconds);
+/** Resolve a Tailwind bg-* class to a real RGB string via a probe element. */
+function resolveTailwindColor(cls: string): string {
+  try {
+    const el = document.createElement("div");
+    el.className = cls;
+    el.style.cssText = "display:none;position:absolute;pointer-events:none";
+    document.body.appendChild(el);
+    const color = getComputedStyle(el).backgroundColor;
+    document.body.removeChild(el);
+    return color || "";
+  } catch {
+    return "";
+  }
+}
 
-  const toggle = async () => {
-    if (!audioRef.current) return;
-    if (playing) {
-      audioRef.current.pause();
-      setPlaying(false);
-    } else {
-      try {
-        await audioRef.current.play();
-        setPlaying(true);
-      } catch {}
-    }
-  };
+function WaveformPlayer({ clip }: { clip: AudioClip }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const wsRef = useRef<WaveSurfer | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [duration, setDuration] = useState<number>(clip.durationSeconds);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const waveColor   = resolveTailwindColor("bg-border")   || "rgba(0,0,0,0.14)";
+    const progressColor = resolveTailwindColor("bg-primary") || "rgba(34,42,58,0.85)";
+
+    const ws = WaveSurfer.create({
+      container: containerRef.current,
+      waveColor,
+      progressColor,
+      height: 36,
+      barWidth: 2.5,
+      barGap: 1.5,
+      barRadius: 3,
+      cursorWidth: 0,
+      interact: true,
+      url: clip.url,
+    });
+
+    wsRef.current = ws;
+
+    ws.on("ready", () => {
+      const dur = ws.getDuration();
+      if (isFinite(dur) && dur > 0) setDuration(dur);
+    });
+    ws.on("play",   () => setPlaying(true));
+    ws.on("pause",  () => setPlaying(false));
+    ws.on("finish", () => setPlaying(false));
+
+    return () => ws.destroy();
+  }, [clip.url]);
 
   return (
-    <div className="flex items-center gap-2">
-      <audio
-        ref={audioRef}
-        src={clip.url}
-        preload="metadata"
-        onEnded={() => {
-          setPlaying(false);
-          setCurrentTime(0);
-        }}
-        onTimeUpdate={() =>
-          audioRef.current && setCurrentTime(audioRef.current.currentTime)
-        }
-        onLoadedMetadata={() => {
-          if (
-            audioRef.current &&
-            isFinite(audioRef.current.duration) &&
-            audioRef.current.duration > 0
-          ) {
-            setDuration(audioRef.current.duration);
-          }
-        }}
-        className="hidden"
-      />
-      <motion.button
-        onClick={toggle}
-        whileTap={{ scale: 0.88 }}
-        className="flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 text-primary/70 hover:bg-primary/20 hover:text-primary transition-colors shrink-0"
-        aria-label={playing ? "Pause" : "Play"}
-      >
-        {playing ? (
-          <Pause className="w-3 h-3" fill="currentColor" />
-        ) : (
-          <Play className="w-3 h-3 ml-0.5" fill="currentColor" />
-        )}
-      </motion.button>
-      <input
-        type="range"
-        min={0}
-        max={duration ?? 1}
-        step={0.1}
-        value={currentTime}
-        onChange={(e) => {
-          const t = Number(e.target.value);
-          if (audioRef.current) {
-            audioRef.current.currentTime = t;
-            setCurrentTime(t);
-          }
-        }}
-        className="flex-1 h-1 rounded-full appearance-none bg-border/30 cursor-pointer accent-primary"
-      />
-      <span className="text-[10px] text-muted-foreground/50 tabular-nums shrink-0 min-w-[2.5rem] text-right">
-        {fmtTime(duration)}
-      </span>
+    <div className="space-y-2">
+      {/* Waveform canvas */}
+      <div ref={containerRef} className="w-full" />
+
+      {/* Play button + duration */}
+      <div className="flex items-center">
+        <motion.button
+          onClick={() => wsRef.current?.playPause()}
+          whileTap={{ scale: 0.88 }}
+          className="flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 text-primary/70 hover:bg-primary/20 hover:text-primary transition-colors shrink-0"
+          aria-label={playing ? "Pause" : "Play"}
+        >
+          {playing ? (
+            <Pause className="w-3 h-3" fill="currentColor" />
+          ) : (
+            <Play className="w-3 h-3 ml-0.5" fill="currentColor" />
+          )}
+        </motion.button>
+        <div className="flex-1" />
+        <span className="text-[10px] text-muted-foreground/50 tabular-nums">
+          {fmtTime(duration)}
+        </span>
+      </div>
     </div>
   );
 }
@@ -386,8 +391,8 @@ export function NotesArea({
                     </button>
                   </div>
 
-                  {/* Player row */}
-                  <ClipPlayer clip={clip} />
+                  {/* Waveform + play/duration */}
+                  <WaveformPlayer clip={clip} />
                 </motion.div>
               ))}
             </motion.div>
