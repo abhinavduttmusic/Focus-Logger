@@ -396,10 +396,14 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                         onPointerDown={handleSwipeStart}
                         onPointerUp={handleSwipeEnd}
                         onPointerCancel={() => { swipeStart.current = null; }}
-                        style={{ touchAction: "pan-y" }}
+                        style={{
+                          touchAction: "pan-y",
+                          WebkitTapHighlightColor: "transparent",
+                          outline: "none",
+                        }}
                         className="select-none"
                       >
-                        <AnimatePresence mode="wait" initial={false}>
+                        <AnimatePresence mode="popLayout" initial={false}>
                           <motion.div
                             key={timer.mode}
                             initial={{ opacity: 0, x: modeDir.current === "left" ? 40 : -40 }}
