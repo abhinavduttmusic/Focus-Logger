@@ -500,8 +500,8 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                       )}
                     </section>
 
-                    {/* ── Task strip ── */}
-                    <section className="px-1 space-y-2.5">
+                    {/* ── Task chip ── */}
+                    <section className="flex flex-col items-center gap-2">
                       {/* Feature 3: "Continue last task" suggestion */}
                       <AnimatePresence>
                         {!selectedTask && lastTask && (

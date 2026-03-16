@@ -6,7 +6,7 @@ import {
   useListProjects,
 } from "@workspace/api-client-react";
 import type { Task } from "@workspace/api-client-react/src/generated/api.schemas";
-import { CircleCheck, X, Folder, Loader2, Pencil } from "lucide-react";
+import { CircleCheck, X, Folder, Loader2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TaskSelectorProps {
@@ -265,52 +265,35 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
   );
 
   return (
-    <div className="w-full" ref={containerRef}>
+    <div ref={containerRef}>
       {selectedTask ? (
-        /* ── Task selected: "Working on…" strip ── */
-        <div className="flex items-start gap-3">
-          <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-1">
-              Working on
-            </p>
-            <button
-              ref={triggerRef as React.RefObject<HTMLButtonElement>}
-              onClick={toggle}
-              className="group flex items-center gap-2 w-full text-left touch-manipulation"
-            >
-              <span className="font-semibold text-[1.05rem] text-foreground leading-snug truncate">
-                {selectedTask.name}
-              </span>
-              <Pencil className="w-3 h-3 text-muted-foreground/40 shrink-0 group-hover:text-muted-foreground/70 transition-colors" />
-            </button>
-            {selectedTask.projectName && (
-              <div className="flex items-center gap-1 mt-0.5">
-                <Folder className="w-3 h-3 text-muted-foreground/35" />
-                <span className="text-xs text-muted-foreground/55 truncate">
-                  {selectedTask.projectName}
-                </span>
-              </div>
-            )}
-          </div>
+        /* ── Task selected: compact chip ── */
+        <div className="flex items-center gap-1">
+          <button
+            ref={triggerRef as React.RefObject<HTMLButtonElement>}
+            onClick={toggle}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-primary/7 border border-primary/12 text-primary/75 hover:bg-primary/12 hover:text-primary/90 transition-colors text-sm touch-manipulation max-w-[260px]"
+          >
+            <CircleCheck className="w-3.5 h-3.5 shrink-0" />
+            <span className="font-medium truncate">{selectedTask.name}</span>
+          </button>
           <button
             onClick={() => onSelectTask(null)}
-            className="mt-0.5 p-1.5 rounded-full text-muted-foreground/35 hover:text-muted-foreground/70 hover:bg-secondary/50 transition-colors shrink-0"
+            className="p-1.5 rounded-full text-muted-foreground/35 hover:text-muted-foreground/65 hover:bg-secondary/50 transition-colors shrink-0"
             aria-label="Clear task"
           >
-            <X className="w-3.5 h-3.5" />
+            <X className="w-3 h-3" />
           </button>
         </div>
       ) : (
-        /* ── No task: "+ Select Task" button ── */
+        /* ── No task: ghost chip ── */
         <button
           ref={triggerRef as React.RefObject<HTMLButtonElement>}
           onClick={toggle}
-          className="flex items-center gap-2 text-muted-foreground/70 hover:text-foreground transition-colors touch-manipulation group"
+          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-dashed border-muted-foreground/25 text-muted-foreground/55 hover:text-muted-foreground/80 hover:border-muted-foreground/40 transition-colors text-sm touch-manipulation"
         >
-          <div className="w-7 h-7 rounded-full border border-dashed border-muted-foreground/30 group-hover:border-muted-foreground/60 flex items-center justify-center transition-colors">
-            <CircleCheck className="w-3.5 h-3.5" />
-          </div>
-          <span className="text-sm font-medium">Select Task</span>
+          <Plus className="w-3.5 h-3.5 shrink-0" />
+          <span className="font-medium">Select Task</span>
         </button>
       )}
 

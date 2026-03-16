@@ -5,11 +5,21 @@ import { Play, Square, Pause } from "lucide-react";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
-/* ── Progress ring geometry ── */
-const RING_SIZE = 336;
-const STROKE = 2.5;
-const RADIUS = (RING_SIZE - STROKE) / 2;           // 166.75
-const CIRCUMFERENCE = 2 * Math.PI * RADIUS;         // ≈ 1047.8
+/* ── 270° progress arc geometry ──────────────────────────────────────
+   The arc spans 270° (¾ of a circle), starts at 12 o'clock, grows
+   clockwise, and leaves a 90° gap in the lower-left quadrant.
+   stroke-dasharray trick:
+     - TRACK_LENGTH = 270° worth of circumference (the visible range)
+     - GAP          = the remaining 90° (always invisible / offset)
+     - progress arc = progress × TRACK_LENGTH, then the same gap
+   Both circles rotate -90° so 0 is at the top.
+─────────────────────────────────────────────────────────────────── */
+const ARC_SIZE   = 200;
+const STROKE     = 1.5;
+const RADIUS     = (ARC_SIZE - STROKE) / 2;          // 99.25
+const C          = 2 * Math.PI * RADIUS;              // ≈ 623.7
+const TRACK      = C * 0.75;                          // ≈ 467.8  (270°)
+const TRACK_GAP  = C - TRACK;                         // ≈ 155.9  (90° gap)
 
 interface TimerDisplayProps {
   mode: TimerMode;
@@ -27,7 +37,6 @@ function computeProgress(mode: TimerMode, phase: PomodoroPhase, seconds: number)
     const total = phase === "focus" ? 25 * 60 : 5 * 60;
     return total > 0 ? (total - seconds) / total : 0;
   }
-  // Stopwatch — fills every hour
   return (seconds % 3600) / 3600;
 }
 
@@ -49,58 +58,68 @@ export function TimerDisplay({
       ? "text-focus"
       : "text-break";
 
-  const progress = computeProgress(mode, phase, seconds);
-  const dashOffset = CIRCUMFERENCE * (1 - progress);
+  const progress        = computeProgress(mode, phase, seconds);
+  const progressLength  = progress * TRACK;
+
+  /* dasharray for the progress arc */
+  const progressDash = `${progressLength} ${C - progressLength}`;
+  /* dasharray for the track (full 270° range, very faint) */
+  const trackDash    = `${TRACK} ${TRACK_GAP}`;
+
+  const arcTransform = "rotate(-90deg)";
+  const arcOrigin    = "center";
 
   return (
     <div className="flex flex-col items-center justify-center py-8">
 
-      {/* ── Digits + progress ring ── */}
+      {/* ── Digits + decorative progress arc ── */}
       <div className="relative flex items-center justify-center">
 
-        {/* SVG ring — positioned absolutely so it never shifts layout */}
+        {/* SVG arc — absolutely centered on the digit block, purely decorative */}
         <svg
-          width={RING_SIZE}
-          height={RING_SIZE}
+          width={ARC_SIZE}
+          height={ARC_SIZE}
           aria-hidden
           className={cn("absolute pointer-events-none transition-colors duration-500", colorClass)}
           style={{
-            top: "50%",
-            left: "50%",
+            top:       "50%",
+            left:      "50%",
             transform: "translate(-50%, -50%)",
           }}
         >
-          {/* Track (background circle) */}
+          {/* Track: shows the full 270° range at ~12% opacity */}
           <circle
-            cx={RING_SIZE / 2}
-            cy={RING_SIZE / 2}
+            cx={ARC_SIZE / 2}
+            cy={ARC_SIZE / 2}
             r={RADIUS}
             fill="none"
             stroke="currentColor"
             strokeWidth={STROKE}
-            strokeOpacity={0.1}
-          />
-          {/* Progress arc */}
-          <circle
-            cx={RING_SIZE / 2}
-            cy={RING_SIZE / 2}
-            r={RADIUS}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={STROKE}
-            strokeOpacity={0.82}
+            strokeOpacity={0.12}
             strokeLinecap="round"
-            strokeDasharray={CIRCUMFERENCE}
-            strokeDashoffset={dashOffset}
+            strokeDasharray={trackDash}
+            style={{ transform: arcTransform, transformOrigin: arcOrigin }}
+          />
+          {/* Progress arc: fills the track at ~32% opacity */}
+          <circle
+            cx={ARC_SIZE / 2}
+            cy={ARC_SIZE / 2}
+            r={RADIUS}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={STROKE}
+            strokeOpacity={0.32}
+            strokeLinecap="round"
+            strokeDasharray={progressDash}
             style={{
-              transform: "rotate(-90deg)",
-              transformOrigin: "center",
-              transition: "stroke-dashoffset 0.9s cubic-bezier(0.22,1,0.36,1), stroke 0.5s ease",
+              transform:       arcTransform,
+              transformOrigin: arcOrigin,
+              transition:      "stroke-dashoffset 0.9s cubic-bezier(0.22,1,0.36,1), stroke-dasharray 0.9s cubic-bezier(0.22,1,0.36,1), stroke 0.5s ease",
             }}
           />
         </svg>
 
-        {/* Digits — overflow-hidden clips the horizontal slide exit/enter */}
+        {/* Digits — overflow-hidden clips the horizontal slide */}
         <div className="overflow-hidden relative">
           <AnimatePresence mode="popLayout" initial={false}>
             <motion.div
@@ -121,7 +140,7 @@ export function TimerDisplay({
         </div>
       </div>
 
-      {/* ── Controls — outside the ring/digit area, never remounts ── */}
+      {/* ── Controls — never remounts ── */}
       <div className="relative z-10 isolate flex items-center gap-6 mt-10">
         {!isActive ? (
           <button
