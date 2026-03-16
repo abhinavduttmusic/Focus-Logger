@@ -19,7 +19,6 @@ import { TimerToggle } from "@/components/timer/TimerToggle";
 import { TimerDisplay } from "@/components/timer/TimerDisplay";
 import { NotesArea } from "@/components/timer/NotesArea";
 import { SessionList } from "@/components/timer/SessionList";
-import { VoiceRecorder } from "@/components/timer/VoiceRecorder";
 import { BottomNav, type Tab } from "@/components/nav/BottomNav";
 import { CalendarView } from "@/components/calendar/CalendarView";
 import { TasksTab } from "@/components/tasks/TasksTab";
@@ -409,22 +408,6 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                             <XCircle className="w-3.5 h-3.5" />
                             Discard Session
                           </motion.button>
-
-                          <VoiceRecorder
-                            isActive={
-                              timer.isActive &&
-                              (timer.mode === "simple" || timer.phase === "focus")
-                            }
-                            isRecording={recorder.isRecording}
-                            isPaused={recorder.isPaused}
-                            clips={recorder.clips}
-                            onStartRecording={handleStartRecording}
-                            onStopRecording={recorder.stopRecording}
-                            onPauseRecording={recorder.pauseRecording}
-                            onResumeRecording={recorder.resumeRecording}
-                            onRenameClip={recorder.renameClip}
-                            onCancelRecording={recorder.discardAndStop}
-                          />
                         </motion.div>
                       )}
                     </AnimatePresence>
@@ -439,6 +422,16 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                         onChange={setNotes}
                         selectedTask={selectedTask}
                         onSelectTask={setSelectedTask}
+                        isRecording={recorder.isRecording}
+                        isPaused={recorder.isPaused}
+                        clips={recorder.clips}
+                        onStartRecording={handleStartRecording}
+                        onStopRecording={recorder.stopRecording}
+                        onPauseRecording={recorder.pauseRecording}
+                        onResumeRecording={recorder.resumeRecording}
+                        onRenameClip={recorder.renameClip}
+                        onDeleteClip={recorder.deleteClip}
+                        onCancelRecording={recorder.discardAndStop}
                       />
                     </section>
 

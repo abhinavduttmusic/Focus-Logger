@@ -134,6 +134,15 @@ export function useVoiceRecorder(initialClips?: AudioClip[]) {
     });
   }, []);
 
+  const deleteClip = useCallback((index: number) => {
+    setClips((prev) => {
+      const next = [...prev];
+      const removed = next.splice(index, 1);
+      removed.forEach((c) => URL.revokeObjectURL(c.url));
+      return next;
+    });
+  }, []);
+
   const clearClips = useCallback(() => {
     setClips((prev) => {
       prev.forEach((clip) => URL.revokeObjectURL(clip.url));
@@ -163,6 +172,7 @@ export function useVoiceRecorder(initialClips?: AudioClip[]) {
     resumeRecording,
     stopRecording,
     renameClip,
+    deleteClip,
     clearClips,
     replaceClips,
     discardAndStop,
