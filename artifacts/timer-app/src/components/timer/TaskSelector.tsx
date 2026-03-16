@@ -6,7 +6,7 @@ import {
   useListProjects,
 } from "@workspace/api-client-react";
 import type { Task } from "@workspace/api-client-react/src/generated/api.schemas";
-import { CircleCheck, X, Folder, Loader2 } from "lucide-react";
+import { CircleCheck, X, Folder, Loader2, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TaskSelectorProps {
@@ -15,12 +15,12 @@ interface TaskSelectorProps {
 }
 
 const MAX_PANEL_HEIGHT = 400;
-const OFF_SCREEN: { top: number; left: number; width: number } = { top: -9999, left: -9999, width: 320 };
+const OFF_SCREEN = { top: -9999, left: -9999, width: 320 };
 
-function computePanelPos(triggerEl: HTMLButtonElement | null) {
+function computePanelPos(triggerEl: HTMLElement | null) {
   if (!triggerEl) return OFF_SCREEN;
   const rect = triggerEl.getBoundingClientRect();
-  const panelWidth = Math.min(320, window.innerWidth - 16);
+  const panelWidth = Math.min(340, window.innerWidth - 16);
   let left = rect.left;
   if (left + panelWidth > window.innerWidth - 8) {
     left = window.innerWidth - panelWidth - 8;
@@ -37,7 +37,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
   const [searchQuery, setSearchQuery] = useState("");
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [panelPos, setPanelPos] = useState(OFF_SCREEN);
 
@@ -79,6 +79,11 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
     setIsOpen(false);
     setSearchQuery("");
     setPanelPos(OFF_SCREEN);
+  };
+
+  const toggle = () => {
+    if (isOpen) close();
+    else setIsOpen(true);
   };
 
   const filteredTasks = tasks?.filter(t =>
@@ -220,10 +225,10 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
       {isOpen && (
         <motion.div
           ref={panelRef}
-          initial={{ opacity: 0, y: -10, scale: 0.95 }}
+          initial={{ opacity: 0, y: -8, scale: 0.96 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -10, scale: 0.95 }}
-          transition={{ duration: 0.1, ease: "easeOut" }}
+          exit={{ opacity: 0, y: -8, scale: 0.96 }}
+          transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
           className="fixed z-[9999] glass-panel bg-card border-border/50 rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[400px]"
           style={{
             top: panelPos.top,
@@ -252,7 +257,6 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
                 className="w-full bg-secondary/30 border border-border/50 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50"
               />
             </div>
-
             {renderTaskList()}
           </div>
         </motion.div>
@@ -263,32 +267,50 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
   return (
     <div className="w-full" ref={containerRef}>
       {selectedTask ? (
-        <div className="flex items-center gap-2 max-w-fit">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/5 hover:bg-primary/10 border border-primary/10 rounded-full transition-colors text-sm font-medium">
-            <CircleCheck className="w-3.5 h-3.5 text-primary/70" />
-            <span className="text-foreground/90 truncate max-w-[200px]">{selectedTask.name}</span>
-            {selectedTask.projectName && (
-              <>
-                <span className="text-muted-foreground/40 text-xs">·</span>
-                <span className="text-muted-foreground/70 text-xs truncate max-w-[120px]">{selectedTask.projectName}</span>
-              </>
-            )}
+        /* ── Task selected: "Working on…" strip ── */
+        <div className="flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-1">
+              Working on
+            </p>
             <button
-              onClick={() => onSelectTask(null)}
-              className="ml-1 p-0.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors text-muted-foreground hover:text-foreground"
+              ref={triggerRef as React.RefObject<HTMLButtonElement>}
+              onClick={toggle}
+              className="group flex items-center gap-2 w-full text-left touch-manipulation"
             >
-              <X className="w-3.5 h-3.5" />
+              <span className="font-semibold text-[1.05rem] text-foreground leading-snug truncate">
+                {selectedTask.name}
+              </span>
+              <Pencil className="w-3 h-3 text-muted-foreground/40 shrink-0 group-hover:text-muted-foreground/70 transition-colors" />
             </button>
+            {selectedTask.projectName && (
+              <div className="flex items-center gap-1 mt-0.5">
+                <Folder className="w-3 h-3 text-muted-foreground/35" />
+                <span className="text-xs text-muted-foreground/55 truncate">
+                  {selectedTask.projectName}
+                </span>
+              </div>
+            )}
           </div>
+          <button
+            onClick={() => onSelectTask(null)}
+            className="mt-0.5 p-1.5 rounded-full text-muted-foreground/35 hover:text-muted-foreground/70 hover:bg-secondary/50 transition-colors shrink-0"
+            aria-label="Clear task"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
       ) : (
+        /* ── No task: "+ Select Task" button ── */
         <button
-          ref={triggerRef}
-          onClick={() => { if (isOpen) { close(); } else { setIsOpen(true); } }}
-          className="flex items-center gap-2 px-3 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/50 active:bg-secondary/70 active:scale-95 rounded-full transition-transform duration-75 text-sm font-medium border border-transparent hover:border-border/50 touch-manipulation"
+          ref={triggerRef as React.RefObject<HTMLButtonElement>}
+          onClick={toggle}
+          className="flex items-center gap-2 text-muted-foreground/70 hover:text-foreground transition-colors touch-manipulation group"
         >
-          <CircleCheck className="w-3.5 h-3.5" />
-          <span>Select Task</span>
+          <div className="w-7 h-7 rounded-full border border-dashed border-muted-foreground/30 group-hover:border-muted-foreground/60 flex items-center justify-center transition-colors">
+            <CircleCheck className="w-3.5 h-3.5" />
+          </div>
+          <span className="text-sm font-medium">Select Task</span>
         </button>
       )}
 

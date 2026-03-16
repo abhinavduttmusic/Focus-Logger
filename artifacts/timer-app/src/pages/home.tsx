@@ -11,13 +11,14 @@ import {
   buildPersistedState,
   type RestoredSession,
 } from "@/hooks/use-session-persistence";
-import { XCircle, LayoutList, Calendar } from "lucide-react";
+import { XCircle, LayoutList, Calendar, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { ConfirmBannerInline, CONFIRM_TAP } from "@/components/ui/confirm-banner";
 
 import { TimerToggle } from "@/components/timer/TimerToggle";
 import { TimerDisplay } from "@/components/timer/TimerDisplay";
+import { TaskSelector } from "@/components/timer/TaskSelector";
 import { NotesArea } from "@/components/timer/NotesArea";
 import { SessionList } from "@/components/timer/SessionList";
 import { VoiceRecorder } from "@/components/timer/VoiceRecorder";
@@ -93,6 +94,23 @@ function Home({ restored }: { restored: RestoredSession | null }) {
       : null,
   );
 
+  // Ref so onSuccess closure always reads the latest selectedTask
+  const selectedTaskRef = useRef<Task | null>(null);
+  selectedTaskRef.current = selectedTask;
+
+  // Last task used in a completed session — persisted to localStorage
+  const [lastTask, setLastTask] = useState<{
+    id: number;
+    name: string;
+    projectId: number | null;
+    projectName: string | null;
+  } | null>(() => {
+    try {
+      const raw = localStorage.getItem("flow-last-task");
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  });
+
   const timerInitialState: TimerInitialState | undefined = restored
     ? {
         mode: restored.timer.mode,
@@ -114,6 +132,19 @@ function Home({ restored }: { restored: RestoredSession | null }) {
       onSuccess: async (session) => {
         const clipsToUpload = pendingClipsRef.current;
         pendingClipsRef.current = [];
+
+        // Persist the last used task before we clear selectedTask
+        const finishedTask = selectedTaskRef.current;
+        if (finishedTask) {
+          const entry = {
+            id: finishedTask.id,
+            name: finishedTask.name,
+            projectId: finishedTask.projectId ?? null,
+            projectName: finishedTask.projectName ?? null,
+          };
+          try { localStorage.setItem("flow-last-task", JSON.stringify(entry)); } catch {}
+          setLastTask(entry);
+        }
 
         clearSession();
 
@@ -469,6 +500,40 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                       )}
                     </section>
 
+                    {/* ── Task strip ── */}
+                    <section className="px-1 space-y-2.5">
+                      {/* Feature 3: "Continue last task" suggestion */}
+                      <AnimatePresence>
+                        {!selectedTask && lastTask && (
+                          <motion.div
+                            key="continue-suggestion"
+                            initial={{ opacity: 0, y: -6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -6 }}
+                            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                            className="flex items-center gap-2.5"
+                          >
+                            <span className="text-xs text-muted-foreground/55 whitespace-nowrap">
+                              Continue
+                            </span>
+                            <button
+                              onClick={() => setSelectedTask(lastTask as Task)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/8 hover:bg-primary/12 border border-primary/10 hover:border-primary/20 rounded-full text-sm font-medium text-primary transition-colors touch-manipulation max-w-[260px]"
+                            >
+                              <span className="truncate">{lastTask.name}</span>
+                              <ArrowRight className="w-3.5 h-3.5 shrink-0" />
+                            </button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      {/* Feature 1: task selector strip */}
+                      <TaskSelector
+                        selectedTask={selectedTask}
+                        onSelectTask={setSelectedTask}
+                      />
+                    </section>
+
                     <section className="space-y-4">
                       <VoiceRecorder
                         isActive={
@@ -488,8 +553,6 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                       <NotesArea
                         value={notes}
                         onChange={setNotes}
-                        selectedTask={selectedTask}
-                        onSelectTask={setSelectedTask}
                       />
                     </section>
                   </div>
