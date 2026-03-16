@@ -334,56 +334,59 @@ function Home({ restored }: { restored: RestoredSession | null }) {
               inert={!isActive ? "" : undefined}
             >
               {tab === "timer" && (
-                <main className="min-h-full w-full px-4 sm:px-6 flex flex-col items-center">
-                  <div className="w-full max-w-md flex-1 flex flex-col">
+                <main className="h-full w-full px-4 sm:px-6 flex flex-col items-center">
+                  <div className="w-full max-w-md h-full flex flex-col">
 
-                    {/* ── TOP: mode toggle + timer + controls ── */}
-                    <div className="flex flex-col items-center pt-6">
+                    {/* ── TIMER SECTION: 45vh dedicated region ── */}
+                    <div
+                      className="relative w-full flex flex-col justify-evenly items-center shrink-0"
+                      style={{ height: "45vh" }}
+                    >
+                      {/* Ambient glow — sits behind everything */}
+                      <div className="absolute inset-0 -z-10 flex items-center justify-center pointer-events-none">
+                        <motion.div
+                          className={`w-64 h-64 rounded-full blur-[100px] transition-colors duration-1000 ${glowColorClass}`}
+                          animate={
+                            timer.isActive
+                              ? { scale: [1, 1.08, 1], opacity: [0.4, 0.55, 0.4] }
+                              : { scale: 1, opacity: 0.4 }
+                          }
+                          transition={
+                            timer.isActive
+                              ? { duration: 3.5, repeat: Infinity, ease: "easeInOut" }
+                              : { duration: 0.6 }
+                          }
+                        />
+                      </div>
+
+                      {/* Toggle */}
                       <div className="text-center">
                         <TimerToggle mode={timer.mode} onChange={handleModeChange} />
                       </div>
 
-                      {/* Timer digits + controls (glow sits behind) */}
-                      <section className="relative w-full mt-4">
-                        <div className="absolute inset-0 -z-10 flex items-center justify-center pointer-events-none">
-                          <motion.div
-                            className={`w-64 h-64 rounded-full blur-[100px] transition-colors duration-1000 ${glowColorClass}`}
-                            animate={
-                              timer.isActive
-                                ? { scale: [1, 1.08, 1], opacity: [0.4, 0.55, 0.4] }
-                                : { scale: 1, opacity: 0.4 }
-                            }
-                            transition={
-                              timer.isActive
-                                ? { duration: 3.5, repeat: Infinity, ease: "easeInOut" }
-                                : { duration: 0.6 }
-                            }
-                          />
-                        </div>
-
-                        <div
-                          onPointerDown={handleSwipeStart}
-                          onPointerUp={handleSwipeEnd}
-                          onPointerCancel={() => { swipeStart.current = null; }}
-                          style={{
-                            touchAction: "pan-y",
-                            WebkitTapHighlightColor: "transparent",
-                            outline: "none",
-                          }}
-                          className="select-none"
-                        >
-                          <TimerDisplay
-                            mode={timer.mode}
-                            phase={timer.phase}
-                            seconds={timer.seconds}
-                            isActive={timer.isActive}
-                            onStart={timer.start}
-                            onPause={timer.pause}
-                            onStop={timer.stop}
-                            modeDir={modeDir}
-                          />
-                        </div>
-                      </section>
+                      {/* Digits + controls (swipe zone) */}
+                      <div
+                        onPointerDown={handleSwipeStart}
+                        onPointerUp={handleSwipeEnd}
+                        onPointerCancel={() => { swipeStart.current = null; }}
+                        style={{
+                          touchAction: "pan-y",
+                          WebkitTapHighlightColor: "transparent",
+                          outline: "none",
+                        }}
+                        className="select-none w-full"
+                      >
+                        <TimerDisplay
+                          mode={timer.mode}
+                          phase={timer.phase}
+                          seconds={timer.seconds}
+                          isActive={timer.isActive}
+                          onStart={timer.start}
+                          onPause={timer.pause}
+                          onStop={timer.stop}
+                          modeDir={modeDir}
+                        />
+                      </div>
                     </div>
 
                     {/* Discard + Record — only while a session is in progress */}
@@ -395,7 +398,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -6 }}
                           transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-                          className="flex flex-col items-center gap-3 mt-2"
+                          className="flex flex-col items-center gap-3"
                         >
                           <motion.button
                             onClick={() => setShowDiscardConfirm(true)}
@@ -426,11 +429,11 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                       )}
                     </AnimatePresence>
 
-                    {/* ── SPACER: pushes notes card toward the lower half ── */}
-                    <div className="flex-1 min-h-10" />
+                    {/* Elastic spacer — absorbs remaining vertical space so notes sit near bottom */}
+                    <div className="flex-1" />
 
-                    {/* ── BOTTOM: session notes & task selector ── */}
-                    <section className="pb-6">
+                    {/* ── NOTES SECTION ── */}
+                    <section className="pb-5">
                       <NotesArea
                         value={notes}
                         onChange={setNotes}

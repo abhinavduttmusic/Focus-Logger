@@ -35,7 +35,7 @@ export function TimerDisplay({
       : "text-break";
 
   return (
-    <div className="flex flex-col items-center justify-center pt-4 pb-6">
+    <div className="flex flex-col items-center justify-center">
 
       {/* Digits */}
       <div className="overflow-hidden relative">
