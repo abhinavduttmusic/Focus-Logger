@@ -37,6 +37,13 @@ function resolveTailwindColor(cls: string): string {
   }
 }
 
+function toRgba(color: string, alpha: number): string {
+  if (!color) return `rgba(34,42,58,${alpha})`;
+  const match = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if (!match) return `rgba(34,42,58,${alpha})`;
+  return `rgba(${match[1]},${match[2]},${match[3]},${alpha})`;
+}
+
 /* ─── RecordingTimer ──────────────────────────────────────────── */
 
 function RecordingTimer({ isPaused }: { isPaused: boolean }) {
@@ -77,7 +84,11 @@ function RecordingTimer({ isPaused }: { isPaused: boolean }) {
   );
 }
 
-/* ─── SaveForm ────────────────────────────────────────────────── */
+/* ─── SaveForm ─────────────────────────────────────────────────
+   Rendered at the fragment root (outside glass-panel) so that
+   the fixed backdrop/sheet are never clipped by a stacking context
+   created by backdrop-filter inside the card.
+──────────────────────────────────────────────────────────────── */
 
 interface SaveFormProps {
   clip: AudioClip;
@@ -86,21 +97,22 @@ interface SaveFormProps {
 }
 
 function SaveForm({ clip, onSave, onClose }: SaveFormProps) {
-  const [name, setName] = useState(clip.label || "");
+  const [name, setName]   = useState(clip.label || "");
   const [title, setTitle] = useState(clip.noteTitle || "");
   const [notes, setNotes] = useState(clip.noteNotes || "");
 
   const handleSave = () => {
     onSave({
-      label: name.trim() || clip.label,
-      noteTitle: title.trim() || undefined,
-      noteNotes: notes.trim() || undefined,
+      label:      name.trim()  || clip.label,
+      noteTitle:  title.trim() || undefined,
+      noteNotes:  notes.trim() || undefined,
     });
+    onClose();
   };
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Dim backdrop — tap to dismiss */}
       <motion.div
         key="save-backdrop"
         initial={{ opacity: 0 }}
@@ -108,16 +120,20 @@ function SaveForm({ clip, onSave, onClose }: SaveFormProps) {
         exit={{ opacity: 0 }}
         transition={{ duration: 0.2, ease: "easeOut" }}
         className="fixed inset-0 z-40 bg-black/40"
-        style={{ willChange: "opacity" }}
         onClick={onClose}
       />
-      {/* Sheet */}
+
+      {/* Bottom sheet */}
       <motion.div
         key="save-sheet"
         initial={{ y: 16, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 12, opacity: 0 }}
-        transition={{ duration: 0.2, ease: EASE }}
+        animate={{ y: 0,  opacity: 1 }}
+        exit={{ y: 12,    opacity: 0 }}
+        transition={{
+          enter: { duration: 0.2,   ease: EASE },
+          exit:  { duration: 0.16,  ease: "easeIn" },
+          duration: 0.2, ease: EASE,
+        }}
         style={{ willChange: "transform, opacity" }}
         className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-8"
       >
@@ -130,7 +146,6 @@ function SaveForm({ clip, onSave, onClose }: SaveFormProps) {
               Practice Notes
             </h3>
 
-            {/* Recording Name */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 Recording Name
@@ -143,7 +158,6 @@ function SaveForm({ clip, onSave, onClose }: SaveFormProps) {
               />
             </div>
 
-            {/* Note Title */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 Note Title
@@ -156,7 +170,6 @@ function SaveForm({ clip, onSave, onClose }: SaveFormProps) {
               />
             </div>
 
-            {/* Notes */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 Notes
@@ -190,35 +203,41 @@ interface WaveformPlayerProps {
   clip: AudioClip;
   autoPlay?: boolean;
   onUpdateClip?: (updates: Partial<AudioClip>) => void;
+  /** Called when the user taps the BookmarkPlus / note title badge */
+  onOpenSaveForm?: () => void;
 }
 
-function WaveformPlayer({ clip, autoPlay, onUpdateClip }: WaveformPlayerProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const wsRef = useRef<WaveSurfer | null>(null);
-  const regionsPluginRef = useRef<ReturnType<typeof RegionsPlugin.create> | null>(null);
-  const loopRegionRef = useRef<{ start: number; end: number } | null>(null);
-  const isLoopingRef = useRef(false);
+function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSaveForm }: WaveformPlayerProps) {
+  const containerRef   = useRef<HTMLDivElement>(null);
+  const wsRef          = useRef<WaveSurfer | null>(null);
+  const regionsRef     = useRef<ReturnType<typeof RegionsPlugin.create> | null>(null);
+  const durationRef    = useRef<number>(clip.durationSeconds);
+  const loopRegionRef  = useRef<{ start: number; end: number } | null>(null);
+  const isLoopingRef   = useRef(false);
+  // track pointer-down X for click-vs-drag discrimination
+  const pointerDownRef = useRef<{ x: number; y: number; t: number } | null>(null);
 
-  const [playing, setPlaying] = useState(false);
-  const [duration, setDuration] = useState<number>(clip.durationSeconds);
-  const [speed, setSpeed] = useState<Speed>(1);
-  const [isLooping, setIsLooping] = useState(false);
-  const [showSaveForm, setShowSaveForm] = useState(false);
+  const [playing,         setPlaying]         = useState(false);
+  const [duration,        setDuration]        = useState<number>(clip.durationSeconds);
+  const [speed,           setSpeed]           = useState<Speed>(1);
+  const [isLooping,       setIsLooping]       = useState(false);
   const [showSpeedPicker, setShowSpeedPicker] = useState(false);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    const el = containerRef.current;
+    if (!el) return;
 
-    const waveColor     = resolveTailwindColor("bg-border")   || "rgba(0,0,0,0.13)";
-    const progressColor = resolveTailwindColor("bg-primary")  || "rgba(34,42,58,0.85)";
-    const regionColor   = resolveTailwindColor("bg-primary")
-      .replace(")", ", 0.12)").replace("rgb(", "rgba(") || "rgba(34,42,58,0.12)";
+    const waveColor     = resolveTailwindColor("bg-border")  || "rgba(0,0,0,0.13)";
+    const progressColor = resolveTailwindColor("bg-primary") || "rgba(34,42,58,0.85)";
+    const regionColor   = toRgba(resolveTailwindColor("bg-primary"), 0.12);
 
     const regions = RegionsPlugin.create();
-    regionsPluginRef.current = regions;
+    regionsRef.current = regions;
 
+    /* interact: false — we handle click-to-seek ourselves so it is not
+       blocked by RegionsPlugin's drag-selection event listeners.        */
     const ws = WaveSurfer.create({
-      container: containerRef.current,
+      container: el,
       waveColor,
       progressColor,
       height: 44,
@@ -226,25 +245,42 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip }: WaveformPlayerProps) {
       barGap: 1.5,
       barRadius: 3,
       cursorWidth: 0,
-      interact: true,
+      interact: false,
       url: clip.url,
       plugins: [regions],
     });
     wsRef.current = ws;
 
-    /* Drag-to-select loop region */
+    /* ── Manual click-to-seek ──────────────────────────────────
+       We differentiate a tap (seek) from a drag (region select)
+       by tracking pointer movement and time between down→up.     */
+    const onPointerDown = (e: PointerEvent) => {
+      pointerDownRef.current = { x: e.clientX, y: e.clientY, t: Date.now() };
+    };
+    const onPointerUp = (e: PointerEvent) => {
+      const down = pointerDownRef.current;
+      if (!down) return;
+      const dx  = Math.abs(e.clientX - down.x);
+      const dt  = Date.now() - down.t;
+      pointerDownRef.current = null;
+      if (dx < 8 && dt < 400) {
+        // It's a tap — seek to that position
+        const rect    = el.getBoundingClientRect();
+        const progress = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        ws.seekTo(progress);
+      }
+    };
+    el.addEventListener("pointerdown", onPointerDown);
+    el.addEventListener("pointerup",   onPointerUp);
+
+    /* ── Drag-to-select loop region ──────────────────────────── */
     regions.enableDragSelection({ color: regionColor });
 
     regions.on("region-created", (region) => {
-      /* Remove previous regions */
       regions.getRegions().forEach((r) => { if (r.id !== region.id) r.remove(); });
       loopRegionRef.current = { start: region.start, end: region.end };
-      isLoopingRef.current = true;
+      isLoopingRef.current  = true;
       setIsLooping(true);
-      /* When playback leaves the region end, jump back to region start */
-      region.on("leave", () => {
-        if (isLoopingRef.current) ws.setTime(region.start);
-      });
     });
 
     regions.on("region-updated", (region) => {
@@ -254,24 +290,50 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip }: WaveformPlayerProps) {
     regions.on("region-removed", () => {
       if (regions.getRegions().length === 0) {
         loopRegionRef.current = null;
-        isLoopingRef.current = false;
+        isLoopingRef.current  = false;
         setIsLooping(false);
+      }
+    });
+
+    /* ── Loop enforcement via timeupdate ─────────────────────── */
+    ws.on("timeupdate", (currentTime) => {
+      const loop = loopRegionRef.current;
+      if (isLoopingRef.current && loop) {
+        if (currentTime >= loop.end) {
+          const dur = durationRef.current;
+          if (dur > 0) ws.seekTo(loop.start / dur);
+        }
       }
     });
 
     ws.on("ready", () => {
       const dur = ws.getDuration();
-      if (isFinite(dur) && dur > 0) setDuration(dur);
+      if (isFinite(dur) && dur > 0) {
+        durationRef.current = dur;
+        setDuration(dur);
+      }
       if (autoPlay) ws.play();
     });
     ws.on("play",   () => setPlaying(true));
     ws.on("pause",  () => setPlaying(false));
     ws.on("finish", () => setPlaying(false));
 
-    return () => { ws.destroy(); };
-  }, [clip.url, autoPlay]);
+    return () => {
+      el.removeEventListener("pointerdown", onPointerDown);
+      el.removeEventListener("pointerup",   onPointerUp);
+      ws.destroy();
+    };
+  // clip.url and autoPlay are stable per-clip; re-mounting would lose waveform state
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clip.url]);
 
-  /* Sync speed */
+  /* Auto-play on first render if requested */
+  useEffect(() => {
+    if (autoPlay) wsRef.current?.play();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* Sync playback rate */
   useEffect(() => {
     wsRef.current?.setPlaybackRate(speed, true);
   }, [speed]);
@@ -280,10 +342,13 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip }: WaveformPlayerProps) {
     const ws = wsRef.current;
     if (!ws) return;
     if (isLooping && loopRegionRef.current && !playing) {
-      /* Start from loop start if not inside the loop */
+      const dur = durationRef.current;
       const cur = ws.getCurrentTime();
       const { start, end } = loopRegionRef.current;
-      if (cur < start || cur > end) ws.setTime(start);
+      /* If cursor is outside the loop, rewind to loop start */
+      if (dur > 0 && (cur < start || cur >= end)) {
+        ws.seekTo(start / dur);
+      }
       ws.play();
     } else {
       ws.playPause();
@@ -291,13 +356,13 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip }: WaveformPlayerProps) {
   };
 
   const clearLoop = () => {
-    regionsPluginRef.current?.getRegions().forEach((r) => r.remove());
+    regionsRef.current?.getRegions().forEach((r) => r.remove());
   };
 
   return (
     <div className="space-y-2">
-      {/* Waveform canvas — drag across to create a loop region */}
-      <div ref={containerRef} className="w-full" />
+      {/* Waveform canvas */}
+      <div ref={containerRef} className="w-full cursor-pointer" />
 
       {/* Loop active indicator */}
       <AnimatePresence>
@@ -326,6 +391,7 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip }: WaveformPlayerProps) {
 
       {/* Controls: [play] [speed] ──── [save icon] [duration] */}
       <div className="flex items-center gap-2">
+
         {/* Play / Pause */}
         <motion.button
           onClick={togglePlay}
@@ -350,7 +416,9 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip }: WaveformPlayerProps) {
             }`}
           >
             {speed}×
-            <ChevronUp className={`w-2.5 h-2.5 transition-transform ${showSpeedPicker ? "" : "rotate-180"}`} />
+            <ChevronUp
+              className={`w-2.5 h-2.5 transition-transform ${showSpeedPicker ? "" : "rotate-180"}`}
+            />
           </motion.button>
 
           <AnimatePresence>
@@ -373,7 +441,9 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip }: WaveformPlayerProps) {
                     }`}
                   >
                     {s}×
-                    {s === 1 && <span className="text-[9px] text-muted-foreground/40 ml-2">default</span>}
+                    {s === 1 && (
+                      <span className="text-[9px] text-muted-foreground/40 ml-2">default</span>
+                    )}
                   </button>
                 ))}
                 {speed !== 1 && (
@@ -391,9 +461,9 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip }: WaveformPlayerProps) {
 
         <div className="flex-1" />
 
-        {/* Practice notes save icon */}
+        {/* Practice notes icon — opens SaveForm via parent callback */}
         <motion.button
-          onClick={() => setShowSaveForm(true)}
+          onClick={() => onOpenSaveForm?.()}
           whileTap={{ scale: 0.88 }}
           className={`flex items-center gap-1 transition-colors ${
             clip.noteTitle
@@ -402,11 +472,9 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip }: WaveformPlayerProps) {
           }`}
           title={clip.noteTitle ? `Note: ${clip.noteTitle}` : "Add practice notes"}
         >
-          {clip.noteTitle ? (
-            <span className="text-[10px] font-medium max-w-[72px] truncate">{clip.noteTitle}</span>
-          ) : (
-            <BookmarkPlus className="w-3.5 h-3.5" />
-          )}
+          {clip.noteTitle
+            ? <span className="text-[10px] font-medium max-w-[72px] truncate">{clip.noteTitle}</span>
+            : <BookmarkPlus className="w-3.5 h-3.5" />}
         </motion.button>
 
         {/* Duration */}
@@ -414,17 +482,6 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip }: WaveformPlayerProps) {
           {fmtTime(duration)}
         </span>
       </div>
-
-      {/* Save form */}
-      <AnimatePresence>
-        {showSaveForm && (
-          <SaveForm
-            clip={clip}
-            onSave={(updates) => { onUpdateClip?.(updates); setShowSaveForm(false); }}
-            onClose={() => setShowSaveForm(false)}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 }
@@ -436,6 +493,8 @@ interface NotesAreaProps {
   onChange: (val: string) => void;
   selectedTask: Task | null;
   onSelectTask: (task: Task | null) => void;
+  /** Whether a timer session is currently active (running or paused). */
+  isSessionActive: boolean;
   isRecording: boolean;
   isPaused: boolean;
   clips: AudioClip[];
@@ -454,6 +513,7 @@ export function NotesArea({
   onChange,
   selectedTask,
   onSelectTask,
+  isSessionActive,
   isRecording,
   isPaused,
   clips,
@@ -466,12 +526,20 @@ export function NotesArea({
   onDeleteClip,
   onCancelRecording,
 }: NotesAreaProps) {
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [editDraft, setEditDraft] = useState("");
-  const [pendingDeleteIndex, setPendingDeleteIndex] = useState<number | null>(null);
+  const [showCancelConfirm,   setShowCancelConfirm]   = useState(false);
+  const [editingIndex,        setEditingIndex]         = useState<number | null>(null);
+  const [editDraft,           setEditDraft]            = useState("");
+  const [pendingDeleteIndex,  setPendingDeleteIndex]   = useState<number | null>(null);
+  /**
+   * saveFormClipIndex — the index of the clip whose SaveForm is open.
+   * Null means no form is open. Lifted here so SaveForm renders at the
+   * fragment root (outside the glass-panel's backdrop-filter stacking
+   * context), which is required for the fixed backdrop to cover the
+   * full viewport correctly.
+   */
+  const [saveFormClipIndex,   setSaveFormClipIndex]    = useState<number | null>(null);
 
-  /* Track which clip index should auto-play (the most recently added one) */
+  /* Track auto-play for newly completed recordings */
   const prevClipsLenRef = useRef(clips.length);
   const [autoPlayIndex, setAutoPlayIndex] = useState<number | null>(null);
   useEffect(() => {
@@ -498,31 +566,37 @@ export function NotesArea({
     }
   };
 
-  const SHEET_EASE = EASE;
-
   return (
     <>
+    {/* ─────────────────────── Card ─────────────────────────── */}
     <div className="w-full glass-panel rounded-3xl p-1 overflow-hidden transition-all duration-300 focus-within:ring-4 focus-within:ring-primary/10">
       <div className="bg-card/50 rounded-[1.35rem] p-6 h-full flex flex-col">
 
-        {/* ── Header ── */}
+        {/* Header */}
         <div className="flex items-center mb-4">
           <div className="flex items-center gap-2 text-muted-foreground font-medium flex-1">
             <FileText className="w-4 h-4" />
             <span>Session Notes & Goals</span>
           </div>
 
+          {/* Mic button — disabled when no active session */}
           {!isRecording ? (
             <motion.button
-              onClick={onStartRecording}
-              whileTap={{ scale: 0.88 }}
-              className="w-8 h-8 rounded-full flex items-center justify-center bg-foreground/[0.06] hover:bg-foreground/[0.10] text-foreground/65 hover:text-foreground/90 transition-colors shrink-0"
+              onClick={isSessionActive ? onStartRecording : undefined}
+              whileTap={isSessionActive ? { scale: 0.88 } : {}}
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors shrink-0 ${
+                isSessionActive
+                  ? "bg-foreground/[0.06] hover:bg-foreground/[0.10] text-foreground/65 hover:text-foreground/90 cursor-pointer"
+                  : "bg-foreground/[0.03] text-foreground/20 cursor-not-allowed opacity-50"
+              }`}
               aria-label="Start voice recording"
-              title="Record a voice note"
+              title={isSessionActive ? "Record a voice note" : "Start a session to record"}
+              disabled={!isSessionActive}
             >
               <Mic className="w-4 h-4" />
             </motion.button>
           ) : (
+            /* Pulsing red dot while recording */
             <motion.span
               className="relative flex items-center justify-center h-5 w-5 mr-0.5 shrink-0"
               aria-label="Recording active"
@@ -537,7 +611,7 @@ export function NotesArea({
           )}
         </div>
 
-        {/* ── Inline recording controls ── */}
+        {/* Inline recording controls */}
         <AnimatePresence initial={false}>
           {isRecording && (
             <motion.div
@@ -550,8 +624,8 @@ export function NotesArea({
             >
               <motion.div
                 initial={{ y: 8, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                exit={{ y: 6, opacity: 0 }}
+                animate={{ y: 0,  opacity: 1 }}
+                exit={{ y: 6,     opacity: 0 }}
                 transition={{ duration: 0.17, ease: EASE }}
                 style={{ willChange: "transform, opacity" }}
                 className="flex items-center gap-2 rounded-2xl bg-destructive/8 border border-destructive/15 px-4 py-3"
@@ -620,7 +694,7 @@ export function NotesArea({
           )}
         </AnimatePresence>
 
-        {/* ── Saved clips ── */}
+        {/* Saved clips */}
         <AnimatePresence initial={false}>
           {clips.length > 0 && (
             <motion.div
@@ -640,7 +714,7 @@ export function NotesArea({
                   transition={{ duration: 0.18 }}
                   className="rounded-xl bg-secondary/30 border border-border/20 px-3 py-2.5 space-y-2"
                 >
-                  {/* Row 1: mic + label + rename + delete */}
+                  {/* Clip header: mic icon + editable label + rename + delete */}
                   <div className="flex items-center gap-2">
                     <Mic className="w-3 h-3 text-muted-foreground/35 shrink-0" />
 
@@ -651,7 +725,7 @@ export function NotesArea({
                         onChange={(e) => setEditDraft(e.target.value)}
                         onBlur={() => commitRename(i)}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter") commitRename(i);
+                          if (e.key === "Enter")  commitRename(i);
                           if (e.key === "Escape") setEditingIndex(null);
                         }}
                         className="flex-1 text-xs bg-transparent border-b border-primary/40 outline-none text-foreground/80 pb-0.5"
@@ -682,14 +756,15 @@ export function NotesArea({
                     </button>
                   </div>
 
-                  {/* Row 2: waveform + controls */}
+                  {/* Waveform + controls */}
                   <WaveformPlayer
                     clip={clip}
                     autoPlay={autoPlayIndex === i}
                     onUpdateClip={(updates) => onUpdateClip(i, updates)}
+                    onOpenSaveForm={() => setSaveFormClipIndex(i)}
                   />
 
-                  {/* Note title badge */}
+                  {/* Notes preview under the clip */}
                   {clip.noteNotes && (
                     <p className="text-[11px] text-muted-foreground/55 leading-relaxed border-t border-border/20 pt-2 mt-1">
                       {clip.noteNotes}
@@ -701,7 +776,7 @@ export function NotesArea({
           )}
         </AnimatePresence>
 
-        {/* ── Textarea ── */}
+        {/* Text notes textarea */}
         <textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -709,13 +784,30 @@ export function NotesArea({
           className="w-full flex-1 min-h-[120px] bg-transparent border-none resize-none outline-none text-foreground placeholder:text-muted-foreground/60 leading-relaxed"
         />
 
-        {/* ── Divider + Task selector ── */}
+        {/* Divider + task selector */}
         <div className="h-px w-full bg-border/40 my-4" />
         <TaskSelector selectedTask={selectedTask} onSelectTask={onSelectTask} />
       </div>
     </div>
 
-    {/* ── Delete confirmation sheet ── */}
+    {/* ── SaveForm bottom sheet ─────────────────────────────────
+        Rendered here, outside the glass-panel, so the fixed
+        backdrop/sheet are in the root stacking context.          */}
+    <AnimatePresence>
+      {saveFormClipIndex !== null && clips[saveFormClipIndex] && (
+        <SaveForm
+          key={`save-form-${saveFormClipIndex}`}
+          clip={clips[saveFormClipIndex]}
+          onSave={(updates) => {
+            onUpdateClip(saveFormClipIndex, updates);
+            setSaveFormClipIndex(null);
+          }}
+          onClose={() => setSaveFormClipIndex(null)}
+        />
+      )}
+    </AnimatePresence>
+
+    {/* ── Delete confirmation sheet ───────────────────────────── */}
     <AnimatePresence>
       {pendingDeleteIndex !== null && (
         <>
@@ -726,17 +818,16 @@ export function NotesArea({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
             className="fixed inset-0 z-40 bg-black/40"
-            style={{ willChange: "opacity" }}
             onClick={() => setPendingDeleteIndex(null)}
           />
           <motion.div
             key="delete-sheet"
             initial={{ y: 16, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 12, opacity: 0 }}
-            transition={{ duration: 0.2, ease: SHEET_EASE }}
+            animate={{ y: 0,  opacity: 1 }}
+            exit={{ y: 12,    opacity: 0 }}
+            transition={{ duration: 0.2, ease: EASE }}
             style={{ willChange: "transform, opacity" }}
-            className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-8 pt-0"
+            className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-8"
           >
             <div className="w-full max-w-md mx-auto bg-card rounded-3xl shadow-2xl overflow-hidden">
               <div className="flex justify-center pt-3 pb-1">

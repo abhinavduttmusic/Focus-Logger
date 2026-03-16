@@ -422,6 +422,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                         onChange={setNotes}
                         selectedTask={selectedTask}
                         onSelectTask={setSelectedTask}
+                        isSessionActive={sessionIsInProgress}
                         isRecording={recorder.isRecording}
                         isPaused={recorder.isPaused}
                         clips={recorder.clips}
