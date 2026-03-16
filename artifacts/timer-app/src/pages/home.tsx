@@ -3,7 +3,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCreateSession, getListSessionsQueryKey } from "@workspace/api-client-react";
 import type { SessionType, Task } from "@workspace/api-client-react/src/generated/api.schemas";
 import { useTimer, type TimerMode, type TimerInitialState } from "@/hooks/use-timer";
-import { useVoiceRecorder, type AudioClip } from "@/hooks/use-voice-recorder";
 import {
   loadSession,
   saveSession,
@@ -11,58 +10,20 @@ import {
   buildPersistedState,
   type RestoredSession,
 } from "@/hooks/use-session-persistence";
-import { XCircle, LayoutList, Calendar, ArrowRight } from "lucide-react";
+import { LayoutList, Calendar } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { ConfirmBannerInline, CONFIRM_TAP } from "@/components/ui/confirm-banner";
 
 import { TimerToggle } from "@/components/timer/TimerToggle";
 import { TimerDisplay } from "@/components/timer/TimerDisplay";
-import { TaskSelector } from "@/components/timer/TaskSelector";
 import { NotesArea } from "@/components/timer/NotesArea";
 import { SessionList } from "@/components/timer/SessionList";
-import { VoiceRecorder } from "@/components/timer/VoiceRecorder";
 import { BottomNav, type Tab } from "@/components/nav/BottomNav";
 import { CalendarView } from "@/components/calendar/CalendarView";
 import { TasksTab } from "@/components/tasks/TasksTab";
 import { StatsTab } from "@/components/stats/StatsTab";
 
-const BASE = import.meta.env.BASE_URL;
-
 const TAB_TRANSITION = { duration: 0.2, ease: [0.22, 1, 0.36, 1] as const };
-
-async function uploadClips(sessionId: number, clips: AudioClip[]) {
-  for (const clip of clips) {
-    const urlRes = await fetch(`${BASE}api/storage/uploads/request-url`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: `recording-${Date.now()}.webm`,
-        size: clip.blob.size,
-        contentType: clip.blob.type || "audio/webm",
-      }),
-    });
-    const { uploadURL, objectPath } = await urlRes.json();
-
-    await fetch(uploadURL, {
-      method: "PUT",
-      headers: { "Content-Type": clip.blob.type || "audio/webm" },
-      body: clip.blob,
-    });
-
-    await fetch(`${BASE}api/recordings`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sessionId,
-        objectPath,
-        label: clip.label || null,
-        durationSeconds: clip.durationSeconds,
-        offsetSeconds: clip.offsetSeconds,
-      }),
-    });
-  }
-}
 
 export default function HomeLoader() {
   const [restored, setRestored] = useState<RestoredSession | null | undefined>(undefined);
@@ -82,6 +43,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const [showViewSwitcher, setShowViewSwitcher] = useState(true);
   const switcherRef = useRef<HTMLDivElement>(null);
   const suppressDismissRef = useRef(false);
+
   const [notes, setNotes] = useState(restored?.notes ?? "");
   const [selectedTask, setSelectedTask] = useState<Task | null>(
     restored?.selectedTask
@@ -94,23 +56,6 @@ function Home({ restored }: { restored: RestoredSession | null }) {
       : null,
   );
 
-  // Ref so onSuccess closure always reads the latest selectedTask
-  const selectedTaskRef = useRef<Task | null>(null);
-  selectedTaskRef.current = selectedTask;
-
-  // Last task used in a completed session — persisted to localStorage
-  const [lastTask, setLastTask] = useState<{
-    id: number;
-    name: string;
-    projectId: number | null;
-    projectName: string | null;
-  } | null>(() => {
-    try {
-      const raw = localStorage.getItem("flow-last-task");
-      return raw ? JSON.parse(raw) : null;
-    } catch { return null; }
-  });
-
   const timerInitialState: TimerInitialState | undefined = restored
     ? {
         mode: restored.timer.mode,
@@ -122,45 +67,14 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     : undefined;
 
   const queryClient = useQueryClient();
-  const recorder = useVoiceRecorder(restored?.clips);
-  const pendingClipsRef = useRef<AudioClip[]>([]);
-  const recorderRef = useRef(recorder);
-  recorderRef.current = recorder;
 
   const createSession = useCreateSession({
     mutation: {
-      onSuccess: async (session) => {
-        const clipsToUpload = pendingClipsRef.current;
-        pendingClipsRef.current = [];
-
-        // Persist the last used task before we clear selectedTask
-        const finishedTask = selectedTaskRef.current;
-        if (finishedTask) {
-          const entry = {
-            id: finishedTask.id,
-            name: finishedTask.name,
-            projectId: finishedTask.projectId ?? null,
-            projectName: finishedTask.projectName ?? null,
-          };
-          try { localStorage.setItem("flow-last-task", JSON.stringify(entry)); } catch {}
-          setLastTask(entry);
-        }
-
+      onSuccess: async () => {
         clearSession();
-
         queryClient.invalidateQueries({ queryKey: getListSessionsQueryKey() });
         setNotes("");
         setSelectedTask(null);
-        recorderRef.current.clearClips();
-
-        if (clipsToUpload.length > 0) {
-          try {
-            await uploadClips(session.id, clipsToUpload);
-            queryClient.invalidateQueries({ queryKey: getListSessionsQueryKey() });
-          } catch (err) {
-            console.error("Failed to upload recordings:", err);
-          }
-        }
       },
       onError: (err) => {
         console.error("Failed to create session:", err);
@@ -170,18 +84,6 @@ function Home({ restored }: { restored: RestoredSession | null }) {
 
   const handleLogSession = useCallback(
     async (type: SessionType, durationSeconds: number) => {
-      const rec = recorderRef.current;
-      const allClips = [...rec.clips];
-
-      if (rec.isRecording) {
-        const finalClipPromise = rec.stopRecording();
-        if (finalClipPromise) {
-          const finalClip = await finalClipPromise;
-          allClips.push(finalClip);
-        }
-      }
-
-      pendingClipsRef.current = allClips;
       createSession.mutate({
         data: {
           type,
@@ -199,7 +101,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     initialState: timerInitialState,
   });
 
-  // Swipe-to-switch-mode gesture state
+  // Swipe-to-switch-mode gesture
   const modeDir = useRef<"left" | "right">("left");
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
 
@@ -223,9 +125,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     handleModeChange(dx < 0 ? "simple" : "pomodoro");
   }, [handleModeChange]);
 
-  // Dismiss switcher when tapping outside it.
-  // suppressDismissRef prevents the document listener from firing on the same
-  // click that toggled the switcher via the Activity tab (BottomNav double-tap).
+  // Dismiss activity view switcher when tapping outside
   useEffect(() => {
     if (!showViewSwitcher || activeTab !== "activity") return;
     function handleDocClick(e: MouseEvent) {
@@ -243,9 +143,6 @@ function Home({ restored }: { restored: RestoredSession | null }) {
 
   const handleTabChange = useCallback((tab: Tab) => {
     if (tab === activeTab && tab === "activity") {
-      // Double-tap Activity tab: toggle the switcher.
-      // Set the flag so the document listener (which fires on the same click
-      // as it bubbles to document) does not also dismiss the switcher.
       suppressDismissRef.current = true;
       setShowViewSwitcher(prev => !prev);
     } else {
@@ -255,6 +152,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
+  // Session persistence — debounced save
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -266,7 +164,6 @@ function Home({ restored }: { restored: RestoredSession | null }) {
         timer.startTimestamp !== null ||
         timer.elapsedAtPause > 0 ||
         (timer.mode === "simple" && timer.seconds > 0) ||
-        recorder.clips.length > 0 ||
         notes.trim().length > 0 ||
         selectedTask !== null;
 
@@ -288,9 +185,9 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                 projectName: selectedTask.projectName ?? null,
               }
             : null,
-          recorder.clips,
+          [],
         );
-        saveSession(state, recorder.clips);
+        saveSession(state, []);
       } else {
         clearSession();
       }
@@ -307,40 +204,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     timer.elapsedAtPause,
     notes,
     selectedTask,
-    recorder.clips,
   ]);
-
-  const handleStartRecording = useCallback(() => {
-    const elapsed =
-      timer.mode === "simple" ? timer.seconds : 25 * 60 - timer.seconds;
-    recorder.startRecording(elapsed);
-  }, [recorder, timer.mode, timer.seconds]);
-
-  const [showAbortConfirm, setShowAbortConfirm] = useState(false);
-  const [showAbortConfirm2, setShowAbortConfirm2] = useState(false);
-
-  const handleAbort = useCallback(() => {
-    timer.reset();
-    if (recorderRef.current.isRecording) {
-      recorderRef.current.discardAndStop();
-    }
-    recorderRef.current.clearClips();
-    setNotes("");
-    setSelectedTask(null);
-    clearSession();
-    setShowAbortConfirm(false);
-    setShowAbortConfirm2(false);
-  }, [timer]);
-
-  const sessionIsInProgress =
-    timer.isActive || timer.elapsedAtPause > 0 || (timer.mode === "simple" && timer.seconds > 0);
-
-  useEffect(() => {
-    if (!sessionIsInProgress) {
-      setShowAbortConfirm(false);
-      setShowAbortConfirm2(false);
-    }
-  }, [sessionIsInProgress]);
 
   const handleRestart = useCallback(
     (task: { id: number; name: string; projectId: number | null; projectName: string | null } | null, sessionNotes: string) => {
@@ -355,9 +219,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
         setSelectedTask(null);
       }
       setNotes(sessionNotes);
-
       timer.restartAs("simple");
-
       setActiveTab("timer");
     },
     [timer],
@@ -377,10 +239,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
           return (
             <motion.div
               key={tab}
-              animate={{
-                opacity: isActive ? 1 : 0,
-                y: isActive ? 0 : 8,
-              }}
+              animate={{ opacity: isActive ? 1 : 0, y: isActive ? 0 : 8 }}
               transition={TAB_TRANSITION}
               className={
                 tab === "timer"
@@ -395,29 +254,25 @@ function Home({ restored }: { restored: RestoredSession | null }) {
               {tab === "timer" && (
                 <main className="w-full pt-6 pb-6 px-4 sm:px-6 flex flex-col items-center">
                   <div className="w-full max-w-md space-y-4">
+
+                    {/* Mode toggle */}
                     <div className="text-center">
                       <TimerToggle mode={timer.mode} onChange={handleModeChange} />
                     </div>
 
+                    {/* Timer digits + controls */}
                     <section className="relative">
                       <div className="absolute inset-0 -z-10 flex items-center justify-center pointer-events-none">
                         <motion.div
                           className={`w-64 h-64 rounded-full blur-[100px] transition-colors duration-1000 ${glowColorClass}`}
                           animate={
                             timer.isActive
-                              ? {
-                                  scale: [1, 1.08, 1],
-                                  opacity: [0.4, 0.55, 0.4],
-                                }
+                              ? { scale: [1, 1.08, 1], opacity: [0.4, 0.55, 0.4] }
                               : { scale: 1, opacity: 0.4 }
                           }
                           transition={
                             timer.isActive
-                              ? {
-                                  duration: 3.5,
-                                  repeat: Infinity,
-                                  ease: "easeInOut",
-                                }
+                              ? { duration: 3.5, repeat: Infinity, ease: "easeInOut" }
                               : { duration: 0.6 }
                           }
                         />
@@ -445,126 +300,30 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                           modeDir={modeDir}
                         />
                       </div>
-
-                      {sessionIsInProgress && (
-                        <div className="flex justify-center mt-4">
-                          <AnimatePresence mode="wait">
-                            {!showAbortConfirm ? (
-                              <motion.button
-                                key="abort-trigger"
-                                onClick={() => setShowAbortConfirm(true)}
-                                whileTap={{ scale: 0.96 }}
-                                transition={{ duration: 0.12, ease: "easeOut" }}
-                                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
-                              >
-                                <XCircle className="w-3.5 h-3.5" />
-                                Abort Session
-                              </motion.button>
-                            ) : showAbortConfirm2 ? (
-                              <ConfirmBannerInline key="abort-step2" message="End session already? Progress won't be saved if you stop now.">
-                                <motion.button
-                                  onClick={handleAbort}
-                                  {...CONFIRM_TAP}
-                                  className="px-2.5 py-1 rounded-md bg-destructive/90 text-destructive-foreground text-[11px] font-medium hover:bg-destructive transition-colors"
-                                >
-                                  Yes, abort it
-                                </motion.button>
-                                <motion.button
-                                  onClick={() => { setShowAbortConfirm(false); setShowAbortConfirm2(false); }}
-                                  {...CONFIRM_TAP}
-                                  className="px-2.5 py-1 rounded-md bg-secondary/60 text-foreground/70 text-[11px] font-medium hover:bg-secondary transition-colors"
-                                >
-                                  Keep going
-                                </motion.button>
-                              </ConfirmBannerInline>
-                            ) : (
-                              <ConfirmBannerInline key="abort-step1" message="Abort this session? This session will not be saved.">
-                                <motion.button
-                                  onClick={() => setShowAbortConfirm2(true)}
-                                  {...CONFIRM_TAP}
-                                  className="px-2.5 py-1 rounded-md bg-destructive/90 text-destructive-foreground text-[11px] font-medium hover:bg-destructive transition-colors"
-                                >
-                                  Abort
-                                </motion.button>
-                                <motion.button
-                                  onClick={() => setShowAbortConfirm(false)}
-                                  {...CONFIRM_TAP}
-                                  className="px-2.5 py-1 rounded-md bg-secondary/60 text-foreground/70 text-[11px] font-medium hover:bg-secondary transition-colors"
-                                >
-                                  Cancel
-                                </motion.button>
-                              </ConfirmBannerInline>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      )}
                     </section>
 
-                    {/* ── Task chip ── */}
-                    <section className="flex flex-col items-center gap-2">
-                      {/* Feature 3: "Continue last task" suggestion */}
-                      <AnimatePresence>
-                        {!selectedTask && lastTask && (
-                          <motion.div
-                            key="continue-suggestion"
-                            initial={{ opacity: 0, y: -6 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -6 }}
-                            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-                            className="flex items-center gap-2.5"
-                          >
-                            <span className="text-xs text-muted-foreground/55 whitespace-nowrap">
-                              Continue
-                            </span>
-                            <button
-                              onClick={() => setSelectedTask(lastTask as Task)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/8 hover:bg-primary/12 border border-primary/10 hover:border-primary/20 rounded-full text-sm font-medium text-primary transition-colors touch-manipulation max-w-[260px]"
-                            >
-                              <span className="truncate">{lastTask.name}</span>
-                              <ArrowRight className="w-3.5 h-3.5 shrink-0" />
-                            </button>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-
-                      {/* Feature 1: task selector strip */}
-                      <TaskSelector
+                    {/* Session Notes & Goals */}
+                    <section>
+                      <NotesArea
+                        value={notes}
+                        onChange={setNotes}
                         selectedTask={selectedTask}
                         onSelectTask={setSelectedTask}
                       />
                     </section>
 
-                    <section className="space-y-4">
-                      <VoiceRecorder
-                        isActive={
-                          timer.isActive &&
-                          (timer.mode === "simple" || timer.phase === "focus")
-                        }
-                        isRecording={recorder.isRecording}
-                        isPaused={recorder.isPaused}
-                        clips={recorder.clips}
-                        onStartRecording={handleStartRecording}
-                        onStopRecording={recorder.stopRecording}
-                        onPauseRecording={recorder.pauseRecording}
-                        onResumeRecording={recorder.resumeRecording}
-                        onRenameClip={recorder.renameClip}
-                        onCancelRecording={recorder.discardAndStop}
-                      />
-                      <NotesArea
-                        value={notes}
-                        onChange={setNotes}
-                      />
-                    </section>
                   </div>
                 </main>
               )}
+
               {tab === "tasks" && (
                 <TasksTab isActive={activeTab === "tasks"} />
               )}
+
               {tab === "stats" && <StatsTab />}
+
               {tab === "activity" && (
                 <div className="absolute inset-0">
-                  {/* Logs panel — both panels always mounted for scroll preservation */}
                   <motion.div
                     animate={{ opacity: activityView === "logs" ? 1 : 0, x: activityView === "logs" ? 0 : -24 }}
                     transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
@@ -581,7 +340,6 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                     </div>
                   </motion.div>
 
-                  {/* Calendar panel */}
                   <motion.div
                     animate={{ opacity: activityView === "calendar" ? 1 : 0, x: activityView === "calendar" ? 0 : 24 }}
                     transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
@@ -593,7 +351,6 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                   >
                     <CalendarView isActive={activeTab === "activity" && activityView === "calendar"} />
                   </motion.div>
-
                 </div>
               )}
             </motion.div>
@@ -601,7 +358,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
         })}
       </div>
 
-      {/* Activity view switcher — sits above the bottom nav in the thumb zone */}
+      {/* Activity view switcher */}
       <AnimatePresence>
         {activeTab === "activity" && showViewSwitcher && (
           <motion.div
@@ -622,9 +379,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                   key={view}
                   whileTap={{ scale: 0.91 }}
                   transition={{ duration: 0.1, ease: [0.22, 1, 0.36, 1] }}
-                  onClick={() => {
-                    setActivityView(view);
-                  }}
+                  onClick={() => setActivityView(view)}
                   aria-label={label}
                   className={cn(
                     "w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-150",
@@ -644,7 +399,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
       <BottomNav
         activeTab={activeTab}
         onChange={handleTabChange}
-        sessionIsInProgress={sessionIsInProgress}
+        sessionIsInProgress={false}
       />
     </div>
   );
