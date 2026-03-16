@@ -13,5 +13,7 @@ export interface Recording {
   label: string | null;
   durationSeconds: number;
   offsetSeconds: number;
+  noteTitle: string | null;
+  noteNotes: string | null;
   createdAt: Date;
 }

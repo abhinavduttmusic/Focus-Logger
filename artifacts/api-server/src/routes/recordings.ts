@@ -14,6 +14,8 @@ router.post("/recordings", async (req, res) => {
       label: body.label ?? null,
       durationSeconds: body.durationSeconds,
       offsetSeconds: body.offsetSeconds,
+      noteTitle: body.noteTitle ?? null,
+      noteNotes: body.noteNotes ?? null,
     })
     .returning();
 

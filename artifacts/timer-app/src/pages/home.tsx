@@ -54,6 +54,8 @@ async function uploadClips(sessionId: number, clips: AudioClip[]) {
         label: clip.label || null,
         durationSeconds: clip.durationSeconds,
         offsetSeconds: clip.offsetSeconds,
+        noteTitle: clip.noteTitle ?? null,
+        noteNotes: clip.noteNotes ?? null,
       }),
     });
   }

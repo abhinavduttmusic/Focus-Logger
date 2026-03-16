@@ -1,11 +1,12 @@
-import { useState, useRef, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useListSessions, useDeleteSession, useUpdateSession, getListSessionsQueryKey, getListTasksQueryKey } from "@workspace/api-client-react";
 import type { UpdateSessionRequest } from "@workspace/api-client-react/src/generated/api.schemas";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { formatShortDuration, cn } from "@/lib/utils";
-import { Trash2, History, Play, Pause, ChevronDown, Mic, ListOrdered, Pencil, Check, X } from "lucide-react";
+import { Trash2, History, Play, ChevronDown, ListOrdered, Pencil, Check, X } from "lucide-react";
 import { motion, AnimatePresence, type Transition } from "framer-motion";
+import { ActivityRecordingPlayer } from "./ActivityRecordingPlayer";
 
 const TAP_SPRING: Transition = { duration: 0.12, ease: "easeOut" };
 import { SessionTaskPicker } from "./SessionTaskPicker";
@@ -19,6 +20,8 @@ type RecordingItem = {
   label: string | null;
   durationSeconds: number;
   offsetSeconds: number;
+  noteTitle?: string | null;
+  noteNotes?: string | null;
   createdAt: string;
 };
 
@@ -118,116 +121,6 @@ function formatOffset(seconds: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-const AUDIO_PLAY_EVENT = "flowstate-audio-play";
-
-function fmtTime(sec: number | null | undefined): string {
-  if (sec == null || !isFinite(sec) || isNaN(sec)) return "--:--";
-  const m = Math.floor(sec / 60);
-  const s = Math.floor(sec % 60);
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-}
-
-function PlayableRecording({ rec, indexInSession }: { rec: RecordingItem; indexInSession: number }) {
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const [playing, setPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState<number>(rec.durationSeconds);
-  const idRef = useRef(crypto.randomUUID());
-
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      if (detail !== idRef.current && audioRef.current) {
-        audioRef.current.pause();
-        setPlaying(false);
-      }
-    };
-    window.addEventListener(AUDIO_PLAY_EVENT, handler);
-    return () => window.removeEventListener(AUDIO_PLAY_EVENT, handler);
-  }, []);
-
-  const toggle = async () => {
-    if (!audioRef.current) return;
-    if (playing) {
-      audioRef.current.pause();
-      setPlaying(false);
-    } else {
-      window.dispatchEvent(new CustomEvent(AUDIO_PLAY_EVENT, { detail: idRef.current }));
-      try {
-        await audioRef.current.play();
-        setPlaying(true);
-      } catch { /* browser blocked autoplay */ }
-    }
-  };
-
-  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const time = Number(e.target.value);
-    if (audioRef.current) {
-      audioRef.current.currentTime = time;
-      setCurrentTime(time);
-    }
-  };
-
-  return (
-    <div className="flex flex-col gap-1.5 px-3 py-2 rounded-lg bg-card/30 border border-border/15">
-      <audio
-        ref={audioRef}
-        src={`${BASE}api/storage${rec.objectPath}`}
-        preload="metadata"
-        onEnded={() => { setPlaying(false); setCurrentTime(0); }}
-        onTimeUpdate={() => audioRef.current && setCurrentTime(audioRef.current.currentTime)}
-        onLoadedMetadata={() => {
-          if (audioRef.current && isFinite(audioRef.current.duration) && audioRef.current.duration > 0) {
-            setDuration(audioRef.current.duration);
-          }
-        }}
-        onDurationChange={() => {
-          if (audioRef.current && isFinite(audioRef.current.duration) && audioRef.current.duration > 0) {
-            setDuration(audioRef.current.duration);
-          }
-        }}
-        className="hidden"
-      />
-      <div className="flex items-center gap-2">
-        <span className="text-[11px] text-muted-foreground/50 tabular-nums shrink-0">
-          {formatOffset(rec.offsetSeconds)}
-        </span>
-        <Mic className="w-3 h-3 text-muted-foreground/40 shrink-0" />
-        <span className="flex-1 min-w-0 text-xs text-foreground/70 truncate">
-          {rec.label || `Recording ${indexInSession + 1}`}
-        </span>
-      </div>
-      <div className="flex items-center gap-2">
-        <button
-          onClick={toggle}
-          className="p-1.5 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-secondary/40 transition-colors shrink-0 min-w-[32px] min-h-[32px] flex items-center justify-center"
-          aria-label={playing ? "Pause" : "Play"}
-        >
-          {playing ? (
-            <Pause className="w-3.5 h-3.5" fill="currentColor" />
-          ) : (
-            <Play className="w-3.5 h-3.5" fill="currentColor" />
-          )}
-        </button>
-        <span className="text-[10px] text-muted-foreground/50 tabular-nums shrink-0 w-[34px] text-right">
-          {fmtTime(currentTime)}
-        </span>
-        <input
-          type="range"
-          min={0}
-          max={duration ?? 1}
-          step={0.1}
-          value={currentTime}
-          onChange={handleSeek}
-          className="flex-1 h-1.5 rounded-full appearance-none bg-border/30 cursor-pointer touch-manipulation [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:shadow-sm [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:border-0"
-        />
-        <span className="text-[10px] text-muted-foreground/50 tabular-nums shrink-0 w-[34px]">
-          {fmtTime(duration)}
-        </span>
-      </div>
-    </div>
-  );
-}
 
 function EditSessionForm({
   session,
@@ -609,17 +502,37 @@ export function SessionList({ onRestart }: SessionListProps) {
                                     )}
                                   </AnimatePresence>
                                   {sortedRecs.length > 0 && (
-                                    <div className="ml-3 space-y-1">
-                                      <div className="flex items-center gap-1.5 px-3 pt-1">
+                                    <motion.div
+                                      className="ml-3 space-y-2 mt-1"
+                                      initial={{ opacity: 0, height: 0 }}
+                                      animate={{ opacity: 1, height: "auto" }}
+                                      transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                                    >
+                                      <div className="flex items-center gap-1.5 px-1 pb-0.5">
                                         <ListOrdered className="w-3 h-3 text-muted-foreground/40" />
-                                        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/40">
+                                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">
                                           Session Timeline
                                         </span>
                                       </div>
                                       {sortedRecs.map((rec, idx) => (
-                                        <PlayableRecording key={rec.id} rec={rec} indexInSession={idx} />
+                                        <motion.div
+                                          key={rec.id}
+                                          initial={{ opacity: 0, y: -6 }}
+                                          animate={{ opacity: 1, y: 0 }}
+                                          transition={{ duration: 0.2, delay: idx * 0.05, ease: [0.22, 1, 0.36, 1] }}
+                                        >
+                                          <ActivityRecordingPlayer
+                                            url={`${BASE}api/storage${rec.objectPath}`}
+                                            durationSeconds={rec.durationSeconds}
+                                            label={rec.label}
+                                            noteTitle={rec.noteTitle}
+                                            noteNotes={rec.noteNotes}
+                                            indexInSession={idx}
+                                            offsetSeconds={rec.offsetSeconds}
+                                          />
+                                        </motion.div>
                                       ))}
-                                    </div>
+                                    </motion.div>
                                   )}
                                 </motion.div>
                               );

@@ -10,6 +10,8 @@ export const recordingsTable = pgTable("recordings", {
   label: text("label"),
   durationSeconds: integer("duration_seconds").notNull(),
   offsetSeconds: integer("offset_seconds").notNull(),
+  noteTitle: text("note_title"),
+  noteNotes: text("note_notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

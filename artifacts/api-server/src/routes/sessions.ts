@@ -22,6 +22,8 @@ router.get("/sessions", async (_req, res) => {
       recordingLabel: recordingsTable.label,
       recordingDurationSeconds: recordingsTable.durationSeconds,
       recordingOffsetSeconds: recordingsTable.offsetSeconds,
+      recordingNoteTitle: recordingsTable.noteTitle,
+      recordingNoteNotes: recordingsTable.noteNotes,
       recordingCreatedAt: recordingsTable.createdAt,
     })
     .from(sessionsTable)
@@ -54,6 +56,8 @@ router.get("/sessions", async (_req, res) => {
         label: row.recordingLabel,
         durationSeconds: row.recordingDurationSeconds,
         offsetSeconds: row.recordingOffsetSeconds,
+        noteTitle: row.recordingNoteTitle,
+        noteNotes: row.recordingNoteNotes,
         createdAt: row.recordingCreatedAt,
       });
     }
@@ -159,6 +163,8 @@ router.patch("/sessions/:id", async (req, res) => {
       label: r.label,
       durationSeconds: r.durationSeconds,
       offsetSeconds: r.offsetSeconds,
+      noteTitle: r.noteTitle,
+      noteNotes: r.noteNotes,
       createdAt: r.createdAt,
     })),
   });
