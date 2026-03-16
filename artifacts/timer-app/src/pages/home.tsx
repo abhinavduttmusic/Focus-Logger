@@ -215,7 +215,10 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     recorder.startRecording(elapsed);
   }, [recorder, timer.mode, timer.seconds]);
 
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+
   const handleAbort = useCallback(() => {
+    setShowDiscardConfirm(false);
     timer.reset();
     if (recorderRef.current.isRecording) {
       recorderRef.current.discardAndStop();
@@ -393,13 +396,13 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                           className="flex flex-col items-center gap-3"
                         >
                           <motion.button
-                            onClick={handleAbort}
+                            onClick={() => setShowDiscardConfirm(true)}
                             whileTap={{ scale: 0.96 }}
                             transition={{ duration: 0.12, ease: "easeOut" }}
                             className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
                           >
                             <XCircle className="w-3.5 h-3.5" />
-                            Abort Session
+                            Discard Session
                           </motion.button>
 
                           <VoiceRecorder
@@ -512,6 +515,57 @@ function Home({ restored }: { restored: RestoredSession | null }) {
               ))}
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Discard Session confirmation bottom-sheet */}
+      <AnimatePresence>
+        {showDiscardConfirm && (
+          <>
+            <motion.div
+              key="discard-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]"
+              onClick={() => setShowDiscardConfirm(false)}
+            />
+            <motion.div
+              key="discard-sheet"
+              initial={{ y: "100%", opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: "100%", opacity: 0 }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              className="fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-3xl px-6 pt-5 pb-10 shadow-xl"
+            >
+              <div className="w-10 h-1 bg-border/40 rounded-full mx-auto mb-6" />
+              <h2 className="text-lg font-semibold text-foreground text-center mb-2">
+                Discard this session?
+              </h2>
+              <p className="text-sm text-muted-foreground text-center mb-8">
+                Your current timer progress will be lost.
+              </p>
+              <div className="flex flex-col gap-3">
+                <motion.button
+                  onClick={handleAbort}
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ duration: 0.12, ease: "easeOut" }}
+                  className="w-full py-3.5 rounded-2xl bg-destructive/10 text-destructive font-semibold text-sm hover:bg-destructive/15 transition-colors"
+                >
+                  Discard Session
+                </motion.button>
+                <motion.button
+                  onClick={() => setShowDiscardConfirm(false)}
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ duration: 0.12, ease: "easeOut" }}
+                  className="w-full py-3.5 rounded-2xl bg-secondary/50 text-foreground/70 font-medium text-sm hover:bg-secondary/70 transition-colors"
+                >
+                  Cancel
+                </motion.button>
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 
