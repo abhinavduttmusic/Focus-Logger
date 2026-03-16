@@ -403,25 +403,16 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                         }}
                         className="select-none"
                       >
-                        <AnimatePresence mode="popLayout" initial={false}>
-                          <motion.div
-                            key={timer.mode}
-                            initial={{ opacity: 0, x: modeDir.current === "left" ? 40 : -40 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: modeDir.current === "left" ? -40 : 40 }}
-                            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-                          >
-                            <TimerDisplay
-                              mode={timer.mode}
-                              phase={timer.phase}
-                              seconds={timer.seconds}
-                              isActive={timer.isActive}
-                              onStart={timer.start}
-                              onPause={timer.pause}
-                              onStop={timer.stop}
-                            />
-                          </motion.div>
-                        </AnimatePresence>
+                        <TimerDisplay
+                          mode={timer.mode}
+                          phase={timer.phase}
+                          seconds={timer.seconds}
+                          isActive={timer.isActive}
+                          onStart={timer.start}
+                          onPause={timer.pause}
+                          onStop={timer.stop}
+                          modeDir={modeDir}
+                        />
                       </div>
 
                       {sessionIsInProgress && (

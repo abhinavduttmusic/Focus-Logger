@@ -1,7 +1,9 @@
 import { formatTime, cn } from "@/lib/utils";
 import type { TimerMode, PomodoroPhase } from "@/hooks/use-timer";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Play, Square, Pause } from "lucide-react";
+
+const EASE = [0.22, 1, 0.36, 1] as const;
 
 interface TimerDisplayProps {
   mode: TimerMode;
@@ -11,28 +13,53 @@ interface TimerDisplayProps {
   onStart: () => void;
   onPause: () => void;
   onStop: () => void;
+  modeDir: React.MutableRefObject<"left" | "right">;
 }
 
-export function TimerDisplay({ mode, phase, seconds, isActive, onStart, onPause, onStop }: TimerDisplayProps) {
+export function TimerDisplay({
+  mode,
+  phase,
+  seconds,
+  isActive,
+  onStart,
+  onPause,
+  onStop,
+  modeDir,
+}: TimerDisplayProps) {
   const isPomodoro = mode === "pomodoro";
 
   return (
     <div className="flex flex-col items-center justify-center py-12">
 
-      {/* Timer digits */}
-      <div className="relative flex items-center justify-center">
-        <motion.div
-          className={cn(
-            "font-mono text-[8rem] sm:text-[10rem] leading-none tracking-tighter transition-colors duration-500",
-            !isPomodoro ? "text-primary" : phase === "focus" ? "text-focus" : "text-break"
-          )}
-          style={{ fontVariantNumeric: "tabular-nums" }}
-        >
-          {formatTime(seconds)}
-        </motion.div>
+      {/* Digits — only this element animates when the mode switches.
+          overflow-hidden clips the exiting digit so it doesn't paint
+          outside the digit area during the horizontal slide. */}
+      <div className="relative flex items-center justify-center overflow-hidden">
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.div
+            key={mode}
+            initial={{ opacity: 0, x: modeDir.current === "left" ? 40 : -40 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: modeDir.current === "left" ? -40 : 40 }}
+            transition={{ duration: 0.2, ease: EASE }}
+            className={cn(
+              "font-mono text-[8rem] sm:text-[10rem] leading-none tracking-tighter transition-colors duration-500",
+              !isPomodoro
+                ? "text-primary"
+                : phase === "focus"
+                  ? "text-focus"
+                  : "text-break"
+            )}
+            style={{ fontVariantNumeric: "tabular-nums" }}
+          >
+            {formatTime(seconds)}
+          </motion.div>
+        </AnimatePresence>
       </div>
 
-      {/* Controls — isolated from the glow layer behind the section */}
+      {/* Controls — never animate or remount when mode changes.
+          relative z-10 isolate keeps them above the ambient glow layer
+          so the stop button background is not tinted by the glow color. */}
       <div className="relative z-10 isolate flex items-center gap-6 mt-12">
         {!isActive ? (
           <button
@@ -59,11 +86,14 @@ export function TimerDisplay({ mode, phase, seconds, isActive, onStart, onPause,
           </button>
         )}
 
+        {/* Stop button — styling is fully mode-independent.
+            bg-card gives an opaque background that is not affected by the
+            ambient glow behind the timer section. */}
         <motion.button
           onClick={onStop}
           disabled={seconds === 0 && !isActive}
           whileTap={{ scale: 0.96 }}
-          transition={{ duration: 0.12, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.12, ease: EASE }}
           className="flex items-center justify-center w-16 h-16 rounded-full border border-destructive/30 bg-card text-destructive/50 shadow-sm hover:bg-destructive/8 hover:border-destructive/50 hover:text-destructive/80 transition-colors duration-150 disabled:opacity-30 disabled:pointer-events-none"
           aria-label="Stop Timer"
         >
