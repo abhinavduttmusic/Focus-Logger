@@ -192,19 +192,24 @@ export function NotesArea({
             <motion.button
               onClick={onStartRecording}
               whileTap={{ scale: 0.88 }}
-              className="p-1.5 rounded-lg text-muted-foreground/35 hover:text-primary/70 hover:bg-primary/8 transition-colors"
+              className="w-8 h-8 rounded-full flex items-center justify-center bg-foreground/[0.06] hover:bg-foreground/[0.10] text-foreground/65 hover:text-foreground/90 transition-colors shrink-0"
               aria-label="Start voice recording"
               title="Record a voice note"
             >
               <Mic className="w-4 h-4" />
             </motion.button>
           ) : (
-            <span className="relative flex h-2.5 w-2.5 mr-0.5" aria-label="Recording active">
-              {!isPaused && (
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-70" />
-              )}
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-destructive" />
-            </span>
+            <motion.span
+              className="relative flex items-center justify-center h-5 w-5 mr-0.5 shrink-0"
+              aria-label="Recording active"
+            >
+              <motion.span
+                className="absolute inline-flex rounded-full bg-red-500"
+                style={{ width: 10, height: 10 }}
+                animate={!isPaused ? { scale: [1, 1.08, 1] } : { scale: 1 }}
+                transition={!isPaused ? { duration: 1.2, ease: "easeInOut", repeat: Infinity } : {}}
+              />
+            </motion.span>
           )}
         </div>
 
@@ -213,13 +218,20 @@ export function NotesArea({
           {isRecording && (
             <motion.div
               key="rec-ui"
-              initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-              animate={{ opacity: 1, height: "auto", marginBottom: 16 }}
-              exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-              transition={{ duration: 0.22, ease: EASE }}
+              initial={{ height: 0, marginBottom: 0 }}
+              animate={{ height: "auto", marginBottom: 16 }}
+              exit={{ height: 0, marginBottom: 0 }}
+              transition={{ duration: 0.15, ease: EASE }}
               className="overflow-hidden"
             >
-              <div className="flex items-center gap-2 rounded-2xl bg-destructive/8 border border-destructive/15 px-4 py-3">
+              <motion.div
+                initial={{ y: 8, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: 6, opacity: 0 }}
+                transition={{ duration: 0.17, ease: EASE }}
+                style={{ willChange: "transform, opacity" }}
+                className="flex items-center gap-2 rounded-2xl bg-destructive/8 border border-destructive/15 px-4 py-3"
+              >
                 {/* Elapsed timer */}
                 <RecordingTimer isPaused={isPaused} />
 
@@ -290,7 +302,7 @@ export function NotesArea({
                     </motion.button>
                   )}
                 </AnimatePresence>
-              </div>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
