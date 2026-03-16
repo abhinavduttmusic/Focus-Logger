@@ -430,6 +430,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                         onPauseRecording={recorder.pauseRecording}
                         onResumeRecording={recorder.resumeRecording}
                         onRenameClip={recorder.renameClip}
+                        onUpdateClip={recorder.updateClip}
                         onDeleteClip={recorder.deleteClip}
                         onCancelRecording={recorder.discardAndStop}
                       />

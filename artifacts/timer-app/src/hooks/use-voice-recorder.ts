@@ -6,6 +6,8 @@ export type AudioClip = {
   offsetSeconds: number;
   label: string;
   url: string;
+  noteTitle?: string;
+  noteNotes?: string;
 };
 
 export function useVoiceRecorder(initialClips?: AudioClip[]) {
@@ -134,6 +136,16 @@ export function useVoiceRecorder(initialClips?: AudioClip[]) {
     });
   }, []);
 
+  const updateClip = useCallback((index: number, updates: Partial<AudioClip>) => {
+    setClips((prev) => {
+      const next = [...prev];
+      if (next[index]) {
+        next[index] = { ...next[index], ...updates };
+      }
+      return next;
+    });
+  }, []);
+
   const deleteClip = useCallback((index: number) => {
     setClips((prev) => {
       const next = [...prev];
@@ -172,6 +184,7 @@ export function useVoiceRecorder(initialClips?: AudioClip[]) {
     resumeRecording,
     stopRecording,
     renameClip,
+    updateClip,
     deleteClip,
     clearClips,
     replaceClips,
