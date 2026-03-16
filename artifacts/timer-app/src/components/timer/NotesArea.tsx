@@ -165,6 +165,7 @@ export function NotesArea({
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editDraft, setEditDraft] = useState("");
+  const [pendingDeleteIndex, setPendingDeleteIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (!isRecording) setShowCancelConfirm(false);
@@ -176,7 +177,17 @@ export function NotesArea({
     setEditingIndex(null);
   };
 
+  const SHEET_EASE = [0.22, 1, 0.36, 1] as const;
+
+  const confirmDelete = () => {
+    if (pendingDeleteIndex !== null) {
+      onDeleteClip(pendingDeleteIndex);
+      setPendingDeleteIndex(null);
+    }
+  };
+
   return (
+    <>
     <div className="w-full glass-panel rounded-3xl p-1 overflow-hidden transition-all duration-300 focus-within:ring-4 focus-within:ring-primary/10">
       <div className="bg-card/50 rounded-[1.35rem] p-6 h-full flex flex-col">
 
@@ -367,7 +378,7 @@ export function NotesArea({
                       <Pencil className="w-3 h-3" />
                     </button>
                     <button
-                      onClick={() => onDeleteClip(i)}
+                      onClick={() => setPendingDeleteIndex(i)}
                       className="p-1 rounded text-muted-foreground/25 hover:text-destructive/60 transition-colors shrink-0"
                       aria-label="Delete recording"
                     >
@@ -396,5 +407,72 @@ export function NotesArea({
         <TaskSelector selectedTask={selectedTask} onSelectTask={onSelectTask} />
       </div>
     </div>
+
+    {/* ── Delete confirmation bottom sheet ── */}
+    <AnimatePresence>
+      {pendingDeleteIndex !== null && (
+        <>
+          {/* Backdrop */}
+          <motion.div
+            key="delete-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="fixed inset-0 z-40 bg-black/40"
+            style={{ willChange: "opacity" }}
+            onClick={() => setPendingDeleteIndex(null)}
+          />
+
+          {/* Sheet */}
+          <motion.div
+            key="delete-sheet"
+            initial={{ y: 16, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 12, opacity: 0 }}
+            transition={{ duration: 0.2, ease: SHEET_EASE }}
+            style={{ willChange: "transform, opacity" }}
+            className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-8 pt-0"
+          >
+            <div className="w-full max-w-md mx-auto bg-card rounded-3xl shadow-2xl overflow-hidden">
+              {/* Drag handle */}
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-9 h-1 rounded-full bg-border/50" />
+              </div>
+
+              <div className="px-6 pt-4 pb-6">
+                {/* Title */}
+                <h3 className="text-base font-semibold text-foreground text-center mb-2">
+                  Delete this recording?
+                </h3>
+                {/* Message */}
+                <p className="text-sm text-muted-foreground text-center mb-6 leading-relaxed">
+                  This audio note will be permanently removed.
+                </p>
+
+                {/* Buttons */}
+                <div className="flex flex-col gap-2">
+                  <motion.button
+                    onClick={confirmDelete}
+                    whileTap={{ scale: 0.97 }}
+                    className="w-full py-3 rounded-2xl bg-red-500 hover:bg-red-600 active:bg-red-700 text-white font-semibold text-sm transition-colors"
+                  >
+                    Delete Recording
+                  </motion.button>
+                  <motion.button
+                    onClick={() => setPendingDeleteIndex(null)}
+                    whileTap={{ scale: 0.97 }}
+                    className="w-full py-3 rounded-2xl bg-secondary hover:bg-secondary/80 text-foreground/70 font-medium text-sm transition-colors"
+                  >
+                    Cancel
+                  </motion.button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+    </>
   );
 }
