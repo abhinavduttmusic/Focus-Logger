@@ -3,7 +3,7 @@ import WaveSurfer from "wavesurfer.js";
 import RegionsPlugin from "wavesurfer.js/plugins/regions";
 import {
   FileText, Mic, Pause, Square, X, Play, Trash2, Pencil,
-  BookmarkPlus, ChevronUp, Repeat2, RotateCcw,
+  BookmarkPlus, Repeat2, Rewind, FastForward,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Task } from "@workspace/api-client-react/src/generated/api.schemas";
@@ -11,7 +11,9 @@ import type { AudioClip } from "@/hooks/use-voice-recorder";
 import { TaskSelector } from "./TaskSelector";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
-const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2] as const;
+
+/** Steps available for speed control — matches Modacity-style stepped feel */
+const SPEEDS = [0.75, 1.0, 1.25, 1.5, 2.0] as const;
 type Speed = (typeof SPEEDS)[number];
 
 /* ─── Helpers ─────────────────────────────────────────────────── */
@@ -112,7 +114,6 @@ function SaveForm({ clip, onSave, onClose }: SaveFormProps) {
 
   return (
     <>
-      {/* Dim backdrop — tap to dismiss */}
       <motion.div
         key="save-backdrop"
         initial={{ opacity: 0 }}
@@ -122,18 +123,12 @@ function SaveForm({ clip, onSave, onClose }: SaveFormProps) {
         className="fixed inset-0 z-40 bg-black/40"
         onClick={onClose}
       />
-
-      {/* Bottom sheet */}
       <motion.div
         key="save-sheet"
         initial={{ y: 16, opacity: 0 }}
         animate={{ y: 0,  opacity: 1 }}
         exit={{ y: 12,    opacity: 0 }}
-        transition={{
-          enter: { duration: 0.2,   ease: EASE },
-          exit:  { duration: 0.16,  ease: "easeIn" },
-          duration: 0.2, ease: EASE,
-        }}
+        transition={{ duration: 0.2, ease: EASE }}
         style={{ willChange: "transform, opacity" }}
         className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-8"
       >
@@ -201,9 +196,13 @@ function SaveForm({ clip, onSave, onClose }: SaveFormProps) {
 
 interface WaveformPlayerProps {
   clip: AudioClip;
+  /**
+   * When true the player will start playback automatically as soon as the
+   * waveform has decoded.  A ~150 ms delay before play() prevents audio jank
+   * on freshly-created blob URLs.
+   */
   autoPlay?: boolean;
   onUpdateClip?: (updates: Partial<AudioClip>) => void;
-  /** Called when the user taps the BookmarkPlus / note title badge */
   onOpenSaveForm?: () => void;
 }
 
@@ -214,15 +213,22 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
   const durationRef    = useRef<number>(clip.durationSeconds);
   const loopRegionRef  = useRef<{ start: number; end: number } | null>(null);
   const isLoopingRef   = useRef(false);
-  // track pointer-down X for click-vs-drag discrimination
   const pointerDownRef = useRef<{ x: number; y: number; t: number } | null>(null);
 
-  const [playing,         setPlaying]         = useState(false);
-  const [duration,        setDuration]        = useState<number>(clip.durationSeconds);
-  const [speed,           setSpeed]           = useState<Speed>(1);
-  const [isLooping,       setIsLooping]       = useState(false);
-  const [showSpeedPicker, setShowSpeedPicker] = useState(false);
+  /**
+   * Use a ref so the ready-handler closure captures the latest value even if
+   * autoPlay changes between mount and when WaveSurfer finishes decoding.
+   * We only want to auto-play once, so we clear the ref after the first play.
+   */
+  const autoPlayRef    = useRef(autoPlay ?? false);
+  useEffect(() => { autoPlayRef.current = autoPlay ?? false; }, [autoPlay]);
 
+  const [playing,   setPlaying]   = useState(false);
+  const [duration,  setDuration]  = useState<number>(clip.durationSeconds);
+  const [speed,     setSpeed]     = useState<Speed>(1.0);
+  const [isLooping, setIsLooping] = useState(false);
+
+  /* ── Build WaveSurfer once per URL ─────────────────────────── */
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -234,8 +240,14 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
     const regions = RegionsPlugin.create();
     regionsRef.current = regions;
 
-    /* interact: false — we handle click-to-seek ourselves so it is not
-       blocked by RegionsPlugin's drag-selection event listeners.        */
+    /*
+     * interact: false — we handle click-to-seek ourselves so it is not
+     * blocked by RegionsPlugin's drag-selection event listeners.
+     *
+     * WaveSurfer v7 ties its progress bar update directly to the Web Audio
+     * clock via its own internal requestAnimationFrame loop, so the fill
+     * stays perfectly in sync with audio.currentTime at 60 fps.
+     */
     const ws = WaveSurfer.create({
       container: el,
       waveColor,
@@ -252,8 +264,8 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
     wsRef.current = ws;
 
     /* ── Manual click-to-seek ──────────────────────────────────
-       We differentiate a tap (seek) from a drag (region select)
-       by tracking pointer movement and time between down→up.     */
+       Discriminate tap (seek) vs drag (region select) via pointer
+       movement + elapsed time between pointerdown and pointerup. */
     const onPointerDown = (e: PointerEvent) => {
       pointerDownRef.current = { x: e.clientX, y: e.clientY, t: Date.now() };
     };
@@ -264,8 +276,7 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
       const dt  = Date.now() - down.t;
       pointerDownRef.current = null;
       if (dx < 8 && dt < 400) {
-        // It's a tap — seek to that position
-        const rect    = el.getBoundingClientRect();
+        const rect     = el.getBoundingClientRect();
         const progress = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
         ws.seekTo(progress);
       }
@@ -295,7 +306,7 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
       }
     });
 
-    /* ── Loop enforcement via timeupdate ─────────────────────── */
+    /* ── Loop enforcement — checked on every timeupdate ─────── */
     ws.on("timeupdate", (currentTime) => {
       const loop = loopRegionRef.current;
       if (isLoopingRef.current && loop) {
@@ -312,31 +323,41 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
         durationRef.current = dur;
         setDuration(dur);
       }
-      if (autoPlay) ws.play();
+
+      /*
+       * Auto-play: triggered when the user just finished recording.
+       * A 150 ms delay lets the browser settle after blob-URL creation
+       * and prevents audio glitches on low-end devices.
+       */
+      if (autoPlayRef.current) {
+        autoPlayRef.current = false;
+        setTimeout(() => { wsRef.current?.play(); }, 150);
+      }
     });
+
     ws.on("play",   () => setPlaying(true));
     ws.on("pause",  () => setPlaying(false));
-    ws.on("finish", () => setPlaying(false));
+    ws.on("finish", () => {
+      setPlaying(false);
+      /* Reset playhead to start so the next tap plays from the beginning */
+      ws.seekTo(0);
+    });
 
     return () => {
       el.removeEventListener("pointerdown", onPointerDown);
       el.removeEventListener("pointerup",   onPointerUp);
       ws.destroy();
     };
-  // clip.url and autoPlay are stable per-clip; re-mounting would lose waveform state
+  // clip.url is stable per-clip; re-mounting would lose waveform state
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clip.url]);
 
-  /* Auto-play on first render if requested */
-  useEffect(() => {
-    if (autoPlay) wsRef.current?.play();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  /* Sync playback rate */
+  /* Sync playback rate whenever speed state changes */
   useEffect(() => {
     wsRef.current?.setPlaybackRate(speed, true);
   }, [speed]);
+
+  /* ── Playback control ──────────────────────────────────────── */
 
   const togglePlay = () => {
     const ws = wsRef.current;
@@ -345,7 +366,6 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
       const dur = durationRef.current;
       const cur = ws.getCurrentTime();
       const { start, end } = loopRegionRef.current;
-      /* If cursor is outside the loop, rewind to loop start */
       if (dur > 0 && (cur < start || cur >= end)) {
         ws.seekTo(start / dur);
       }
@@ -355,9 +375,28 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
     }
   };
 
+  /* ── Speed step buttons ────────────────────────────────────── */
+
+  const currentSpeedIndex = SPEEDS.indexOf(speed);
+
+  const decreaseSpeed = () => {
+    if (currentSpeedIndex > 0) {
+      setSpeed(SPEEDS[currentSpeedIndex - 1]);
+    }
+  };
+
+  const increaseSpeed = () => {
+    if (currentSpeedIndex < SPEEDS.length - 1) {
+      setSpeed(SPEEDS[currentSpeedIndex + 1]);
+    }
+  };
+
   const clearLoop = () => {
     regionsRef.current?.getRegions().forEach((r) => r.remove());
   };
+
+  const atMinSpeed = currentSpeedIndex === 0;
+  const atMaxSpeed = currentSpeedIndex === SPEEDS.length - 1;
 
   return (
     <div className="space-y-2">
@@ -389,73 +428,75 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
         )}
       </AnimatePresence>
 
-      {/* Controls: [play] [speed] ──── [save icon] [duration] */}
-      <div className="flex items-center gap-2">
+      {/*
+        Transport controls — Modacity-inspired layout:
+        [ ⏪ ]   [ ▶/⏸ ]   [ ⏩ ]   [ 1.0× ]   ────   [ note icon ]   [ dur ]
+      */}
+      <div className="flex items-center gap-2.5">
 
-        {/* Play / Pause */}
+        {/* ⏪ Decrease speed */}
         <motion.button
-          onClick={togglePlay}
-          whileTap={{ scale: 0.88 }}
-          className="flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 text-primary/70 hover:bg-primary/20 hover:text-primary transition-colors shrink-0"
-          aria-label={playing ? "Pause" : "Play"}
+          onClick={decreaseSpeed}
+          disabled={atMinSpeed}
+          whileTap={!atMinSpeed ? { scale: 0.88 } : {}}
+          transition={{ duration: 0.1, ease: "easeOut" }}
+          className="flex items-center justify-center w-6 h-6 rounded-full transition-colors disabled:opacity-25 disabled:pointer-events-none text-muted-foreground/50 hover:text-foreground/80 hover:bg-foreground/6"
+          aria-label="Decrease speed"
         >
-          {playing
-            ? <Pause className="w-3 h-3" fill="currentColor" />
-            : <Play  className="w-3 h-3 ml-0.5" fill="currentColor" />}
+          <Rewind className="w-3.5 h-3.5" fill="currentColor" />
         </motion.button>
 
-        {/* Speed picker */}
-        <div className="relative">
-          <motion.button
-            onClick={() => setShowSpeedPicker((v) => !v)}
-            whileTap={{ scale: 0.92 }}
-            className={`flex items-center gap-0.5 text-[11px] font-semibold px-2 py-1 rounded-lg transition-colors ${
-              speed !== 1
-                ? "text-primary bg-primary/10"
-                : "text-muted-foreground/55 hover:text-foreground/70 hover:bg-foreground/5"
-            }`}
-          >
-            {speed}×
-            <ChevronUp
-              className={`w-2.5 h-2.5 transition-transform ${showSpeedPicker ? "" : "rotate-180"}`}
-            />
-          </motion.button>
+        {/* ▶ / ⏸  Play / Pause */}
+        <motion.button
+          onClick={togglePlay}
+          whileTap={{ scale: 0.88, opacity: 0.75 }}
+          transition={{ duration: 0.1, ease: "easeOut" }}
+          className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary/75 hover:bg-primary/18 hover:text-primary transition-colors shrink-0"
+          aria-label={playing ? "Pause" : "Play"}
+        >
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.span
+              key={playing ? "pause" : "play"}
+              initial={{ opacity: 0, scale: 0.7 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.7 }}
+              transition={{ duration: 0.12, ease: "easeOut" }}
+              className="flex items-center justify-center"
+            >
+              {playing
+                ? <Pause className="w-3.5 h-3.5" fill="currentColor" />
+                : <Play  className="w-3.5 h-3.5 ml-0.5" fill="currentColor" />}
+            </motion.span>
+          </AnimatePresence>
+        </motion.button>
 
-          <AnimatePresence>
-            {showSpeedPicker && (
-              <motion.div
-                initial={{ opacity: 0, y: 4, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 4, scale: 0.95 }}
-                transition={{ duration: 0.13, ease: EASE }}
-                className="absolute left-0 bottom-full mb-1.5 z-20 bg-popover border border-border/40 rounded-2xl shadow-xl overflow-hidden py-1.5 min-w-[80px]"
-              >
-                {SPEEDS.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => { setSpeed(s); setShowSpeedPicker(false); }}
-                    className={`flex items-center justify-between w-full px-4 py-1.5 text-xs transition-colors ${
-                      s === speed
-                        ? "text-primary font-bold bg-primary/8"
-                        : "text-foreground/70 hover:bg-muted/60"
-                    }`}
-                  >
-                    {s}×
-                    {s === 1 && (
-                      <span className="text-[9px] text-muted-foreground/40 ml-2">default</span>
-                    )}
-                  </button>
-                ))}
-                {speed !== 1 && (
-                  <button
-                    onClick={() => { setSpeed(1); setShowSpeedPicker(false); }}
-                    className="flex items-center gap-1 w-full px-4 py-1.5 text-xs text-muted-foreground/50 hover:text-foreground/60 border-t border-border/20 mt-1 pt-2 transition-colors"
-                  >
-                    <RotateCcw className="w-2.5 h-2.5" /> Reset
-                  </button>
-                )}
-              </motion.div>
-            )}
+        {/* ⏩ Increase speed */}
+        <motion.button
+          onClick={increaseSpeed}
+          disabled={atMaxSpeed}
+          whileTap={!atMaxSpeed ? { scale: 0.88 } : {}}
+          transition={{ duration: 0.1, ease: "easeOut" }}
+          className="flex items-center justify-center w-6 h-6 rounded-full transition-colors disabled:opacity-25 disabled:pointer-events-none text-muted-foreground/50 hover:text-foreground/80 hover:bg-foreground/6"
+          aria-label="Increase speed"
+        >
+          <FastForward className="w-3.5 h-3.5" fill="currentColor" />
+        </motion.button>
+
+        {/* Speed label — scale-flashes on change via key-based remount */}
+        <div className="relative w-8 flex items-center justify-center overflow-visible">
+          <AnimatePresence mode="popLayout" initial={false}>
+            <motion.span
+              key={speed}
+              initial={{ opacity: 0, scale: 0.75 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.15 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className={`text-[11px] font-semibold tabular-nums ${
+                speed !== 1.0 ? "text-primary/70" : "text-muted-foreground/45"
+              }`}
+            >
+              {speed}×
+            </motion.span>
           </AnimatePresence>
         </div>
 
@@ -465,6 +506,7 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
         <motion.button
           onClick={() => onOpenSaveForm?.()}
           whileTap={{ scale: 0.88 }}
+          transition={{ duration: 0.1, ease: "easeOut" }}
           className={`flex items-center gap-1 transition-colors ${
             clip.noteTitle
               ? "text-primary/60 hover:text-primary/80"
@@ -493,7 +535,6 @@ interface NotesAreaProps {
   onChange: (val: string) => void;
   selectedTask: Task | null;
   onSelectTask: (task: Task | null) => void;
-  /** Whether a timer session is currently active (running or paused). */
   isSessionActive: boolean;
   isRecording: boolean;
   isPaused: boolean;
@@ -526,20 +567,18 @@ export function NotesArea({
   onDeleteClip,
   onCancelRecording,
 }: NotesAreaProps) {
-  const [showCancelConfirm,   setShowCancelConfirm]   = useState(false);
-  const [editingIndex,        setEditingIndex]         = useState<number | null>(null);
-  const [editDraft,           setEditDraft]            = useState("");
-  const [pendingDeleteIndex,  setPendingDeleteIndex]   = useState<number | null>(null);
+  const [showCancelConfirm,  setShowCancelConfirm]  = useState(false);
+  const [editingIndex,       setEditingIndex]        = useState<number | null>(null);
+  const [editDraft,          setEditDraft]           = useState("");
+  const [pendingDeleteIndex, setPendingDeleteIndex]  = useState<number | null>(null);
   /**
    * saveFormClipIndex — the index of the clip whose SaveForm is open.
-   * Null means no form is open. Lifted here so SaveForm renders at the
-   * fragment root (outside the glass-panel's backdrop-filter stacking
-   * context), which is required for the fixed backdrop to cover the
-   * full viewport correctly.
+   * Lifted here so SaveForm renders outside the glass-panel's
+   * backdrop-filter stacking context (required for correct fixed-backdrop).
    */
-  const [saveFormClipIndex,   setSaveFormClipIndex]    = useState<number | null>(null);
+  const [saveFormClipIndex,  setSaveFormClipIndex]   = useState<number | null>(null);
 
-  /* Track auto-play for newly completed recordings */
+  /* Track auto-play for newly-completed recordings */
   const prevClipsLenRef = useRef(clips.length);
   const [autoPlayIndex, setAutoPlayIndex] = useState<number | null>(null);
   useEffect(() => {
@@ -791,8 +830,8 @@ export function NotesArea({
     </div>
 
     {/* ── SaveForm bottom sheet ─────────────────────────────────
-        Rendered here, outside the glass-panel, so the fixed
-        backdrop/sheet are in the root stacking context.          */}
+        Rendered here, outside glass-panel, so the fixed
+        backdrop is in the root stacking context.              */}
     <AnimatePresence>
       {saveFormClipIndex !== null && clips[saveFormClipIndex] && (
         <SaveForm
