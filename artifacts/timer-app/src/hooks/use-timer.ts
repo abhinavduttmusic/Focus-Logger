@@ -18,6 +18,8 @@ export interface TimerInitialState {
 
 interface UseTimerProps {
   onLogSession: (type: SessionType, durationSeconds: number) => void;
+  /** Called synchronously just before the break phase auto-starts after focus completes. */
+  onAutoBreakStart?: () => void;
   initialState?: TimerInitialState;
 }
 
@@ -31,7 +33,7 @@ function computeInitialSeconds(state: TimerInitialState): number {
   return Math.max(0, phaseTotal - elapsed);
 }
 
-export function useTimer({ onLogSession, initialState }: UseTimerProps) {
+export function useTimer({ onLogSession, onAutoBreakStart, initialState }: UseTimerProps) {
   const [mode, setMode] = useState<TimerMode>(initialState?.mode ?? "pomodoro");
   const [phase, setPhase] = useState<PomodoroPhase>(initialState?.phase ?? "focus");
   const [isActive, setIsActive] = useState(initialState?.isActive ?? false);
@@ -45,6 +47,9 @@ export function useTimer({ onLogSession, initialState }: UseTimerProps) {
 
   const onLogSessionRef = useRef(onLogSession);
   onLogSessionRef.current = onLogSession;
+
+  const onAutoBreakStartRef = useRef(onAutoBreakStart);
+  onAutoBreakStartRef.current = onAutoBreakStart;
 
   const modeRef = useRef(mode);
   modeRef.current = mode;
@@ -194,11 +199,20 @@ export function useTimer({ onLogSession, initialState }: UseTimerProps) {
       onLogSessionRef.current(sessionType, elapsed);
 
       if (phase === "focus") {
+        // Signal home.tsx synchronously so it can mark the upcoming break as auto-started
+        onAutoBreakStartRef.current?.();
+        // Immediately start the break timer
         setPhase("break");
         setSeconds(POMODORO_BREAK_SEC);
+        startTimestampRef.current = Date.now();
+        elapsedAtPauseRef.current = 0;
+        setIsActive(true);
+        hapticLight();
       } else {
+        // Break complete → return to idle; user must re-select task for next focus
         setPhase("focus");
         setSeconds(POMODORO_FOCUS_SEC);
+        setIsActive(false);
       }
     }
   }, [seconds, mode, phase, isActive]);

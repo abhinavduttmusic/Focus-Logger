@@ -10,6 +10,12 @@ interface TimerDisplayProps {
   phase: PomodoroPhase;
   seconds: number;
   isActive: boolean;
+  /** Pomodoro: task must be selected; Stopwatch: always true */
+  canStart: boolean;
+  /** Called when user taps Start while canStart is false */
+  onStartBlocked: () => void;
+  /** Called when user taps Pause or Stop during a locked Pomodoro session */
+  onInterruptRequest: () => void;
   onStart: () => void;
   onPause: () => void;
   onStop: () => void;
@@ -21,6 +27,9 @@ export function TimerDisplay({
   phase,
   seconds,
   isActive,
+  canStart,
+  onStartBlocked,
+  onInterruptRequest,
   onStart,
   onPause,
   onStop,
@@ -33,6 +42,12 @@ export function TimerDisplay({
     : phase === "focus"
       ? "text-focus"
       : "text-break";
+
+  // When Pomodoro is active, pause/stop show the interrupt confirmation instead
+  const handlePause = isPomodoro && isActive ? onInterruptRequest : onPause;
+  const handleStop  = isPomodoro && isActive ? onInterruptRequest : onStop;
+
+  const startDisabled = isPomodoro && !canStart;
 
   return (
     <div className="flex flex-col items-center justify-center">
@@ -57,18 +72,19 @@ export function TimerDisplay({
         </AnimatePresence>
       </div>
 
-      {/* Controls — never remounts */}
+      {/* Controls */}
       <div className="relative z-10 isolate flex items-center gap-6 mt-7">
         {!isActive ? (
           <button
-            onClick={onStart}
+            onClick={startDisabled ? onStartBlocked : onStart}
             className={cn(
               "flex items-center justify-center w-20 h-20 rounded-full shadow-xl transition-all duration-300 hover:scale-105 active:scale-95 text-white",
               !isPomodoro
                 ? "bg-primary hover:bg-primary/90 shadow-primary/25"
                 : phase === "focus"
                   ? "bg-focus hover:bg-focus/90 shadow-focus/25"
-                  : "bg-break hover:bg-break/90 shadow-break/25"
+                  : "bg-break hover:bg-break/90 shadow-break/25",
+              startDisabled && "opacity-40 hover:scale-100 active:scale-100"
             )}
             aria-label="Start Timer"
           >
@@ -76,7 +92,7 @@ export function TimerDisplay({
           </button>
         ) : (
           <button
-            onClick={onPause}
+            onClick={handlePause}
             className="flex items-center justify-center w-20 h-20 rounded-full bg-secondary text-secondary-foreground shadow-lg transition-all duration-300 hover:scale-105 active:scale-95 border border-border"
             aria-label="Pause Timer"
           >
@@ -85,7 +101,7 @@ export function TimerDisplay({
         )}
 
         <motion.button
-          onClick={onStop}
+          onClick={handleStop}
           disabled={seconds === 0 && !isActive}
           whileTap={{ scale: 0.96 }}
           transition={{ duration: 0.12, ease: EASE }}

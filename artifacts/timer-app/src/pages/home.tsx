@@ -11,6 +11,7 @@ import {
   type RestoredSession,
 } from "@/hooks/use-session-persistence";
 import { useVoiceRecorder, type AudioClip } from "@/hooks/use-voice-recorder";
+import { playBell } from "@/hooks/use-bell";
 import { XCircle, LayoutList, Calendar } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -108,16 +109,35 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const recorderRef = useRef(recorder);
   recorderRef.current = recorder;
 
+  // True when the focus session auto-completed and a break is now running.
+  // Used to decide whether to keep notes/task visible during the break.
+  const breakWillAutoStartRef = useRef(false);
+
+  // ─── Session logging ─────────────────────────────────────────────────────
+
   const createSession = useCreateSession({
     mutation: {
       onSuccess: async (session) => {
         const clipsToUpload = pendingClipsRef.current;
         pendingClipsRef.current = [];
-        clearSession();
+
         queryClient.invalidateQueries({ queryKey: getListSessionsQueryKey() });
-        setNotes("");
-        setSelectedTask(null);
-        recorderRef.current.clearClips();
+
+        const autoBreak = breakWillAutoStartRef.current;
+        breakWillAutoStartRef.current = false;
+
+        if (autoBreak) {
+          // Focus session completed naturally → break is now running.
+          // Keep notes and task visible during the break; only clear clips.
+          recorderRef.current.clearClips();
+        } else {
+          // Break ended, simple session ended, or early manual stop → full reset.
+          clearSession();
+          setNotes("");
+          setSelectedTask(null);
+          recorderRef.current.clearClips();
+        }
+
         if (clipsToUpload.length > 0) {
           try {
             await uploadClips(session.id, clipsToUpload);
@@ -135,39 +155,75 @@ function Home({ restored }: { restored: RestoredSession | null }) {
 
   const handleLogSession = useCallback(
     async (type: SessionType, durationSeconds: number) => {
-      const rec = recorderRef.current;
-      const allClips = [...rec.clips];
-      if (rec.isRecording) {
-        const finalClip = await rec.stopRecording();
-        if (finalClip) allClips.push(finalClip);
+      if (type === "pomodoro_break") {
+        // Breaks carry no user data — log immediately with empty fields
+        pendingClipsRef.current = [];
+        createSession.mutate({
+          data: { type, durationSeconds, notes: "", taskId: null },
+        });
+      } else {
+        // Focus or simple: collect recordings then log
+        const rec = recorderRef.current;
+        const allClips = [...rec.clips];
+        if (rec.isRecording) {
+          const finalClip = await rec.stopRecording();
+          if (finalClip) allClips.push(finalClip);
+        }
+        pendingClipsRef.current = allClips;
+        createSession.mutate({
+          data: {
+            type,
+            durationSeconds,
+            notes: notes.trim(),
+            taskId: selectedTask?.id ?? null,
+          },
+        });
       }
-      pendingClipsRef.current = allClips;
-      createSession.mutate({
-        data: {
-          type,
-          durationSeconds,
-          notes: notes.trim(),
-          taskId: selectedTask?.id ?? null,
-        },
-      });
     },
     [createSession, notes, selectedTask],
   );
 
   const timer = useTimer({
     onLogSession: handleLogSession,
+    onAutoBreakStart: () => {
+      breakWillAutoStartRef.current = true;
+      playBell();
+    },
     initialState: timerInitialState,
   });
 
-  // Swipe-to-switch-mode gesture
+  // ─── Derived state (defined early so refs below are always fresh) ──────────
+
+  const sessionIsInProgress =
+    timer.isActive || timer.elapsedAtPause > 0 || (timer.mode === "simple" && timer.seconds > 0);
+
+  // Use a ref so callbacks always see the latest value without needing it in deps
+  const sessionIsInProgressRef = useRef(sessionIsInProgress);
+  sessionIsInProgressRef.current = sessionIsInProgress;
+
+  // ─── Mode switching (locked while session is active) ─────────────────────
+
   const modeDir = useRef<"left" | "right">("left");
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
 
+  const [modeLockMsg, setModeLockMsg] = useState(false);
+  const modeLockMsgTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showModeLockMessage = useCallback(() => {
+    setModeLockMsg(true);
+    if (modeLockMsgTimer.current) clearTimeout(modeLockMsgTimer.current);
+    modeLockMsgTimer.current = setTimeout(() => setModeLockMsg(false), 2200);
+  }, []);
+
   const handleModeChange = useCallback((newMode: TimerMode) => {
+    if (sessionIsInProgressRef.current) {
+      showModeLockMessage();
+      return;
+    }
     if (newMode === timer.mode) return;
     modeDir.current = newMode === "simple" ? "left" : "right";
     timer.setMode(newMode);
-  }, [timer]);
+  }, [timer, showModeLockMessage]);
 
   const handleSwipeStart = useCallback((e: React.PointerEvent) => {
     swipeStart.current = { x: e.clientX, y: e.clientY };
@@ -183,7 +239,63 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     handleModeChange(dx < 0 ? "simple" : "pomodoro");
   }, [handleModeChange]);
 
-  // Dismiss activity view switcher when tapping outside
+  // ─── "Select a task" gate ─────────────────────────────────────────────────
+
+  const [taskRequiredMsg, setTaskRequiredMsg] = useState(false);
+  const taskRequiredTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showTaskRequiredMessage = useCallback(() => {
+    setTaskRequiredMsg(true);
+    if (taskRequiredTimer.current) clearTimeout(taskRequiredTimer.current);
+    taskRequiredTimer.current = setTimeout(() => setTaskRequiredMsg(false), 2500);
+  }, []);
+
+  // ─── "Stay focused" warning on Pomodoro start ────────────────────────────
+
+  const [focusWarning, setFocusWarning] = useState(false);
+  const focusWarningTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleStart = useCallback(() => {
+    if (timer.mode === "pomodoro") {
+      setFocusWarning(true);
+      if (focusWarningTimer.current) clearTimeout(focusWarningTimer.current);
+      focusWarningTimer.current = setTimeout(() => setFocusWarning(false), 2500);
+    }
+    timer.start();
+  }, [timer]);
+
+  // ─── "End session early?" modal ──────────────────────────────────────────
+
+  const [showEndEarly, setShowEndEarly] = useState(false);
+
+  const handleInterruptRequest = useCallback(() => {
+    setShowEndEarly(true);
+  }, []);
+
+  const handleEndEarlyConfirm = useCallback(() => {
+    setShowEndEarly(false);
+    // Stops, logs the partial session, and resets the timer
+    timer.stop();
+  }, [timer]);
+
+  // ─── Discard (Stopwatch only) ─────────────────────────────────────────────
+
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+
+  const handleAbort = useCallback(() => {
+    setShowDiscardConfirm(false);
+    timer.reset();
+    if (recorderRef.current.isRecording) {
+      recorderRef.current.discardAndStop();
+    }
+    recorderRef.current.clearClips();
+    setNotes("");
+    setSelectedTask(null);
+    clearSession();
+  }, [timer]);
+
+  // ─── Activity view switcher dismissal ────────────────────────────────────
+
   useEffect(() => {
     if (!showViewSwitcher || activeTab !== "activity") return;
     function handleDocClick(e: MouseEvent) {
@@ -210,30 +322,19 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
+  // ─── Recording offset ─────────────────────────────────────────────────────
+
   const handleStartRecording = useCallback(() => {
     const elapsed =
       timer.mode === "simple" ? timer.seconds : 25 * 60 - timer.seconds;
     recorder.startRecording(elapsed);
   }, [recorder, timer.mode, timer.seconds]);
 
-  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  // Start button is gated on task selection only for Pomodoro
+  const canStart = timer.mode === "simple" || selectedTask !== null;
 
-  const handleAbort = useCallback(() => {
-    setShowDiscardConfirm(false);
-    timer.reset();
-    if (recorderRef.current.isRecording) {
-      recorderRef.current.discardAndStop();
-    }
-    recorderRef.current.clearClips();
-    setNotes("");
-    setSelectedTask(null);
-    clearSession();
-  }, [timer]);
+  // ─── Session persistence ──────────────────────────────────────────────────
 
-  const sessionIsInProgress =
-    timer.isActive || timer.elapsedAtPause > 0 || (timer.mode === "simple" && timer.seconds > 0);
-
-  // Session persistence — debounced save
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -308,11 +409,19 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     [timer],
   );
 
+  // ─── Glow ─────────────────────────────────────────────────────────────────
+
   const glowColorClass = timer.mode === "simple"
     ? "bg-primary/20"
     : timer.phase === "focus"
       ? "bg-focus/20"
       : "bg-break/20";
+
+  // ─── Phase label (for "End session early?" modal) ─────────────────────────
+
+  const isFocusPhase = timer.mode === "pomodoro" && timer.phase === "focus";
+
+  // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
     <div className="h-[100dvh] flex flex-col overflow-hidden bg-background">
@@ -343,7 +452,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                       className="relative w-full flex flex-col justify-evenly items-center shrink-0"
                       style={{ height: "45vh" }}
                     >
-                      {/* Ambient glow — sits behind everything */}
+                      {/* Ambient glow */}
                       <div className="absolute inset-0 -z-10 flex items-center justify-center pointer-events-none">
                         <motion.div
                           className={`w-64 h-64 rounded-full blur-[100px] transition-colors duration-1000 ${glowColorClass}`}
@@ -360,9 +469,29 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                         />
                       </div>
 
-                      {/* Toggle */}
-                      <div className="text-center">
-                        <TimerToggle mode={timer.mode} onChange={handleModeChange} />
+                      {/* Mode toggle */}
+                      <div className="text-center flex flex-col items-center gap-2">
+                        <TimerToggle
+                          mode={timer.mode}
+                          onChange={handleModeChange}
+                          locked={sessionIsInProgress}
+                          onLockedTap={showModeLockMessage}
+                        />
+                        {/* Mode-lock toast */}
+                        <AnimatePresence>
+                          {modeLockMsg && (
+                            <motion.p
+                              key="mode-lock"
+                              initial={{ opacity: 0, y: -4 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -4 }}
+                              transition={{ duration: 0.18 }}
+                              className="text-xs text-muted-foreground/70 px-3 py-1 rounded-full bg-secondary/60"
+                            >
+                              Finish your session before switching modes
+                            </motion.p>
+                          )}
+                        </AnimatePresence>
                       </div>
 
                       {/* Digits + controls (swipe zone) */}
@@ -375,24 +504,60 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                           WebkitTapHighlightColor: "transparent",
                           outline: "none",
                         }}
-                        className="select-none w-full"
+                        className="select-none w-full flex flex-col items-center"
                       >
                         <TimerDisplay
                           mode={timer.mode}
                           phase={timer.phase}
                           seconds={timer.seconds}
                           isActive={timer.isActive}
-                          onStart={timer.start}
+                          canStart={canStart}
+                          onStartBlocked={showTaskRequiredMessage}
+                          onInterruptRequest={handleInterruptRequest}
+                          onStart={handleStart}
                           onPause={timer.pause}
                           onStop={timer.stop}
                           modeDir={modeDir}
                         />
+
+                        {/* Task-required toast */}
+                        <AnimatePresence>
+                          {taskRequiredMsg && (
+                            <motion.p
+                              key="task-required"
+                              initial={{ opacity: 0, y: 6 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: 6 }}
+                              transition={{ duration: 0.18 }}
+                              className="mt-4 text-xs text-muted-foreground/80 px-4 py-2 rounded-full bg-secondary/70 text-center"
+                            >
+                              Select a task to begin your session
+                            </motion.p>
+                          )}
+                        </AnimatePresence>
+
+                        {/* Focus warning toast */}
+                        <AnimatePresence>
+                          {focusWarning && (
+                            <motion.p
+                              key="focus-warning"
+                              initial={{ opacity: 0, y: 6 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: 6 }}
+                              transition={{ duration: 0.2 }}
+                              className="mt-4 text-xs text-muted-foreground/80 px-4 py-2 rounded-full bg-secondary/70 text-center max-w-xs"
+                            >
+                              Stay focused — this session can't be paused.
+                              Need flexibility? Use Stopwatch mode.
+                            </motion.p>
+                          )}
+                        </AnimatePresence>
                       </div>
                     </div>
 
-                    {/* Discard + Record — only while a session is in progress */}
+                    {/* Session controls — Stopwatch only shows discard */}
                     <AnimatePresence>
-                      {sessionIsInProgress && (
+                      {sessionIsInProgress && timer.mode === "simple" && (
                         <motion.div
                           key="session-controls"
                           initial={{ opacity: 0, y: -6 }}
@@ -414,10 +579,9 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                       )}
                     </AnimatePresence>
 
-                    {/* Elastic spacer — absorbs remaining vertical space so notes sit near bottom */}
                     <div className="flex-1" />
 
-                    {/* ── NOTES SECTION ── */}
+                    {/* Notes / Task section */}
                     <section className="pb-5">
                       <NotesArea
                         value={notes}
@@ -523,7 +687,60 @@ function Home({ restored }: { restored: RestoredSession | null }) {
         )}
       </AnimatePresence>
 
-      {/* Discard Session confirmation bottom-sheet */}
+      {/* ── "End session early?" modal (Pomodoro only) ── */}
+      <AnimatePresence>
+        {showEndEarly && (
+          <>
+            <motion.div
+              key="end-early-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]"
+              onClick={() => setShowEndEarly(false)}
+            />
+            <motion.div
+              key="end-early-sheet"
+              initial={{ y: "100%", opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: "100%", opacity: 0 }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              className="fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-3xl px-6 pt-5 pb-10 shadow-xl"
+            >
+              <div className="w-10 h-1 bg-border/40 rounded-full mx-auto mb-6" />
+              <h2 className="text-lg font-semibold text-foreground text-center mb-2">
+                End session early?
+              </h2>
+              <p className="text-sm text-muted-foreground text-center mb-8">
+                {isFocusPhase
+                  ? "This will interrupt your focus session."
+                  : "This will end your break early."}
+              </p>
+              <div className="flex flex-col gap-3">
+                <motion.button
+                  onClick={handleEndEarlyConfirm}
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ duration: 0.12, ease: "easeOut" }}
+                  className="w-full py-3.5 rounded-2xl bg-destructive/10 text-destructive font-semibold text-sm hover:bg-destructive/15 transition-colors"
+                >
+                  End Session
+                </motion.button>
+                <motion.button
+                  onClick={() => setShowEndEarly(false)}
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ duration: 0.12, ease: "easeOut" }}
+                  className="w-full py-3.5 rounded-2xl bg-secondary/50 text-foreground/70 font-medium text-sm hover:bg-secondary/70 transition-colors"
+                >
+                  Cancel
+                </motion.button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Discard Session confirmation (Stopwatch only) ── */}
       <AnimatePresence>
         {showDiscardConfirm && (
           <>
