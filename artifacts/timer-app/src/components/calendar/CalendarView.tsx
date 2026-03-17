@@ -48,11 +48,18 @@ const TASK_COLORS = [
   "bg-green-500/25 text-green-700 dark:text-green-400",
 ];
 
-const NO_TASK_COLOR = "bg-muted/40 text-muted-foreground";
+const NO_TASK_COLOR     = "bg-muted/40 text-muted-foreground";
+/** Muted, low-emphasis colour for break blocks in the timeline */
+const BREAK_BLOCK_COLOR = "bg-slate-300/40 text-slate-500/70 dark:bg-slate-600/20 dark:text-slate-400/60";
 
-function getTaskColor(taskId: number | null): string {
-  if (taskId == null) return NO_TASK_COLOR;
-  return TASK_COLORS[taskId % TASK_COLORS.length];
+function isBreakSession(type: string): boolean {
+  return type === "pomodoro_break";
+}
+
+function getBlockColor(session: SessionItem): string {
+  if (isBreakSession(session.type)) return BREAK_BLOCK_COLOR;
+  if (session.taskId == null) return NO_TASK_COLOR;
+  return TASK_COLORS[session.taskId % TASK_COLORS.length];
 }
 
 function formatTimeRange(startMinute: number, endMinute: number): string {
@@ -219,7 +226,10 @@ export function CalendarView({ isActive }: CalendarViewProps) {
     };
   }, [navigate]);
 
-  const totalDaySeconds = daySessions.reduce((sum, s) => sum + s.durationSeconds, 0);
+  const workSessions  = daySessions.filter((s) => !isBreakSession(s.type));
+  const breakSessions = daySessions.filter((s) =>  isBreakSession(s.type));
+  const totalFocusSeconds = workSessions.reduce((sum, s) => sum + s.durationSeconds, 0);
+  const totalBreakSeconds = breakSessions.reduce((sum, s) => sum + s.durationSeconds, 0);
 
   const hours = Array.from({ length: TOTAL_HOURS }, (_, i) => START_HOUR + i);
 
@@ -267,11 +277,23 @@ export function CalendarView({ isActive }: CalendarViewProps) {
           </button>
         </div>
 
-        {totalDaySeconds > 0 && (
-          <div className="text-center mt-1">
-            <span className="text-xs text-muted-foreground/70">
-              {daySessions.length} session{daySessions.length !== 1 ? "s" : ""} &middot; {formatShortDuration(totalDaySeconds)}
-            </span>
+        {daySessions.length > 0 && (
+          <div className="text-center mt-1 flex items-center justify-center gap-2 flex-wrap">
+            {totalFocusSeconds > 0 && (
+              <span className="text-xs text-muted-foreground/70">
+                {workSessions.length} focus session{workSessions.length !== 1 ? "s" : ""} &middot; {formatShortDuration(totalFocusSeconds)}
+              </span>
+            )}
+            {totalBreakSeconds > 0 && (
+              <>
+                {totalFocusSeconds > 0 && (
+                  <span className="text-xs text-muted-foreground/30">&middot;</span>
+                )}
+                <span className="text-xs text-muted-foreground/40">
+                  {breakSessions.length} break{breakSessions.length !== 1 ? "s" : ""} &middot; {formatShortDuration(totalBreakSeconds)}
+                </span>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -317,8 +339,9 @@ export function CalendarView({ isActive }: CalendarViewProps) {
                       (block.session.durationSeconds / 60) * PIXELS_PER_MINUTE,
                       MIN_BAR_HEIGHT
                     );
-                    const colorClass = getTaskColor(block.session.taskId);
-                    const showLabel = heightPx >= LABEL_THRESHOLD;
+                    const isBreak    = isBreakSession(block.session.type);
+                    const colorClass = getBlockColor(block.session);
+                    const showLabel     = heightPx >= LABEL_THRESHOLD;
                     const showTimeRange = heightPx >= TIME_THRESHOLD;
 
                     return (
@@ -330,15 +353,19 @@ export function CalendarView({ isActive }: CalendarViewProps) {
                         className={cn(
                           "absolute left-0 right-0 rounded text-left transition-all hover:brightness-110 touch-manipulation overflow-hidden",
                           colorClass,
-                          showLabel ? "px-2 py-0.5" : ""
+                          showLabel ? "px-2 py-0.5" : "",
+                          isBreak ? "opacity-60" : ""
                         )}
                         style={{ top: topPx, height: heightPx, minHeight: MIN_BAR_HEIGHT }}
                       >
                         {showLabel && (
                           <div className="flex items-start justify-between gap-1 h-full">
                             <div className="flex-1 min-w-0">
-                              <p className="text-[11px] font-semibold truncate leading-tight">
-                                {block.session.taskName ?? "No task"}
+                              <p className={cn(
+                                "text-[11px] truncate leading-tight",
+                                isBreak ? "font-normal italic" : "font-semibold"
+                              )}>
+                                {isBreak ? "Break" : (block.session.taskName ?? "No task")}
                               </p>
                               {showTimeRange && (
                                 <p className="text-[10px] opacity-70 mt-0.5 tabular-nums">
@@ -390,13 +417,21 @@ export function CalendarView({ isActive }: CalendarViewProps) {
             <div className="p-5 space-y-4">
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-base font-bold text-foreground truncate">
-                    {detailSession.taskName ?? "No task"}
-                  </h3>
-                  {detailSession.projectName && (
-                    <p className="text-xs text-muted-foreground/70 mt-0.5">
-                      {detailSession.projectName}
-                    </p>
+                  {isBreakSession(detailSession.type) ? (
+                    <h3 className="text-base font-semibold text-muted-foreground/80 italic">
+                      Break &mdash; {formatShortDuration(detailSession.durationSeconds)}
+                    </h3>
+                  ) : (
+                    <>
+                      <h3 className="text-base font-bold text-foreground truncate">
+                        {detailSession.taskName ?? "No task"}
+                      </h3>
+                      {detailSession.projectName && (
+                        <p className="text-xs text-muted-foreground/70 mt-0.5">
+                          {detailSession.projectName}
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
                 <button
@@ -419,13 +454,15 @@ export function CalendarView({ isActive }: CalendarViewProps) {
                     })()}
                   </span>
                 </div>
-                <div className="flex items-center gap-1.5 text-muted-foreground">
-                  <Tag className="w-3.5 h-3.5" />
-                  <span>{formatShortDuration(detailSession.durationSeconds)}</span>
-                </div>
+                {!isBreakSession(detailSession.type) && (
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <Tag className="w-3.5 h-3.5" />
+                    <span>{formatShortDuration(detailSession.durationSeconds)}</span>
+                  </div>
+                )}
               </div>
 
-              {detailSession.notes && (
+              {!isBreakSession(detailSession.type) && detailSession.notes && (
                 <div className="flex items-start gap-2 p-3 rounded-xl bg-card/50 border border-border/30">
                   <FileText className="w-3.5 h-3.5 text-muted-foreground/50 mt-0.5 shrink-0" />
                   <p className="text-sm text-foreground/80 whitespace-pre-wrap break-words leading-relaxed">
@@ -435,7 +472,11 @@ export function CalendarView({ isActive }: CalendarViewProps) {
               )}
 
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground/50">
-                <span className="capitalize">{detailSession.type === "simple" ? "Stopwatch" : "Pomodoro"}</span>
+                {isBreakSession(detailSession.type) ? (
+                  <span>Pomodoro break</span>
+                ) : (
+                  <span className="capitalize">{detailSession.type === "simple" ? "Stopwatch" : "Pomodoro"}</span>
+                )}
                 <span>&middot;</span>
                 <span>{format(new Date(detailSession.createdAt), "MMM d, yyyy")}</span>
               </div>

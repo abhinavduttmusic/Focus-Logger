@@ -69,6 +69,9 @@ type DayGroup = {
 function buildDayGroups(sessions: SessionItem[]): DayGroup[] {
   const dayMap = new Map<string, { dateLabel: string; sessionsMap: Map<string, TaskGroup> }>();
 
+  // Only list sessions that are not break sessions
+  sessions = sessions.filter((s) => s.type !== "pomodoro_break");
+
   for (const s of sessions) {
     const date = new Date(s.createdAt);
     const dateKey = format(date, "yyyy-MM-dd");
