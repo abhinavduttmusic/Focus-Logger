@@ -6,7 +6,10 @@ import { Timer, BrainCircuit } from "lucide-react";
 interface TimerToggleProps {
   mode: TimerMode;
   onChange: (mode: TimerMode) => void;
-  /** When true the toggle is visually dimmed and taps call onLockedTap instead */
+  /**
+   * When true, taps are intercepted and onLockedTap is called instead.
+   * The toggle stays fully opaque so the active pill never looks grey.
+   */
   locked?: boolean;
   onLockedTap?: () => void;
 }
@@ -31,19 +34,21 @@ export function TimerToggle({ mode, onChange, locked, onLockedTap }: TimerToggle
 
   return (
     <LayoutGroup>
-      <div
-        className={cn(
-          "flex items-center p-1.5 bg-secondary/50 backdrop-blur-sm rounded-full w-fit mx-auto border border-border/40 shadow-inner transition-opacity duration-200",
-          locked && "opacity-50 pointer-events-auto"
-        )}
-      >
+      {/*
+        Never apply opacity to the whole container — it would make the active
+        pill look grey. Lock state is communicated via the floating overlay
+        message, not visual dimming.
+      */}
+      <div className="flex items-center p-1.5 bg-secondary/50 backdrop-blur-sm rounded-full w-fit mx-auto border border-border/40 shadow-inner">
         <motion.button
           whileTap={{ scale: 0.97 }}
           transition={tapTransition}
           onClick={() => handleClick("pomodoro")}
           className={cn(
             "relative flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-semibold transition-colors z-10",
-            mode === "pomodoro" ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+            mode === "pomodoro"
+              ? "text-primary-foreground"
+              : "text-muted-foreground hover:text-foreground"
           )}
         >
           <BrainCircuit className="w-4 h-4" />
@@ -63,7 +68,9 @@ export function TimerToggle({ mode, onChange, locked, onLockedTap }: TimerToggle
           onClick={() => handleClick("simple")}
           className={cn(
             "relative flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-semibold transition-colors z-10",
-            mode === "simple" ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+            mode === "simple"
+              ? "text-primary-foreground"
+              : "text-muted-foreground hover:text-foreground"
           )}
         >
           <Timer className="w-4 h-4" />

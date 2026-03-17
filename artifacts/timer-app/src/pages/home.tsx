@@ -28,6 +28,12 @@ import { StatsTab } from "@/components/stats/StatsTab";
 const BASE = import.meta.env.BASE_URL;
 
 const TAB_TRANSITION = { duration: 0.2, ease: [0.22, 1, 0.36, 1] as const };
+const SHEET_TRANSITION = { duration: 0.24, ease: [0.22, 1, 0.36, 1] as const };
+const OVERLAY_VARIANTS = {
+  hidden:  { opacity: 0, scale: 0.96, y: 6 },
+  visible: { opacity: 1, scale: 1,    y: 0 },
+  exit:    { opacity: 0, scale: 0.96, y: 6 },
+};
 
 async function uploadClips(sessionId: number, clips: AudioClip[]) {
   for (const clip of clips) {
@@ -109,8 +115,8 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const recorderRef = useRef(recorder);
   recorderRef.current = recorder;
 
-  // True when the focus session auto-completed and a break is now running.
-  // Used to decide whether to keep notes/task visible during the break.
+  // True when a focus session auto-completed and break is now running.
+  // Prevents clearing task/notes until after the break too.
   const breakWillAutoStartRef = useRef(false);
 
   // ─── Session logging ─────────────────────────────────────────────────────
@@ -127,11 +133,10 @@ function Home({ restored }: { restored: RestoredSession | null }) {
         breakWillAutoStartRef.current = false;
 
         if (autoBreak) {
-          // Focus session completed naturally → break is now running.
-          // Keep notes and task visible during the break; only clear clips.
+          // Focus completed naturally → break running. Keep notes/task visible.
           recorderRef.current.clearClips();
         } else {
-          // Break ended, simple session ended, or early manual stop → full reset.
+          // Break done, simple done, or early stop → full reset.
           clearSession();
           setNotes("");
           setSelectedTask(null);
@@ -156,13 +161,11 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const handleLogSession = useCallback(
     async (type: SessionType, durationSeconds: number) => {
       if (type === "pomodoro_break") {
-        // Breaks carry no user data — log immediately with empty fields
         pendingClipsRef.current = [];
         createSession.mutate({
           data: { type, durationSeconds, notes: "", taskId: null },
         });
       } else {
-        // Focus or simple: collect recordings then log
         const rec = recorderRef.current;
         const allClips = [...rec.clips];
         if (rec.isRecording) {
@@ -192,27 +195,29 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     initialState: timerInitialState,
   });
 
-  // ─── Derived state (defined early so refs below are always fresh) ──────────
+  // ─── Derived state — kept early so refs stay fresh ───────────────────────
 
   const sessionIsInProgress =
     timer.isActive || timer.elapsedAtPause > 0 || (timer.mode === "simple" && timer.seconds > 0);
 
-  // Use a ref so callbacks always see the latest value without needing it in deps
   const sessionIsInProgressRef = useRef(sessionIsInProgress);
   sessionIsInProgressRef.current = sessionIsInProgress;
 
-  // ─── Mode switching (locked while session is active) ─────────────────────
+  const canStart = timer.mode === "simple" || selectedTask !== null;
+
+  // ─── Mode switching — locked while session is active ─────────────────────
 
   const modeDir = useRef<"left" | "right">("left");
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
 
+  // Floating overlay message — never causes layout shift
   const [modeLockMsg, setModeLockMsg] = useState(false);
-  const modeLockMsgTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const modeLockTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const showModeLockMessage = useCallback(() => {
     setModeLockMsg(true);
-    if (modeLockMsgTimer.current) clearTimeout(modeLockMsgTimer.current);
-    modeLockMsgTimer.current = setTimeout(() => setModeLockMsg(false), 2200);
+    if (modeLockTimer.current) clearTimeout(modeLockTimer.current);
+    modeLockTimer.current = setTimeout(() => setModeLockMsg(false), 2000);
   }, []);
 
   const handleModeChange = useCallback((newMode: TimerMode) => {
@@ -239,42 +244,44 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     handleModeChange(dx < 0 ? "simple" : "pomodoro");
   }, [handleModeChange]);
 
-  // ─── "Select a task" gate ─────────────────────────────────────────────────
+  // ─── Task-required gate ───────────────────────────────────────────────────
 
+  // Floating overlay message — never causes layout shift
   const [taskRequiredMsg, setTaskRequiredMsg] = useState(false);
   const taskRequiredTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const showTaskRequiredMessage = useCallback(() => {
     setTaskRequiredMsg(true);
     if (taskRequiredTimer.current) clearTimeout(taskRequiredTimer.current);
-    taskRequiredTimer.current = setTimeout(() => setTaskRequiredMsg(false), 2500);
+    taskRequiredTimer.current = setTimeout(() => setTaskRequiredMsg(false), 2000);
   }, []);
 
-  // ─── "Stay focused" warning on Pomodoro start ────────────────────────────
+  // ─── Pomodoro commitment modal ────────────────────────────────────────────
 
-  const [focusWarning, setFocusWarning] = useState(false);
-  const focusWarningTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [showCommitModal, setShowCommitModal] = useState(false);
 
-  const handleStart = useCallback(() => {
+  // Called when the Play button is tapped
+  const handleStartRequest = useCallback(() => {
     if (timer.mode === "pomodoro") {
-      setFocusWarning(true);
-      if (focusWarningTimer.current) clearTimeout(focusWarningTimer.current);
-      focusWarningTimer.current = setTimeout(() => setFocusWarning(false), 2500);
+      // Show commitment confirmation before actually starting
+      setShowCommitModal(true);
+    } else {
+      timer.start();
     }
+  }, [timer]);
+
+  const handleCommitConfirm = useCallback(() => {
+    setShowCommitModal(false);
     timer.start();
   }, [timer]);
 
-  // ─── "End session early?" modal ──────────────────────────────────────────
+  // ─── "End session early?" (Pomodoro Stop) ────────────────────────────────
 
   const [showEndEarly, setShowEndEarly] = useState(false);
-
-  const handleInterruptRequest = useCallback(() => {
-    setShowEndEarly(true);
-  }, []);
+  const isFocusPhase = timer.mode === "pomodoro" && timer.phase === "focus";
 
   const handleEndEarlyConfirm = useCallback(() => {
     setShowEndEarly(false);
-    // Stops, logs the partial session, and resets the timer
     timer.stop();
   }, [timer]);
 
@@ -294,7 +301,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     clearSession();
   }, [timer]);
 
-  // ─── Activity view switcher dismissal ────────────────────────────────────
+  // ─── Activity view switcher ───────────────────────────────────────────────
 
   useEffect(() => {
     if (!showViewSwitcher || activeTab !== "activity") return;
@@ -329,9 +336,6 @@ function Home({ restored }: { restored: RestoredSession | null }) {
       timer.mode === "simple" ? timer.seconds : 25 * 60 - timer.seconds;
     recorder.startRecording(elapsed);
   }, [recorder, timer.mode, timer.seconds]);
-
-  // Start button is gated on task selection only for Pomodoro
-  const canStart = timer.mode === "simple" || selectedTask !== null;
 
   // ─── Session persistence ──────────────────────────────────────────────────
 
@@ -417,10 +421,6 @@ function Home({ restored }: { restored: RestoredSession | null }) {
       ? "bg-focus/20"
       : "bg-break/20";
 
-  // ─── Phase label (for "End session early?" modal) ─────────────────────────
-
-  const isFocusPhase = timer.mode === "pomodoro" && timer.phase === "focus";
-
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
@@ -447,7 +447,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                 <main className="h-full w-full px-4 sm:px-6 flex flex-col items-center">
                   <div className="w-full max-w-md h-full flex flex-col">
 
-                    {/* ── TIMER SECTION: 45vh dedicated region ── */}
+                    {/* ── TIMER SECTION: fixed 45vh, relative so overlays anchor here ── */}
                     <div
                       className="relative w-full flex flex-col justify-evenly items-center shrink-0"
                       style={{ height: "45vh" }}
@@ -469,29 +469,14 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                         />
                       </div>
 
-                      {/* Mode toggle */}
-                      <div className="text-center flex flex-col items-center gap-2">
+                      {/* Mode toggle — never shifts layout */}
+                      <div className="text-center">
                         <TimerToggle
                           mode={timer.mode}
                           onChange={handleModeChange}
                           locked={sessionIsInProgress}
                           onLockedTap={showModeLockMessage}
                         />
-                        {/* Mode-lock toast */}
-                        <AnimatePresence>
-                          {modeLockMsg && (
-                            <motion.p
-                              key="mode-lock"
-                              initial={{ opacity: 0, y: -4 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -4 }}
-                              transition={{ duration: 0.18 }}
-                              className="text-xs text-muted-foreground/70 px-3 py-1 rounded-full bg-secondary/60"
-                            >
-                              Finish your session before switching modes
-                            </motion.p>
-                          )}
-                        </AnimatePresence>
                       </div>
 
                       {/* Digits + controls (swipe zone) */}
@@ -504,7 +489,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                           WebkitTapHighlightColor: "transparent",
                           outline: "none",
                         }}
-                        className="select-none w-full flex flex-col items-center"
+                        className="select-none w-full"
                       >
                         <TimerDisplay
                           mode={timer.mode}
@@ -513,49 +498,54 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                           isActive={timer.isActive}
                           canStart={canStart}
                           onStartBlocked={showTaskRequiredMessage}
-                          onInterruptRequest={handleInterruptRequest}
-                          onStart={handleStart}
+                          onInterruptRequest={() => setShowEndEarly(true)}
+                          onStart={handleStartRequest}
                           onPause={timer.pause}
                           onStop={timer.stop}
                           modeDir={modeDir}
                         />
+                      </div>
 
-                        {/* Task-required toast */}
+                      {/* ── Floating overlays — absolute, zero layout impact ── */}
+                      <div
+                        aria-live="polite"
+                        className="absolute bottom-2 left-0 right-0 flex flex-col items-center gap-2 pointer-events-none z-20"
+                      >
                         <AnimatePresence>
                           {taskRequiredMsg && (
-                            <motion.p
-                              key="task-required"
-                              initial={{ opacity: 0, y: 6 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: 6 }}
-                              transition={{ duration: 0.18 }}
-                              className="mt-4 text-xs text-muted-foreground/80 px-4 py-2 rounded-full bg-secondary/70 text-center"
+                            <motion.span
+                              key="task-req"
+                              variants={OVERLAY_VARIANTS}
+                              initial="hidden"
+                              animate="visible"
+                              exit="exit"
+                              transition={{ duration: 0.2, ease: "easeOut" }}
+                              className="text-xs font-medium text-foreground/75 bg-card/90 backdrop-blur-sm border border-border/30 shadow-md px-4 py-2 rounded-full"
                             >
-                              Select a task to begin your session
-                            </motion.p>
+                              Select a task to begin
+                            </motion.span>
                           )}
                         </AnimatePresence>
 
-                        {/* Focus warning toast */}
                         <AnimatePresence>
-                          {focusWarning && (
-                            <motion.p
-                              key="focus-warning"
-                              initial={{ opacity: 0, y: 6 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: 6 }}
-                              transition={{ duration: 0.2 }}
-                              className="mt-4 text-xs text-muted-foreground/80 px-4 py-2 rounded-full bg-secondary/70 text-center max-w-xs"
+                          {modeLockMsg && (
+                            <motion.span
+                              key="mode-lock"
+                              variants={OVERLAY_VARIANTS}
+                              initial="hidden"
+                              animate="visible"
+                              exit="exit"
+                              transition={{ duration: 0.2, ease: "easeOut" }}
+                              className="text-xs font-medium text-foreground/75 bg-card/90 backdrop-blur-sm border border-border/30 shadow-md px-4 py-2 rounded-full"
                             >
-                              Stay focused — this session can't be paused.
-                              Need flexibility? Use Stopwatch mode.
-                            </motion.p>
+                              Finish your session before switching modes
+                            </motion.span>
                           )}
                         </AnimatePresence>
                       </div>
                     </div>
 
-                    {/* Session controls — Stopwatch only shows discard */}
+                    {/* ── Session controls — Stopwatch only ── */}
                     <AnimatePresence>
                       {sessionIsInProgress && timer.mode === "simple" && (
                         <motion.div
@@ -607,10 +597,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                 </main>
               )}
 
-              {tab === "tasks" && (
-                <TasksTab isActive={activeTab === "tasks"} />
-              )}
-
+              {tab === "tasks" && <TasksTab isActive={activeTab === "tasks"} />}
               {tab === "stats" && <StatsTab />}
 
               {tab === "activity" && (
@@ -663,8 +650,8 @@ function Home({ restored }: { restored: RestoredSession | null }) {
           >
             <div className="flex items-center gap-0.5 p-1 rounded-full bg-secondary/50 border border-border/30">
               {([
-                { view: "logs" as const, Icon: LayoutList, label: "List view" },
-                { view: "calendar" as const, Icon: Calendar, label: "Calendar view" },
+                { view: "logs"     as const, Icon: LayoutList, label: "List view" },
+                { view: "calendar" as const, Icon: Calendar,   label: "Calendar view" },
               ]).map(({ view, Icon, label }) => (
                 <motion.button
                   key={view}
@@ -687,7 +674,62 @@ function Home({ restored }: { restored: RestoredSession | null }) {
         )}
       </AnimatePresence>
 
-      {/* ── "End session early?" modal (Pomodoro only) ── */}
+      {/* ═══════════════════════════════════════════════════════
+          BOTTOM SHEETS & MODALS — rendered at root z-level
+          ═══════════════════════════════════════════════════════ */}
+
+      {/* 1. Pomodoro Commitment modal ("Start focus session?") */}
+      <AnimatePresence>
+        {showCommitModal && (
+          <>
+            <motion.div
+              key="commit-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.22 }}
+              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]"
+              onClick={() => setShowCommitModal(false)}
+            />
+            <motion.div
+              key="commit-sheet"
+              initial={{ y: "100%", opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: "100%", opacity: 0 }}
+              transition={SHEET_TRANSITION}
+              className="fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-3xl px-6 pt-5 pb-10 shadow-xl"
+            >
+              <div className="w-10 h-1 bg-border/40 rounded-full mx-auto mb-6" />
+              <h2 className="text-lg font-semibold text-foreground text-center mb-2">
+                Start focus session?
+              </h2>
+              <p className="text-sm text-muted-foreground text-center mb-8">
+                This session cannot be paused once started.
+              </p>
+              <div className="flex flex-col gap-3">
+                <motion.button
+                  onClick={handleCommitConfirm}
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ duration: 0.12, ease: "easeOut" }}
+                  className="w-full py-3.5 rounded-2xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors"
+                >
+                  Start Session
+                </motion.button>
+                <motion.button
+                  onClick={() => setShowCommitModal(false)}
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ duration: 0.12, ease: "easeOut" }}
+                  className="w-full py-3.5 rounded-2xl bg-secondary/50 text-foreground/70 font-medium text-sm hover:bg-secondary/70 transition-colors"
+                >
+                  Cancel
+                </motion.button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* 2. "End session early?" (Pomodoro Stop) */}
       <AnimatePresence>
         {showEndEarly && (
           <>
@@ -696,7 +738,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.22 }}
               className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]"
               onClick={() => setShowEndEarly(false)}
             />
@@ -705,7 +747,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
               initial={{ y: "100%", opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: "100%", opacity: 0 }}
-              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              transition={SHEET_TRANSITION}
               className="fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-3xl px-6 pt-5 pb-10 shadow-xl"
             >
               <div className="w-10 h-1 bg-border/40 rounded-full mx-auto mb-6" />
@@ -714,7 +756,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
               </h2>
               <p className="text-sm text-muted-foreground text-center mb-8">
                 {isFocusPhase
-                  ? "This will interrupt your focus session."
+                  ? "This will end your focus session."
                   : "This will end your break early."}
               </p>
               <div className="flex flex-col gap-3">
@@ -740,7 +782,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
         )}
       </AnimatePresence>
 
-      {/* ── Discard Session confirmation (Stopwatch only) ── */}
+      {/* 3. Discard Session (Stopwatch only) */}
       <AnimatePresence>
         {showDiscardConfirm && (
           <>
@@ -749,7 +791,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.22 }}
               className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]"
               onClick={() => setShowDiscardConfirm(false)}
             />
@@ -758,7 +800,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
               initial={{ y: "100%", opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: "100%", opacity: 0 }}
-              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              transition={SHEET_TRANSITION}
               className="fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-3xl px-6 pt-5 pb-10 shadow-xl"
             >
               <div className="w-10 h-1 bg-border/40 rounded-full mx-auto mb-6" />
