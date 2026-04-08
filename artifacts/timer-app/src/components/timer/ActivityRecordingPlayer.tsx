@@ -17,7 +17,7 @@
 import { useState, useRef, useEffect } from "react";
 import WaveSurfer from "wavesurfer.js";
 import { Play, Pause, Mic } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
@@ -172,39 +172,31 @@ export function ActivityRecordingPlayer({
    */
   const recordingName = label?.trim() || `Recording ${indexInSession + 1}`;
 
-  /* Note title is rendered separately below the recording name */
   const noteTitleText = noteTitle?.trim() || null;
+  const noteNotesText = noteNotes?.trim() || null;
+  const hasReflection = noteTitleText || noteNotesText;
 
   return (
-    <div className="rounded-xl bg-secondary/30 border border-border/20 px-3 py-2.5 space-y-2">
+    <div className="rounded-xl bg-secondary/30 border border-border/20 px-3 py-2.5">
 
-      {/* Header: mic + recording name + offset badge */}
-      <div className="flex items-start gap-2">
-        <Mic className="w-3 h-3 text-muted-foreground/35 shrink-0 mt-0.5" />
-        <div className="flex-1 min-w-0">
-          {/* Recording name — always visible, primary identifier */}
-          <p className="text-xs font-medium text-foreground/65 truncate">
-            {recordingName}
-          </p>
-          {/* Note title — shown only when set, visually distinct */}
-          {noteTitleText && (
-            <p className="text-[11px] text-primary/55 font-medium truncate mt-0.5">
-              {noteTitleText}
-            </p>
-          )}
-        </div>
+      {/* ── TOP: Recording name (metadata) ─────────────────────── */}
+      <div className="flex items-center gap-2 mb-2">
+        <Mic className="w-3 h-3 text-muted-foreground/35 shrink-0" />
+        {/* Recording name — primary technical identifier, always visible */}
+        <p className="flex-1 min-w-0 text-xs font-medium text-foreground/65 truncate">
+          {recordingName}
+        </p>
         {offsetSeconds !== undefined && (
-          <span className="text-[10px] text-muted-foreground/40 tabular-nums shrink-0 mt-0.5">
+          <span className="text-[10px] text-muted-foreground/40 tabular-nums shrink-0">
             @{fmtTime(offsetSeconds)}
           </span>
         )}
       </div>
 
-      {/* Waveform */}
+      {/* ── MIDDLE: Waveform + transport ───────────────────────── */}
       <div ref={containerRef} className="w-full cursor-pointer" />
 
-      {/* Transport row */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 mt-2">
         <motion.button
           onClick={togglePlay}
           whileTap={{ scale: 0.88 }}
@@ -222,12 +214,34 @@ export function ActivityRecordingPlayer({
         </span>
       </div>
 
-      {/* Practice note text — always shown when present */}
-      {noteNotes?.trim() && (
-        <p className="text-[11px] text-muted-foreground/60 leading-relaxed border-t border-border/20 pt-2 italic">
-          "{noteNotes.trim()}"
-        </p>
-      )}
+      {/* ── BOTTOM: Musical reflection (noteTitle + noteNotes) ─── *
+       *  Separated from metadata above by a divider.              *
+       *  Both fade + slide up together when present.              */}
+      <AnimatePresence initial={false}>
+        {hasReflection && (
+          <motion.div
+            key="reflection"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 4 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="border-t border-border/20 mt-3 pt-3 space-y-1"
+          >
+            {/* Note title — musical label, medium weight */}
+            {noteTitleText && (
+              <p className="text-[12px] font-medium text-foreground/80 leading-snug">
+                {noteTitleText}
+              </p>
+            )}
+            {/* Notes — reflective comment, italic + muted */}
+            {noteNotesText && (
+              <p className="text-[11px] italic text-muted-foreground/60 leading-relaxed">
+                "{noteNotesText}"
+              </p>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
