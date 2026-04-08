@@ -2,12 +2,16 @@
  * ActivityRecordingPlayer
  *
  * WaveSurfer-based audio player used inside the Activity tab's session
- * timeline.  Intentionally minimal — play/pause + tap-to-seek only —
- * because looping, speed control and note-editing belong in the live
- * recording session (NotesArea / WaveformPlayer).
+ * timeline.  Intentionally minimal — play/pause + tap-to-seek only.
  *
- * Shares the same WaveSurfer bar renderer settings and Tailwind-resolved
- * colours as WaveformPlayer in NotesArea.tsx for visual consistency.
+ * Display hierarchy:
+ *   • Recording Name (label)  — always shown, e.g. "Recording 1" or custom name
+ *   • Note Title (noteTitle)  — shown below the name when set, smaller weight
+ *   • Notes text (noteNotes)  — shown as italic quote at the bottom
+ *
+ * The original code used `noteTitle || label` for a single header line which
+ * made the recording name invisible whenever a note title was set.  This
+ * version renders them in separate, always-visible rows.
  */
 
 import { useState, useRef, useEffect } from "react";
@@ -67,11 +71,11 @@ export function ActivityRecordingPlayer({
   indexInSession,
   offsetSeconds,
 }: ActivityRecordingPlayerProps) {
-  const containerRef      = useRef<HTMLDivElement>(null);
-  const wsRef             = useRef<WaveSurfer | null>(null);
-  const instanceId        = useRef(crypto.randomUUID());
-  const durationRef       = useRef<number>(durationSeconds);
-  const pointerDownRef    = useRef<{ x: number; t: number } | null>(null);
+  const containerRef   = useRef<HTMLDivElement>(null);
+  const wsRef          = useRef<WaveSurfer | null>(null);
+  const instanceId     = useRef(crypto.randomUUID());
+  const durationRef    = useRef<number>(durationSeconds);
+  const pointerDownRef = useRef<{ x: number; t: number } | null>(null);
 
   const [playing,  setPlaying]  = useState(false);
   const [duration, setDuration] = useState<number>(durationSeconds);
@@ -93,12 +97,12 @@ export function ActivityRecordingPlayer({
       barGap: 1.5,
       barRadius: 3,
       cursorWidth: 0,
-      interact: false,        // we handle seeking manually
+      interact: false,
       url,
     });
     wsRef.current = ws;
 
-    /* Manual tap-to-seek — same discrimination as NotesArea */
+    /* Manual tap-to-seek */
     const onPointerDown = (e: PointerEvent) => {
       pointerDownRef.current = { x: e.clientX, t: Date.now() };
     };
@@ -160,20 +164,37 @@ export function ActivityRecordingPlayer({
     }
   };
 
-  /* Display label: prefer noteTitle, fall back to label, then generic */
-  const displayLabel = noteTitle?.trim() || label?.trim() || `Recording ${indexInSession + 1}`;
+  /*
+   * Recording Name: always use the stored `label` field.
+   * Falls back to "Recording N" only when the label is empty.
+   * We intentionally do NOT use noteTitle as a fallback here — that caused
+   * the recording name to be invisible whenever a note title was also set.
+   */
+  const recordingName = label?.trim() || `Recording ${indexInSession + 1}`;
+
+  /* Note title is rendered separately below the recording name */
+  const noteTitleText = noteTitle?.trim() || null;
 
   return (
     <div className="rounded-xl bg-secondary/30 border border-border/20 px-3 py-2.5 space-y-2">
 
-      {/* Header: mic + label + offset badge */}
-      <div className="flex items-center gap-2">
-        <Mic className="w-3 h-3 text-muted-foreground/35 shrink-0" />
-        <span className="flex-1 min-w-0 text-xs font-medium text-foreground/65 truncate">
-          {displayLabel}
-        </span>
+      {/* Header: mic + recording name + offset badge */}
+      <div className="flex items-start gap-2">
+        <Mic className="w-3 h-3 text-muted-foreground/35 shrink-0 mt-0.5" />
+        <div className="flex-1 min-w-0">
+          {/* Recording name — always visible, primary identifier */}
+          <p className="text-xs font-medium text-foreground/65 truncate">
+            {recordingName}
+          </p>
+          {/* Note title — shown only when set, visually distinct */}
+          {noteTitleText && (
+            <p className="text-[11px] text-primary/55 font-medium truncate mt-0.5">
+              {noteTitleText}
+            </p>
+          )}
+        </div>
         {offsetSeconds !== undefined && (
-          <span className="text-[10px] text-muted-foreground/40 tabular-nums shrink-0">
+          <span className="text-[10px] text-muted-foreground/40 tabular-nums shrink-0 mt-0.5">
             @{fmtTime(offsetSeconds)}
           </span>
         )}
@@ -201,7 +222,7 @@ export function ActivityRecordingPlayer({
         </span>
       </div>
 
-      {/* Practice note text */}
+      {/* Practice note text — always shown when present */}
       {noteNotes?.trim() && (
         <p className="text-[11px] text-muted-foreground/60 leading-relaxed border-t border-border/20 pt-2 italic">
           "{noteNotes.trim()}"

@@ -16,10 +16,17 @@ export interface PersistedSessionState {
   };
   notes: string;
   selectedTask: { id: number; name: string; projectId: number | null; projectName: string | null } | null;
+  /**
+   * Full metadata for each clip so that noteTitle and noteNotes survive
+   * a page reload mid-session. All fields are stored; strings default to ""
+   * rather than being omitted so that uploadClips always has complete data.
+   */
   clipsMeta: Array<{
     durationSeconds: number;
     offsetSeconds: number;
     label: string;
+    noteTitle: string;
+    noteNotes: string;
   }>;
 }
 
@@ -109,8 +116,13 @@ export async function loadSession(): Promise<RestoredSession | null> {
             return {
               blob,
               durationSeconds: m.durationSeconds,
-              offsetSeconds: m.offsetSeconds,
-              label: m.label,
+              offsetSeconds:   m.offsetSeconds,
+              label:           m.label     ?? "",
+              // Restore the full metadata — these fields were previously
+              // dropped which caused noteTitle/noteNotes to be null when
+              // the page was reloaded mid-session.
+              noteTitle:       m.noteTitle ?? undefined,
+              noteNotes:       m.noteNotes ?? undefined,
               url: URL.createObjectURL(blob),
             } as AudioClip;
           })
@@ -165,8 +177,12 @@ export function buildPersistedState(
     selectedTask,
     clipsMeta: clips.map((c) => ({
       durationSeconds: c.durationSeconds,
-      offsetSeconds: c.offsetSeconds,
-      label: c.label,
+      offsetSeconds:   c.offsetSeconds,
+      label:           c.label     ?? "",
+      // Always persist the full metadata so noteTitle and noteNotes are
+      // never lost on a page reload mid-session.
+      noteTitle:       c.noteTitle ?? "",
+      noteNotes:       c.noteNotes ?? "",
     })),
   };
 }
