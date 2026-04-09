@@ -793,7 +793,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                     <div className="h-8 shrink-0" />
 
                     {/* Notes / Task section — takes all remaining space, stays bounded */}
-                    <section className="flex-1 min-h-0 pb-5 overflow-hidden">
+                    <section className="flex-1 min-h-0 pb-5">
                       <NotesArea
                         value={notes}
                         onChange={setNotes}
