@@ -152,9 +152,12 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     } catch { return DEFAULT_BREAK_TYPES; }
   });
   /** id of the tile currently in "long-press edit" state (null = none) */
-  const [activeBreakEditId, setActiveBreakEditId] = useState<string | null>(null);
-  const breakLongPressRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const breakDidLongPressRef = useRef(false);
+  const [activeBreakEditId,    setActiveBreakEditId]    = useState<string | null>(null);
+  const [pendingDeleteBreakId, setPendingDeleteBreakId] = useState<string | null>(null);
+  const [breakGridScrolling,   setBreakGridScrolling]   = useState(false);
+  const breakLongPressRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const breakDidLongPressRef   = useRef(false);
+  const breakScrollTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ─── Session logging ─────────────────────────────────────────────────────
 
@@ -1087,15 +1090,20 @@ function Home({ restored }: { restored: RestoredSession | null }) {
               {/* Grid — strict 3-col, scrollable, overflow-x hidden to prevent jitter */}
               <div className="relative" style={{ overflowX: "hidden" }}>
                 <div
-                  className="grid gap-3"
+                  className={`grid gap-3 break-grid-scroll${breakGridScrolling ? " is-scrolling" : ""}`}
                   style={{
                     gridTemplateColumns: "repeat(3, 1fr)",
                     maxHeight: "220px",
                     overflowY: "auto",
                     overflowX: "hidden",
                     scrollBehavior: "smooth",
-                    paddingTop: "6px",    /* room for ❌ badge above tile */
+                    paddingTop: "6px",
                     paddingBottom: "8px",
+                  }}
+                  onScroll={() => {
+                    setBreakGridScrolling(true);
+                    if (breakScrollTimerRef.current) clearTimeout(breakScrollTimerRef.current);
+                    breakScrollTimerRef.current = setTimeout(() => setBreakGridScrolling(false), 800);
                   }}
                 >
                   {[
@@ -1143,7 +1151,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                             exit={{ scale: 0 }}
                             transition={{ type: "spring", stiffness: 420, damping: 18 }}
                             onPointerDown={(e) => e.stopPropagation()}
-                            onClick={(e) => { e.stopPropagation(); handleDeleteBreakType(id); }}
+                            onClick={(e) => { e.stopPropagation(); setPendingDeleteBreakId(id); }}
                             className="absolute -top-1.5 -right-1.5 z-20 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center shadow-md"
                             aria-label={`Delete ${label}`}
                           >
@@ -1196,6 +1204,51 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                     </div>
                   </motion.div>
                 )}
+              </AnimatePresence>
+
+              {/* Delete confirmation — slides up inside the sheet */}
+              <AnimatePresence>
+                {pendingDeleteBreakId !== null && (() => {
+                  const target = breakTypes.find((b) => b.id === pendingDeleteBreakId);
+                  if (!target) return null;
+                  return (
+                    <motion.div
+                      key="delete-confirm"
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 16 }}
+                      transition={{ duration: 0.18, ease: "easeOut" }}
+                      className="mt-4 rounded-2xl overflow-hidden"
+                      style={{ background: "var(--card)", border: "1px solid hsl(var(--border) / 0.4)", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}
+                    >
+                      <div className="px-5 py-4">
+                        <p className="text-[15px] font-semibold text-foreground mb-0.5">
+                          Delete "{target.emoji} {target.label}"?
+                        </p>
+                        <p className="text-[13px] text-muted-foreground">
+                          This will remove it from your break list.
+                        </p>
+                      </div>
+                      <div className="flex border-t border-border/40">
+                        <button
+                          className="flex-1 py-3.5 text-[14px] font-medium text-foreground/70 border-r border-border/40 active:bg-muted/50"
+                          onClick={() => setPendingDeleteBreakId(null)}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          className="flex-1 py-3.5 text-[14px] font-semibold text-red-500 active:bg-red-50"
+                          onClick={() => {
+                            handleDeleteBreakType(pendingDeleteBreakId);
+                            setPendingDeleteBreakId(null);
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </motion.div>
+                  );
+                })()}
               </AnimatePresence>
             </motion.div>
           </>

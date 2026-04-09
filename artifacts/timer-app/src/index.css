@@ -143,3 +143,26 @@
 .dark .glass-panel {
   @apply border-white/5 shadow-[0_8px_30px_rgb(0,0,0,0.2)];
 }
+
+/* ── Break grid scrollbar — hidden by default, slim on scroll ─────────── */
+.break-grid-scroll {
+  scrollbar-width: none; /* Firefox — always hidden, native overlay handles UX */
+}
+.break-grid-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.break-grid-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.break-grid-scroll::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 10px;
+  min-height: 40px;
+  transition: background 0.2s ease;
+}
+.break-grid-scroll.is-scrolling::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.18);
+}
+.dark .break-grid-scroll.is-scrolling::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+}
