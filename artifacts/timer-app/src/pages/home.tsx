@@ -68,6 +68,17 @@ async function uploadClips(sessionId: number, clips: AudioClip[]) {
   }
 }
 
+/** Rotating palette for custom break tiles (distinct from preset colours) */
+const CUSTOM_BREAK_COLORS = [
+  "#E8F0FE", // light blue
+  "#FDE8E8", // light red
+  "#E6F4EA", // light green
+  "#FFF4E5", // light orange
+  "#F3E8FF", // light purple
+  "#E0F7FA", // cyan
+  "#FCE7F3", // pink
+];
+
 const DEFAULT_BREAK_TYPES: { id: string; label: string; emoji: string; bg: string }[] = [
   { id: "tea",     label: "Tea / Coffee", emoji: "☕", bg: "#F5EFE6" },
   { id: "lunch",   label: "Lunch",        emoji: "🥪", bg: "#FFF4E5" },
@@ -374,10 +385,20 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const handleAddCustomBreak = useCallback((input: string) => {
     const text = input.trim();
     if (!text) return;
-    const emojiMatch = text.match(/\p{Emoji_Presentation}/u);
-    const emoji = emojiMatch ? emojiMatch[0] : "💤";
-    const label = text.replace(/\s*\p{Emoji_Presentation}\s*$/u, "").trim() || text;
-    const newBreak = { id: `custom_${Date.now()}`, label, emoji, bg: "#E8F3EC" };
+
+    // Match full grapheme emoji clusters including skin-tone modifiers
+    const emojiRegex = /\p{Emoji_Presentation}\p{Emoji_Modifier}?/gu;
+    const emojiMatches = [...text.matchAll(emojiRegex)];
+    // Use the LAST emoji found (if any), fallback to 💤
+    const emoji = emojiMatches.length > 0 ? emojiMatches[emojiMatches.length - 1][0] : "💤";
+    // Strip ALL emoji (base + modifier) from the label to avoid duplication
+    const label = text.replace(/\p{Emoji_Presentation}\p{Emoji_Modifier}?/gu, "").trim() || text;
+
+    // Pick next colour from rotating palette based on how many custom tiles exist
+    const customCount = breakTypes.filter((b) => b.id.startsWith("custom_")).length;
+    const bg = CUSTOM_BREAK_COLORS[customCount % CUSTOM_BREAK_COLORS.length];
+
+    const newBreak = { id: `custom_${Date.now()}`, label, emoji, bg };
     const updated = [...breakTypes, newBreak];
     setBreakTypes(updated);
     localStorage.setItem("breakTypes", JSON.stringify(updated));
