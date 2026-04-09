@@ -699,7 +699,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                       )}
                     </AnimatePresence>
 
-                    <div className="flex-1" />
+                    <div className="flex-1 min-h-10" />
 
                     {/* Notes / Task section */}
                     <section className="pb-5">
