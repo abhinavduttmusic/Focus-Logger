@@ -75,48 +75,73 @@ type DayGroup = {
   breaks: BreakGroup[];
 };
 
-/** Soft background colors for manual break cards, keyed by label substring */
+/** Strip ANY trailing emoji so "Walk 🚶" → "Walk", "Dinner 😋" → "Dinner" */
+function cleanBreakLabel(notes: string): string {
+  return notes
+    .replace(/\s*\p{Emoji_Presentation}\s*$/u, "")
+    .replace(/\s*[\u{FE0F}\u{20E3}\u{1F3FB}-\u{1F3FF}]+$/u, "") // variation selectors / skin tones
+    .trim() || notes;
+}
+
+/** Extract an emoji the user typed in a custom label, e.g. "Dinner 😋" → "😋" */
+function extractCustomEmoji(notes: string): string | null {
+  const match = notes.match(/\p{Emoji_Presentation}/u);
+  return match ? match[0] : null;
+}
+
+/** Soft background colors for manual break cards */
 function breakBg(notes: string): string {
   if (/coffee|tea/i.test(notes)) return "#F5EFE6";
+  if (/breakfast/i.test(notes))  return "#FFF8E7";
   if (/lunch/i.test(notes))      return "#FFF4E5";
+  if (/dinner/i.test(notes))     return "#FFF1E8";
   if (/walk/i.test(notes))       return "#EAF0FF";
   if (/rest/i.test(notes))       return "#F3E8FF";
   if (/music/i.test(notes))      return "#FFF0F8";
+  if (/\btv\b/i.test(notes))     return "#EEEEF5";
+  if (/youtube/i.test(notes))    return "#FFF0EE";
   return "#E8F3EC";
 }
 
-/** Derive emoji from break label */
+/** Derive display emoji from break notes — falls back to any user-typed emoji then 💤 */
 function breakEmoji(notes: string): string {
   if (/coffee|tea/i.test(notes)) return "☕";
+  if (/breakfast/i.test(notes))  return "🥞";
   if (/lunch/i.test(notes))      return "🥪";
+  if (/dinner/i.test(notes))     return "🍲";
   if (/walk/i.test(notes))       return "🚶";
   if (/rest/i.test(notes))       return "🧘";
   if (/music/i.test(notes))      return "🎧";
-  return "💤";
-}
-
-/** Strip trailing known emoji so "Walk 🚶" → "Walk" */
-function cleanBreakLabel(notes: string): string {
-  return notes.replace(/\s*[☕🥪🚶🧘🎧💤]\s*$/u, "").trim() || notes;
+  if (/\btv\b/i.test(notes))     return "📺";
+  if (/youtube/i.test(notes))    return "▶️";
+  return extractCustomEmoji(notes) ?? "💤";
 }
 
 /** Normalised key used to group breaks of the same type */
 function breakTypeKey(notes: string): string {
   if (/coffee|tea/i.test(notes)) return "tea";
+  if (/breakfast/i.test(notes))  return "breakfast";
   if (/lunch/i.test(notes))      return "lunch";
+  if (/dinner/i.test(notes))     return "dinner";
   if (/walk/i.test(notes))       return "walk";
   if (/rest/i.test(notes))       return "rest";
   if (/music/i.test(notes))      return "music";
+  if (/\btv\b/i.test(notes))     return "tv";
+  if (/youtube/i.test(notes))    return "youtube";
   return cleanBreakLabel(notes).toLowerCase().replace(/\s+/g, "-") || "break";
 }
 
 /** Human-readable label for a break group (no emoji) */
 function breakTypeLabel(notes: string): string {
   if (/coffee|tea/i.test(notes)) return "Tea / Coffee";
+  if (/breakfast/i.test(notes))  return "Breakfast";
   if (/lunch/i.test(notes))      return "Lunch";
+  if (/dinner/i.test(notes))     return "Dinner";
   if (/walk/i.test(notes))       return "Walk";
   if (/rest/i.test(notes))       return "Rest";
   if (/music/i.test(notes))      return "Music";
+  if (/\btv\b/i.test(notes))     return "TV";
+  if (/youtube/i.test(notes))    return "YouTube";
   return cleanBreakLabel(notes) || "Break";
 }
 
@@ -448,6 +473,7 @@ export function SessionList({ onRestart }: SessionListProps) {
       {
         onSuccess: () => {
           setEditingId(null);
+          setEditingBreakId(null); // also close break edit form if it was a break
           queryClient.invalidateQueries({ queryKey: getListSessionsQueryKey() });
           queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
         },

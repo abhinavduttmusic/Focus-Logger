@@ -994,35 +994,44 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                 Take a break
               </h2>
 
-              {/* Break option grid */}
-              <div className="grid grid-cols-3 gap-3 mb-4">
+              {/* Break option grid — 3 columns × 3 rows */}
+              <div className="grid grid-cols-3 gap-2.5 mb-3">
                 {[
                   { emoji: "☕", label: "Tea / Coffee", bg: "#F5EFE6" },
+                  { emoji: "🥞", label: "Breakfast",    bg: "#FFF8E7" },
                   { emoji: "🥪", label: "Lunch",        bg: "#FFF4E5" },
+                  { emoji: "🍲", label: "Dinner",       bg: "#FFF1E8" },
                   { emoji: "🚶", label: "Walk",         bg: "#EAF0FF" },
                   { emoji: "🧘", label: "Rest",         bg: "#F3E8FF" },
                   { emoji: "🎧", label: "Music",        bg: "#FFF0F8" },
-                  { emoji: "✏️", label: "+ Custom",     bg: "#F2F2F7", isCustom: true },
-                ].map(({ emoji, label, bg, isCustom }) => (
+                  { emoji: "📺", label: "TV",           bg: "#EEEEF5" },
+                  { emoji: "▶️", label: "YouTube",      bg: "#FFF0EE" },
+                ].map(({ emoji, label, bg }) => (
                   <motion.button
                     key={label}
-                    onClick={() => {
-                      if (isCustom) {
-                        setShowCustomBreakInput(true);
-                      } else {
-                        handleStartManualBreak(`${label} ${emoji}`);
-                      }
-                    }}
+                    onClick={() => handleStartManualBreak(`${label} ${emoji}`)}
                     whileTap={{ scale: 0.94 }}
                     transition={{ duration: 0.1, ease: "easeOut" }}
-                    className="flex flex-col items-center justify-center gap-1.5 py-4 px-2 rounded-2xl text-center transition-opacity active:opacity-80"
+                    className="flex flex-col items-center justify-center gap-1.5 py-3.5 px-2 rounded-2xl text-center transition-opacity active:opacity-80"
                     style={{ background: bg }}
                   >
                     <span className="text-2xl leading-none">{emoji}</span>
-                    <span className="text-[11px] font-medium text-foreground/70 leading-tight">{label}</span>
+                    <span className="text-[10px] font-medium text-foreground/70 leading-tight">{label}</span>
                   </motion.button>
                 ))}
               </div>
+
+              {/* Custom break — full-width button */}
+              <motion.button
+                onClick={() => setShowCustomBreakInput((v) => !v)}
+                whileTap={{ scale: 0.98 }}
+                transition={{ duration: 0.1, ease: "easeOut" }}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-medium text-foreground/60 transition-colors"
+                style={{ background: "#F2F2F7" }}
+              >
+                <span className="text-base leading-none">✏️</span>
+                <span>+ Custom</span>
+              </motion.button>
 
               {/* Custom label input — inline within sheet */}
               <AnimatePresence>
