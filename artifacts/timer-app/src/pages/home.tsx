@@ -120,13 +120,17 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const breakWillAutoStartRef = useRef(false);
 
   // ─── Manual break tracking ────────────────────────────────────────────────
+  // isManualBreakRef: mutable, used for synchronous checks in event handlers
   const isManualBreakRef    = useRef(false);
-  const manualBreakLabelRef = useRef("Break");
+  const manualBreakLabelRef = useRef("");
   const pendingBreakLabelRef = useRef("Break"); // for interrupt-focus flow
+  // manualBreakLabel: React state — drives the "On Break" pill render and acts
+  // as a backup detection path (both must agree before a break is logged)
+  const [manualBreakLabel, setManualBreakLabel] = useState("");
 
-  const [showBreakSheet,         setShowBreakSheet]         = useState(false);
-  const [showCustomBreakInput,   setShowCustomBreakInput]   = useState(false);
-  const [breakCustomInput,       setBreakCustomInput]       = useState("");
+  const [showBreakSheet,            setShowBreakSheet]            = useState(false);
+  const [showCustomBreakInput,      setShowCustomBreakInput]      = useState(false);
+  const [breakCustomInput,          setBreakCustomInput]          = useState("");
   const [showBreakInterruptConfirm, setShowBreakInterruptConfirm] = useState(false);
 
   // ─── Session logging ─────────────────────────────────────────────────────
@@ -168,13 +172,22 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     },
   });
 
+  // Keep a ref that always mirrors manualBreakLabel state so handleLogSession
+  // (a stale-closure-safe callback) can read the latest value synchronously.
+  const manualBreakLabelStateRef = useRef("");
+  manualBreakLabelStateRef.current = manualBreakLabel;
+
   const handleLogSession = useCallback(
     async (type: SessionType, durationSeconds: number) => {
-      // Manual break: override type and use stored label as notes
-      if (isManualBreakRef.current) {
-        const label = manualBreakLabelRef.current;
+      // Manual break: detected via EITHER the mutation ref OR the state mirror.
+      // Using both ensures we catch any timing edge-case.
+      const isBreak = isManualBreakRef.current || manualBreakLabelStateRef.current !== "";
+      if (isBreak) {
+        const label = manualBreakLabelRef.current || manualBreakLabelStateRef.current || "Break";
+        // Reset all break tracking immediately
         isManualBreakRef.current = false;
-        manualBreakLabelRef.current = "Break";
+        manualBreakLabelRef.current = "";
+        setManualBreakLabel("");
         pendingClipsRef.current = [];
         createSession.mutate({
           data: { type: "manual_break" as SessionType, durationSeconds, notes: label, taskId: null },
@@ -320,8 +333,10 @@ function Home({ restored }: { restored: RestoredSession | null }) {
       return;
     }
 
+    // Set BOTH the ref (sync) and state (for rendering) before starting timer
     isManualBreakRef.current = true;
     manualBreakLabelRef.current = label;
+    setManualBreakLabel(label);
 
     // Breaks run as a simple stopwatch
     if (timer.mode !== "simple") timer.setMode("simple");
@@ -340,6 +355,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     setTimeout(() => {
       isManualBreakRef.current = true;
       manualBreakLabelRef.current = label;
+      setManualBreakLabel(label);
       if (timer.mode !== "simple") timer.setMode("simple");
       timer.start();
     }, 0);
@@ -551,6 +567,36 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                         }}
                         className="select-none w-full"
                       >
+                        {/* "On Break" label pill — shown only during a manual break */}
+                        <AnimatePresence>
+                          {manualBreakLabel && sessionIsInProgress && (
+                            <motion.div
+                              key="break-pill"
+                              initial={{ opacity: 0, y: -6 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -4 }}
+                              transition={{ duration: 0.2, ease: "easeOut" }}
+                              className="flex justify-center mb-3"
+                            >
+                              <span
+                                className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full text-sm font-medium tracking-tight"
+                                style={{
+                                  background:
+                                    /coffee|tea/i.test(manualBreakLabel) ? "#F5EFE6"
+                                    : /lunch/i.test(manualBreakLabel) ? "#FFF4E5"
+                                    : /walk/i.test(manualBreakLabel) ? "#EAF0FF"
+                                    : /rest/i.test(manualBreakLabel) ? "#F3E8FF"
+                                    : /music/i.test(manualBreakLabel) ? "#FFF0F8"
+                                    : "#E8F3EC",
+                                  color: "rgba(0,0,0,0.50)",
+                                }}
+                              >
+                                On Break&nbsp;·&nbsp;{manualBreakLabel}
+                              </span>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+
                         <TimerDisplay
                           mode={timer.mode}
                           phase={timer.phase}
@@ -929,11 +975,10 @@ function Home({ restored }: { restored: RestoredSession | null }) {
               transition={{ duration: 0.22 }}
               className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]"
               onClick={() => {
-                // Dismiss → start generic "Break"
+                // Dismiss only — do NOT start any break
                 setShowBreakSheet(false);
                 setShowCustomBreakInput(false);
                 setBreakCustomInput("");
-                handleStartManualBreak("Break");
               }}
             />
             <motion.div
