@@ -987,15 +987,19 @@ function Home({ restored }: { restored: RestoredSession | null }) {
               animate={{ y: 0, opacity: 1, scale: 1 }}
               exit={{ y: "100%", opacity: 0 }}
               transition={SHEET_TRANSITION}
-              className="fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-3xl px-6 pt-5 pb-10 shadow-xl"
+              className="fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-3xl pt-5 shadow-xl"
             >
+              {/* Drag handle */}
               <div className="w-10 h-1 bg-border/40 rounded-full mx-auto mb-5" />
-              <h2 className="text-base font-semibold text-foreground text-center mb-5">
-                Take a break
+              <h2 className="text-base font-semibold text-foreground text-center mb-5 px-6">
+                Take a Break
               </h2>
 
-              {/* Break option grid — 3 columns × 3 rows */}
-              <div className="grid grid-cols-3 gap-2.5 mb-3">
+              {/* Scrollable content — max 65 vh so sheet never overflows the screen */}
+              <div className="overflow-y-auto px-6 pb-10" style={{ maxHeight: "65vh" }}>
+
+              {/* Break option grid — strict 3 columns, grows vertically */}
+              <div className="grid grid-cols-3 gap-3 mb-3">
                 {[
                   { emoji: "☕", label: "Tea / Coffee", bg: "#F5EFE6" },
                   { emoji: "🥞", label: "Breakfast",    bg: "#FFF8E7" },
@@ -1012,11 +1016,11 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                     onClick={() => handleStartManualBreak(`${label} ${emoji}`)}
                     whileTap={{ scale: 0.94 }}
                     transition={{ duration: 0.1, ease: "easeOut" }}
-                    className="flex flex-col items-center justify-center gap-1.5 py-3.5 px-2 rounded-2xl text-center transition-opacity active:opacity-80"
+                    className="flex flex-col items-center justify-center gap-1.5 py-4 px-2 rounded-2xl text-center transition-opacity active:opacity-80"
                     style={{ background: bg }}
                   >
                     <span className="text-2xl leading-none">{emoji}</span>
-                    <span className="text-[10px] font-medium text-foreground/70 leading-tight">{label}</span>
+                    <span className="text-[11px] font-medium text-foreground/70 leading-tight">{label}</span>
                   </motion.button>
                 ))}
               </div>
@@ -1069,6 +1073,8 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              </div>{/* end scrollable content */}
             </motion.div>
           </>
         )}
