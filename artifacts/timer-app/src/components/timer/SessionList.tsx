@@ -64,21 +64,34 @@ type DayGroup = {
   dateLabel: string;
   totalSeconds: number;
   taskGroups: TaskGroup[];
+  breaks: SessionItem[];
 };
 
+/** Soft background colors for manual break cards, keyed by label substring */
+function breakBg(notes: string): string {
+  if (/coffee|tea/i.test(notes)) return "#F5EFE6";
+  if (/lunch/i.test(notes))      return "#FFF4E5";
+  if (/walk/i.test(notes))       return "#EAF0FF";
+  if (/rest/i.test(notes))       return "#F3E8FF";
+  if (/music/i.test(notes))      return "#FFF0F8";
+  return "#E8F3EC"; // default soft green for "Break" or custom
+}
+
 function buildDayGroups(sessions: SessionItem[]): DayGroup[] {
-  const dayMap = new Map<string, { dateLabel: string; sessionsMap: Map<string, TaskGroup> }>();
+  const dayMap = new Map<string, { dateLabel: string; sessionsMap: Map<string, TaskGroup>; breaks: SessionItem[] }>();
 
-  // Only list sessions that are not break sessions
-  sessions = sessions.filter((s) => s.type !== "pomodoro_break");
+  // Split focus/simple sessions from break sessions
+  const focusSessions = sessions.filter((s) => s.type !== "pomodoro_break" && s.type !== "manual_break");
+  const breakSessions = sessions.filter((s) => s.type === "manual_break");
 
-  for (const s of sessions) {
+  // Build focus task groups per day
+  for (const s of focusSessions) {
     const date = new Date(s.createdAt);
     const dateKey = format(date, "yyyy-MM-dd");
     const dateLabel = format(date, "EEE, d MMM");
 
     if (!dayMap.has(dateKey)) {
-      dayMap.set(dateKey, { dateLabel, sessionsMap: new Map() });
+      dayMap.set(dateKey, { dateLabel, sessionsMap: new Map(), breaks: [] });
     }
 
     const day = dayMap.get(dateKey)!;
@@ -101,8 +114,21 @@ function buildDayGroups(sessions: SessionItem[]): DayGroup[] {
     group.sessions.push(s);
   }
 
+  // Add break sessions per day (create day entry if needed)
+  for (const s of breakSessions) {
+    const date = new Date(s.createdAt);
+    const dateKey = format(date, "yyyy-MM-dd");
+    const dateLabel = format(date, "EEE, d MMM");
+
+    if (!dayMap.has(dateKey)) {
+      dayMap.set(dateKey, { dateLabel, sessionsMap: new Map(), breaks: [] });
+    }
+
+    dayMap.get(dateKey)!.breaks.push(s);
+  }
+
   const dayGroups: DayGroup[] = [];
-  for (const [dateKey, { dateLabel, sessionsMap }] of dayMap) {
+  for (const [dateKey, { dateLabel, sessionsMap, breaks }] of dayMap) {
     const taskGroups = Array.from(sessionsMap.values());
     taskGroups.sort((a, b) => b.totalSeconds - a.totalSeconds);
 
@@ -110,8 +136,10 @@ function buildDayGroups(sessions: SessionItem[]): DayGroup[] {
       tg.sessions.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     }
 
+    breaks.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
     const totalSeconds = taskGroups.reduce((sum, g) => sum + g.totalSeconds, 0);
-    dayGroups.push({ dateKey, dateLabel, totalSeconds, taskGroups });
+    dayGroups.push({ dateKey, dateLabel, totalSeconds, taskGroups, breaks });
   }
 
   dayGroups.sort((a, b) => b.dateKey.localeCompare(a.dateKey));
@@ -330,6 +358,67 @@ export function SessionList({ onRestart }: SessionListProps) {
             </div>
 
             <div className="space-y-2">
+              {/* ── Manual break cards ── */}
+              {day.breaks.map((brk) => (
+                <motion.div
+                  key={brk.id}
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  className="space-y-1"
+                >
+                  <div
+                    className="flex items-center gap-3 px-4 py-3 rounded-2xl"
+                    style={{ background: breakBg(brk.notes), boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}
+                  >
+                    {/* Emoji derived from label */}
+                    <span className="text-xl shrink-0 leading-none">
+                      {/coffee|tea/i.test(brk.notes) ? "☕"
+                        : /lunch/i.test(brk.notes) ? "🥪"
+                        : /walk/i.test(brk.notes) ? "🚶"
+                        : /rest/i.test(brk.notes) ? "🧘"
+                        : /music/i.test(brk.notes) ? "🎧"
+                        : "💤"}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[15px] font-semibold text-foreground/80 truncate leading-snug">
+                        {brk.notes || "Break"}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground/50 mt-0.5">
+                        {format(new Date(brk.createdAt), "h:mm a")}
+                      </p>
+                    </div>
+                    <span className="text-[14px] font-semibold text-foreground/50 tabular-nums shrink-0">
+                      {formatShortDuration(brk.durationSeconds)}
+                    </span>
+                    <button
+                      onClick={() => { setConfirmDeleteId(brk.id); setConfirmDeleteId2(null); }}
+                      className="p-1.5 rounded-lg text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+                      aria-label="Delete break"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <AnimatePresence>
+                    {confirmDeleteId === brk.id && confirmDeleteId2 !== brk.id && (
+                      <ConfirmBanner
+                        message="Delete this break?"
+                        onConfirm={() => setConfirmDeleteId2(brk.id)}
+                        onCancel={() => { setConfirmDeleteId(null); setConfirmDeleteId2(null); }}
+                      />
+                    )}
+                    {confirmDeleteId2 === brk.id && (
+                      <ConfirmBanner
+                        message="Hold up a sec! Once it's gone, it's gone for good."
+                        confirmLabel="Yes, delete it"
+                        onConfirm={() => handleDelete(brk.id)}
+                        onCancel={() => { setConfirmDeleteId(null); setConfirmDeleteId2(null); }}
+                      />
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              ))}
+
               {day.taskGroups.map(group => {
                 const isExpanded = expanded.has(group.key);
                 return (

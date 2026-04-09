@@ -119,6 +119,16 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   // Prevents clearing task/notes until after the break too.
   const breakWillAutoStartRef = useRef(false);
 
+  // ─── Manual break tracking ────────────────────────────────────────────────
+  const isManualBreakRef    = useRef(false);
+  const manualBreakLabelRef = useRef("Break");
+  const pendingBreakLabelRef = useRef("Break"); // for interrupt-focus flow
+
+  const [showBreakSheet,         setShowBreakSheet]         = useState(false);
+  const [showCustomBreakInput,   setShowCustomBreakInput]   = useState(false);
+  const [breakCustomInput,       setBreakCustomInput]       = useState("");
+  const [showBreakInterruptConfirm, setShowBreakInterruptConfirm] = useState(false);
+
   // ─── Session logging ─────────────────────────────────────────────────────
 
   const createSession = useCreateSession({
@@ -160,6 +170,17 @@ function Home({ restored }: { restored: RestoredSession | null }) {
 
   const handleLogSession = useCallback(
     async (type: SessionType, durationSeconds: number) => {
+      // Manual break: override type and use stored label as notes
+      if (isManualBreakRef.current) {
+        const label = manualBreakLabelRef.current;
+        isManualBreakRef.current = false;
+        manualBreakLabelRef.current = "Break";
+        pendingClipsRef.current = [];
+        createSession.mutate({
+          data: { type: "manual_break" as SessionType, durationSeconds, notes: label, taskId: null },
+        });
+        return;
+      }
       if (type === "pomodoro_break") {
         pendingClipsRef.current = [];
         createSession.mutate({
@@ -283,6 +304,45 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const handleEndEarlyConfirm = useCallback(() => {
     setShowEndEarly(false);
     timer.stop();
+  }, [timer]);
+
+  // ─── Manual break ────────────────────────────────────────────────────────
+
+  const handleStartManualBreak = useCallback((label: string) => {
+    setShowBreakSheet(false);
+    setShowCustomBreakInput(false);
+    setBreakCustomInput("");
+
+    // Defensive guard: if focus session is running, ask first
+    if (sessionIsInProgressRef.current) {
+      pendingBreakLabelRef.current = label;
+      setShowBreakInterruptConfirm(true);
+      return;
+    }
+
+    isManualBreakRef.current = true;
+    manualBreakLabelRef.current = label;
+
+    // Breaks run as a simple stopwatch
+    if (timer.mode !== "simple") timer.setMode("simple");
+    timer.start();
+  }, [timer]);
+
+  const handleBreakInterruptConfirm = useCallback(() => {
+    setShowBreakInterruptConfirm(false);
+    const label = pendingBreakLabelRef.current;
+
+    // isManualBreakRef MUST be false here so timer.stop() logs the focus session correctly.
+    // We set it to true only AFTER stop() has synchronously fired onLogSession.
+    timer.stop(); // logs focus session (isManualBreakRef.current === false here)
+
+    // Now mark the next session as a manual break and start the timer
+    setTimeout(() => {
+      isManualBreakRef.current = true;
+      manualBreakLabelRef.current = label;
+      if (timer.mode !== "simple") timer.setMode("simple");
+      timer.start();
+    }, 0);
   }, [timer]);
 
   // ─── Discard (Stopwatch only) ─────────────────────────────────────────────
@@ -547,7 +607,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
 
                     {/* ── Session controls — Stopwatch only ── */}
                     <AnimatePresence>
-                      {sessionIsInProgress && timer.mode === "simple" && (
+                      {sessionIsInProgress && timer.mode === "simple" && !isManualBreakRef.current && (
                         <motion.div
                           key="session-controls"
                           initial={{ opacity: 0, y: -6 }}
@@ -564,6 +624,30 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                           >
                             <XCircle className="w-3.5 h-3.5" />
                             Discard Session
+                          </motion.button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    {/* ── Start Break CTA — idle + no task selected ── */}
+                    <AnimatePresence>
+                      {!sessionIsInProgress && !selectedTask && (
+                        <motion.div
+                          key="start-break-cta"
+                          initial={{ opacity: 0, y: -6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -6 }}
+                          transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                          className="flex justify-center"
+                        >
+                          <motion.button
+                            onClick={() => setShowBreakSheet(true)}
+                            whileTap={{ scale: 0.96 }}
+                            transition={{ duration: 0.1, ease: "easeOut" }}
+                            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-medium text-muted-foreground/60 bg-secondary/40 hover:bg-secondary/60 border border-border/30 transition-colors"
+                          >
+                            <span>☕</span>
+                            Take a Break
                           </motion.button>
                         </motion.div>
                       )}
@@ -826,6 +910,159 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                   className="w-full py-3.5 rounded-2xl bg-secondary/50 text-foreground/70 font-medium text-sm hover:bg-secondary/70 transition-colors"
                 >
                   Cancel
+                </motion.button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* 4. Break picker bottom sheet */}
+      <AnimatePresence>
+        {showBreakSheet && (
+          <>
+            <motion.div
+              key="break-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.22 }}
+              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]"
+              onClick={() => {
+                // Dismiss → start generic "Break"
+                setShowBreakSheet(false);
+                setShowCustomBreakInput(false);
+                setBreakCustomInput("");
+                handleStartManualBreak("Break");
+              }}
+            />
+            <motion.div
+              key="break-sheet"
+              initial={{ y: "100%", opacity: 0, scale: 0.98 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: "100%", opacity: 0 }}
+              transition={SHEET_TRANSITION}
+              className="fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-3xl px-6 pt-5 pb-10 shadow-xl"
+            >
+              <div className="w-10 h-1 bg-border/40 rounded-full mx-auto mb-5" />
+              <h2 className="text-base font-semibold text-foreground text-center mb-5">
+                Take a break
+              </h2>
+
+              {/* Break option grid */}
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                {[
+                  { emoji: "☕", label: "Tea / Coffee", bg: "#F5EFE6" },
+                  { emoji: "🥪", label: "Lunch",        bg: "#FFF4E5" },
+                  { emoji: "🚶", label: "Walk",         bg: "#EAF0FF" },
+                  { emoji: "🧘", label: "Rest",         bg: "#F3E8FF" },
+                  { emoji: "🎧", label: "Music",        bg: "#FFF0F8" },
+                  { emoji: "✏️", label: "+ Custom",     bg: "#F2F2F7", isCustom: true },
+                ].map(({ emoji, label, bg, isCustom }) => (
+                  <motion.button
+                    key={label}
+                    onClick={() => {
+                      if (isCustom) {
+                        setShowCustomBreakInput(true);
+                      } else {
+                        handleStartManualBreak(`${label} ${emoji}`);
+                      }
+                    }}
+                    whileTap={{ scale: 0.94 }}
+                    transition={{ duration: 0.1, ease: "easeOut" }}
+                    className="flex flex-col items-center justify-center gap-1.5 py-4 px-2 rounded-2xl text-center transition-opacity active:opacity-80"
+                    style={{ background: bg }}
+                  >
+                    <span className="text-2xl leading-none">{emoji}</span>
+                    <span className="text-[11px] font-medium text-foreground/70 leading-tight">{label}</span>
+                  </motion.button>
+                ))}
+              </div>
+
+              {/* Custom label input — inline within sheet */}
+              <AnimatePresence>
+                {showCustomBreakInput && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.18, ease: "easeOut" }}
+                    className="overflow-hidden"
+                  >
+                    <div className="flex gap-2 mt-1">
+                      <input
+                        autoFocus
+                        type="text"
+                        placeholder="What are you doing?"
+                        value={breakCustomInput}
+                        onChange={(e) => setBreakCustomInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            handleStartManualBreak(breakCustomInput.trim() || "Break");
+                          }
+                        }}
+                        className="flex-1 px-4 py-2.5 rounded-xl border border-border/50 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      />
+                      <motion.button
+                        onClick={() => handleStartManualBreak(breakCustomInput.trim() || "Break")}
+                        whileTap={{ scale: 0.95 }}
+                        className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium"
+                      >
+                        Go
+                      </motion.button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* 5. Break interrupt confirmation ("End focus → start break?") */}
+      <AnimatePresence>
+        {showBreakInterruptConfirm && (
+          <>
+            <motion.div
+              key="break-interrupt-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.22 }}
+              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]"
+              onClick={() => setShowBreakInterruptConfirm(false)}
+            />
+            <motion.div
+              key="break-interrupt-sheet"
+              initial={{ y: "100%", opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: "100%", opacity: 0 }}
+              transition={SHEET_TRANSITION}
+              className="fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-3xl px-6 pt-5 pb-10 shadow-xl"
+            >
+              <div className="w-10 h-1 bg-border/40 rounded-full mx-auto mb-6" />
+              <h2 className="text-lg font-semibold text-foreground text-center mb-2">
+                End focus session?
+              </h2>
+              <p className="text-sm text-muted-foreground text-center mb-8">
+                Your current session will be logged and a break will start.
+              </p>
+              <div className="flex flex-col gap-3">
+                <motion.button
+                  onClick={handleBreakInterruptConfirm}
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ duration: 0.12, ease: "easeOut" }}
+                  className="w-full py-3.5 rounded-2xl bg-primary/10 text-primary font-semibold text-sm hover:bg-primary/15 transition-colors"
+                >
+                  End Session & Start Break
+                </motion.button>
+                <motion.button
+                  onClick={() => setShowBreakInterruptConfirm(false)}
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ duration: 0.12, ease: "easeOut" }}
+                  className="w-full py-3.5 rounded-2xl bg-secondary/50 text-foreground/70 font-medium text-sm hover:bg-secondary/70 transition-colors"
+                >
+                  Keep Focusing
                 </motion.button>
               </div>
             </motion.div>

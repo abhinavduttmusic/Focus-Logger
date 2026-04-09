@@ -13,4 +13,5 @@ export const CreateSessionRequestType = {
   simple: "simple",
   pomodoro_focus: "pomodoro_focus",
   pomodoro_break: "pomodoro_break",
+  manual_break: "manual_break",
 } as const;

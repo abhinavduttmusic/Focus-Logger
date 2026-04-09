@@ -19,7 +19,7 @@ export const HealthCheckResponse = zod.object({
  */
 export const ListSessionsResponseItem = zod.object({
   id: zod.number(),
-  type: zod.enum(["simple", "pomodoro_focus", "pomodoro_break"]),
+  type: zod.enum(["simple", "pomodoro_focus", "pomodoro_break", "manual_break"]),
   durationSeconds: zod.number(),
   notes: zod.string(),
   taskId: zod.number().nullable(),
@@ -47,7 +47,7 @@ export const ListSessionsResponse = zod.array(ListSessionsResponseItem);
  * @summary Create a new session
  */
 export const CreateSessionBody = zod.object({
-  type: zod.enum(["simple", "pomodoro_focus", "pomodoro_break"]),
+  type: zod.enum(["simple", "pomodoro_focus", "pomodoro_break", "manual_break"]),
   durationSeconds: zod.number(),
   notes: zod.string(),
   taskId: zod.number().nullish(),
@@ -68,7 +68,7 @@ export const UpdateSessionBody = zod.object({
 
 export const UpdateSessionResponse = zod.object({
   id: zod.number(),
-  type: zod.enum(["simple", "pomodoro_focus", "pomodoro_break"]),
+  type: zod.enum(["simple", "pomodoro_focus", "pomodoro_break", "manual_break"]),
   durationSeconds: zod.number(),
   notes: zod.string(),
   taskId: zod.number().nullable(),
