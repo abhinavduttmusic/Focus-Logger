@@ -386,13 +386,15 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     const text = input.trim();
     if (!text) return;
 
-    // Match full grapheme emoji clusters including skin-tone modifiers
-    const emojiRegex = /\p{Emoji_Presentation}\p{Emoji_Modifier}?/gu;
-    const emojiMatches = [...text.matchAll(emojiRegex)];
+    // Split into true grapheme clusters so ZWJ sequences like 🧘🏽‍♂️ stay intact
+    const splitter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+    const segments = [...splitter.segment(text)].map((s) => s.segment);
+    const emojiTest = /\p{Extended_Pictographic}/u;
+    const emojiSegments = segments.filter((c) => emojiTest.test(c));
     // Use the LAST emoji found (if any), fallback to 💤
-    const emoji = emojiMatches.length > 0 ? emojiMatches[emojiMatches.length - 1][0] : "💤";
-    // Strip ALL emoji (base + modifier) from the label to avoid duplication
-    const label = text.replace(/\p{Emoji_Presentation}\p{Emoji_Modifier}?/gu, "").trim() || text;
+    const emoji = emojiSegments.length > 0 ? emojiSegments[emojiSegments.length - 1] : "💤";
+    // Remove all emoji graphemes from label — no partial characters left behind
+    const label = segments.filter((c) => !emojiTest.test(c)).join("").trim() || text;
 
     // Pick next colour from rotating palette based on how many custom tiles exist
     const customCount = breakTypes.filter((b) => b.id.startsWith("custom_")).length;
