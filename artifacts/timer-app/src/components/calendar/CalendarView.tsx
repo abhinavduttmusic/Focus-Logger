@@ -53,7 +53,11 @@ const NO_TASK_COLOR     = "bg-muted/40 text-muted-foreground";
 const BREAK_BLOCK_COLOR = "bg-slate-300/40 text-slate-500/70 dark:bg-slate-600/20 dark:text-slate-400/60";
 
 function isBreakSession(type: string): boolean {
-  return type === "pomodoro_break";
+  return type === "pomodoro_break" || type === "manual_break";
+}
+
+function isManualBreak(type: string): boolean {
+  return type === "manual_break";
 }
 
 function getBlockColor(session: SessionItem): string {
@@ -365,7 +369,9 @@ export function CalendarView({ isActive }: CalendarViewProps) {
                                 "text-[11px] truncate leading-tight",
                                 isBreak ? "font-normal italic" : "font-semibold"
                               )}>
-                                {isBreak ? "Break" : (block.session.taskName ?? "No task")}
+                                {isBreak
+                                  ? (block.session.notes || "Break")
+                                  : (block.session.taskName ?? "No task")}
                               </p>
                               {showTimeRange && (
                                 <p className="text-[10px] opacity-70 mt-0.5 tabular-nums">
@@ -417,7 +423,11 @@ export function CalendarView({ isActive }: CalendarViewProps) {
             <div className="p-5 space-y-4">
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
-                  {isBreakSession(detailSession.type) ? (
+                  {isManualBreak(detailSession.type) ? (
+                    <h3 className="text-base font-semibold text-muted-foreground/70 italic">
+                      {detailSession.notes ? `${detailSession.notes} Break` : "Break"}
+                    </h3>
+                  ) : isBreakSession(detailSession.type) ? (
                     <h3 className="text-base font-semibold text-muted-foreground/80 italic">
                       Break &mdash; {formatShortDuration(detailSession.durationSeconds)}
                     </h3>
@@ -472,7 +482,9 @@ export function CalendarView({ isActive }: CalendarViewProps) {
               )}
 
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground/50">
-                {isBreakSession(detailSession.type) ? (
+                {detailSession.type === "manual_break" ? (
+                  <span>Manual break</span>
+                ) : detailSession.type === "pomodoro_break" ? (
                   <span>Pomodoro break</span>
                 ) : (
                   <span className="capitalize">{detailSession.type === "simple" ? "Stopwatch" : "Pomodoro"}</span>

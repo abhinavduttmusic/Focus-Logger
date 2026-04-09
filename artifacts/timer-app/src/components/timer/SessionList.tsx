@@ -74,7 +74,22 @@ function breakBg(notes: string): string {
   if (/walk/i.test(notes))       return "#EAF0FF";
   if (/rest/i.test(notes))       return "#F3E8FF";
   if (/music/i.test(notes))      return "#FFF0F8";
-  return "#E8F3EC"; // default soft green for "Break" or custom
+  return "#E8F3EC";
+}
+
+/** Derive emoji from break label */
+function breakEmoji(notes: string): string {
+  if (/coffee|tea/i.test(notes)) return "☕";
+  if (/lunch/i.test(notes))      return "🥪";
+  if (/walk/i.test(notes))       return "🚶";
+  if (/rest/i.test(notes))       return "🧘";
+  if (/music/i.test(notes))      return "🎧";
+  return "💤";
+}
+
+/** Strip trailing known emoji so "Walk 🚶" → "Walk" */
+function cleanBreakLabel(notes: string): string {
+  return notes.replace(/\s*[☕🥪🚶🧘🎧💤]\s*$/, "").trim() || notes;
 }
 
 function buildDayGroups(sessions: SessionItem[]): DayGroup[] {
@@ -359,7 +374,11 @@ export function SessionList({ onRestart }: SessionListProps) {
 
             <div className="space-y-2">
               {/* ── Manual break cards ── */}
-              {day.breaks.map((brk) => (
+              {day.breaks.map((brk) => {
+                const endTime   = new Date(brk.createdAt);
+                const startTime = new Date(endTime.getTime() - brk.durationSeconds * 1000);
+                const labelText = cleanBreakLabel(brk.notes);
+                return (
                 <motion.div
                   key={brk.id}
                   initial={{ opacity: 0, y: -4 }}
@@ -371,26 +390,21 @@ export function SessionList({ onRestart }: SessionListProps) {
                     className="flex items-center gap-3 px-4 py-3 rounded-2xl"
                     style={{ background: breakBg(brk.notes), boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}
                   >
-                    {/* Emoji derived from label */}
-                    <span className="text-xl shrink-0 leading-none">
-                      {/coffee|tea/i.test(brk.notes) ? "☕"
-                        : /lunch/i.test(brk.notes) ? "🥪"
-                        : /walk/i.test(brk.notes) ? "🚶"
-                        : /rest/i.test(brk.notes) ? "🧘"
-                        : /music/i.test(brk.notes) ? "🎧"
-                        : "💤"}
+                    {/* Emoji icon */}
+                    <span className="text-xl shrink-0 leading-none select-none" aria-hidden="true">
+                      {breakEmoji(brk.notes)}
                     </span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[15px] font-semibold text-foreground/80 truncate leading-snug">
-                        {brk.notes || "Break"}
+                      {/* "{Label} Break" — italic, muted */}
+                      <p className="text-[14px] italic font-medium text-foreground/60 truncate leading-snug">
+                        {labelText ? `${labelText} Break` : "Break"}
                       </p>
-                      <p className="text-[11px] text-muted-foreground/50 mt-0.5">
-                        {format(new Date(brk.createdAt), "h:mm a")}
+                      {/* Time range + duration */}
+                      <p className="text-[11px] text-muted-foreground/45 mt-0.5 tabular-nums">
+                        {format(startTime, "h:mm a")} – {format(endTime, "h:mm a")}
+                        &nbsp;&middot;&nbsp;{formatShortDuration(brk.durationSeconds)}
                       </p>
                     </div>
-                    <span className="text-[14px] font-semibold text-foreground/50 tabular-nums shrink-0">
-                      {formatShortDuration(brk.durationSeconds)}
-                    </span>
                     <button
                       onClick={() => { setConfirmDeleteId(brk.id); setConfirmDeleteId2(null); }}
                       className="p-1.5 rounded-lg text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
@@ -417,7 +431,8 @@ export function SessionList({ onRestart }: SessionListProps) {
                     )}
                   </AnimatePresence>
                 </motion.div>
-              ))}
+                );
+              })}
 
               {day.taskGroups.map(group => {
                 const isExpanded = expanded.has(group.key);
