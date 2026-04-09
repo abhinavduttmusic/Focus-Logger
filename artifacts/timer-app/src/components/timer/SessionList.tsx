@@ -89,7 +89,7 @@ function breakEmoji(notes: string): string {
 
 /** Strip trailing known emoji so "Walk 🚶" → "Walk" */
 function cleanBreakLabel(notes: string): string {
-  return notes.replace(/\s*[☕🥪🚶🧘🎧💤]\s*$/, "").trim() || notes;
+  return notes.replace(/\s*[☕🥪🚶🧘🎧💤]\s*$/u, "").trim() || notes;
 }
 
 function buildDayGroups(sessions: SessionItem[]): DayGroup[] {
