@@ -1059,11 +1059,30 @@ function Home({ restored }: { restored: RestoredSession | null }) {
               className="fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-3xl px-6 pt-5 pb-8 shadow-xl"
               style={{ maxHeight: "60vh" }}
             >
-              {/* Drag handle + title */}
+              {/* Drag handle */}
               <div className="w-10 h-1 bg-border/40 rounded-full mx-auto mb-4" />
-              <h2 className="text-base font-semibold text-foreground text-center mb-4">
-                Take a Break
-              </h2>
+
+              {/* Header row — title + conditional Done button */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-14" />
+                <h2 className="text-base font-semibold text-foreground">Take a Break</h2>
+                <div className="w-14 flex justify-end">
+                  <motion.button
+                    animate={{ opacity: activeBreakEditId !== null ? 1 : 0 }}
+                    transition={{ duration: 0.15, ease: "easeInOut" }}
+                    style={{
+                      pointerEvents: activeBreakEditId !== null ? "auto" : "none",
+                      fontSize: "14px",
+                      fontWeight: 600,
+                      color: "#333",
+                      padding: "8px 12px",
+                    }}
+                    onClick={() => setActiveBreakEditId(null)}
+                  >
+                    Done
+                  </motion.button>
+                </div>
+              </div>
 
               {/* Grid — strict 3-col, scrollable, overflow-x hidden to prevent jitter */}
               <div className="relative" style={{ overflowX: "hidden" }}>
