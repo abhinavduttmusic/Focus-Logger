@@ -511,7 +511,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
               transition={TAB_TRANSITION}
               className={
                 tab === "timer"
-                  ? "absolute inset-0 overflow-y-auto"
+                  ? "absolute inset-0 overflow-hidden"
                   : "absolute inset-0 overflow-hidden"
               }
               style={{ pointerEvents: isActive ? "auto" : "none" }}
@@ -699,10 +699,10 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                       )}
                     </AnimatePresence>
 
-                    <div className="flex-1 min-h-10" />
+                    <div className="h-8 shrink-0" />
 
-                    {/* Notes / Task section */}
-                    <section className="pb-5">
+                    {/* Notes / Task section — takes all remaining space, stays bounded */}
+                    <section className="flex-1 min-h-0 pb-5 overflow-hidden">
                       <NotesArea
                         value={notes}
                         onChange={setNotes}
