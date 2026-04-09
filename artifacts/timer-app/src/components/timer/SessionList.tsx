@@ -59,12 +59,20 @@ type TaskGroup = {
   sessions: SessionItem[];
 };
 
+type BreakGroup = {
+  key: string;
+  label: string;
+  emoji: string;
+  totalSeconds: number;
+  sessions: SessionItem[];
+};
+
 type DayGroup = {
   dateKey: string;
   dateLabel: string;
   totalSeconds: number;
   taskGroups: TaskGroup[];
-  breaks: SessionItem[];
+  breaks: BreakGroup[];
 };
 
 /** Soft background colors for manual break cards, keyed by label substring */
@@ -92,10 +100,33 @@ function cleanBreakLabel(notes: string): string {
   return notes.replace(/\s*[☕🥪🚶🧘🎧💤]\s*$/u, "").trim() || notes;
 }
 
-function buildDayGroups(sessions: SessionItem[]): DayGroup[] {
-  const dayMap = new Map<string, { dateLabel: string; sessionsMap: Map<string, TaskGroup>; breaks: SessionItem[] }>();
+/** Normalised key used to group breaks of the same type */
+function breakTypeKey(notes: string): string {
+  if (/coffee|tea/i.test(notes)) return "tea";
+  if (/lunch/i.test(notes))      return "lunch";
+  if (/walk/i.test(notes))       return "walk";
+  if (/rest/i.test(notes))       return "rest";
+  if (/music/i.test(notes))      return "music";
+  return cleanBreakLabel(notes).toLowerCase().replace(/\s+/g, "-") || "break";
+}
 
-  // Split focus/simple sessions from break sessions
+/** Human-readable label for a break group (no emoji) */
+function breakTypeLabel(notes: string): string {
+  if (/coffee|tea/i.test(notes)) return "Tea / Coffee";
+  if (/lunch/i.test(notes))      return "Lunch";
+  if (/walk/i.test(notes))       return "Walk";
+  if (/rest/i.test(notes))       return "Rest";
+  if (/music/i.test(notes))      return "Music";
+  return cleanBreakLabel(notes) || "Break";
+}
+
+function buildDayGroups(sessions: SessionItem[]): DayGroup[] {
+  const dayMap = new Map<string, {
+    dateLabel: string;
+    sessionsMap: Map<string, TaskGroup>;
+    breaksMap: Map<string, BreakGroup>;
+  }>();
+
   const focusSessions = sessions.filter((s) => s.type !== "pomodoro_break" && s.type !== "manual_break");
   const breakSessions = sessions.filter((s) => s.type === "manual_break");
 
@@ -106,7 +137,7 @@ function buildDayGroups(sessions: SessionItem[]): DayGroup[] {
     const dateLabel = format(date, "EEE, d MMM");
 
     if (!dayMap.has(dateKey)) {
-      dayMap.set(dateKey, { dateLabel, sessionsMap: new Map(), breaks: [] });
+      dayMap.set(dateKey, { dateLabel, sessionsMap: new Map(), breaksMap: new Map() });
     }
 
     const day = dayMap.get(dateKey)!;
@@ -129,29 +160,52 @@ function buildDayGroups(sessions: SessionItem[]): DayGroup[] {
     group.sessions.push(s);
   }
 
-  // Add break sessions per day (create day entry if needed)
+  // Group break sessions by type per day
   for (const s of breakSessions) {
     const date = new Date(s.createdAt);
     const dateKey = format(date, "yyyy-MM-dd");
     const dateLabel = format(date, "EEE, d MMM");
 
     if (!dayMap.has(dateKey)) {
-      dayMap.set(dateKey, { dateLabel, sessionsMap: new Map(), breaks: [] });
+      dayMap.set(dateKey, { dateLabel, sessionsMap: new Map(), breaksMap: new Map() });
     }
 
-    dayMap.get(dateKey)!.breaks.push(s);
+    const day = dayMap.get(dateKey)!;
+    const typeKey = `${dateKey}-${breakTypeKey(s.notes)}`;
+
+    if (!day.breaksMap.has(typeKey)) {
+      day.breaksMap.set(typeKey, {
+        key: typeKey,
+        label: breakTypeLabel(s.notes),
+        emoji: breakEmoji(s.notes),
+        totalSeconds: 0,
+        sessions: [],
+      });
+    }
+
+    const bg = day.breaksMap.get(typeKey)!;
+    bg.totalSeconds += s.durationSeconds;
+    bg.sessions.push(s);
   }
 
   const dayGroups: DayGroup[] = [];
-  for (const [dateKey, { dateLabel, sessionsMap, breaks }] of dayMap) {
+  for (const [dateKey, { dateLabel, sessionsMap, breaksMap }] of dayMap) {
     const taskGroups = Array.from(sessionsMap.values());
     taskGroups.sort((a, b) => b.totalSeconds - a.totalSeconds);
-
     for (const tg of taskGroups) {
       tg.sessions.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     }
 
-    breaks.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const breaks = Array.from(breaksMap.values());
+    // Sort each break group's sessions chronologically
+    for (const bg of breaks) {
+      bg.sessions.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    }
+    // Sort break groups by most recent session descending
+    breaks.sort((a, b) =>
+      new Date(b.sessions[b.sessions.length - 1].createdAt).getTime() -
+      new Date(a.sessions[a.sessions.length - 1].createdAt).getTime()
+    );
 
     const totalSeconds = taskGroups.reduce((sum, g) => sum + g.totalSeconds, 0);
     dayGroups.push({ dateKey, dateLabel, totalSeconds, taskGroups, breaks });
@@ -271,6 +325,75 @@ function EditSessionForm({
   );
 }
 
+function EditBreakForm({
+  session,
+  onSave,
+  onCancel,
+  isSaving,
+}: {
+  session: SessionItem;
+  onSave: (durationSeconds: number, createdAt: string | null) => void;
+  onCancel: () => void;
+  isSaving: boolean;
+}) {
+  const [minutes, setMinutes] = useState(String(Math.floor(session.durationSeconds / 60)));
+  const [secs, setSecs] = useState(String(session.durationSeconds % 60));
+  const [startTime, setStartTime] = useState(format(new Date(session.createdAt), "HH:mm"));
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const totalSecs = Math.max(1, (parseInt(minutes) || 0) * 60 + (parseInt(secs) || 0));
+    const originalTime = format(new Date(session.createdAt), "HH:mm");
+    let newCreatedAt: string | null = null;
+    if (startTime !== originalTime) {
+      const d = new Date(session.createdAt);
+      const [h, m] = startTime.split(":").map(Number);
+      d.setHours(h, m);
+      newCreatedAt = d.toISOString();
+    }
+    onSave(totalSecs, newCreatedAt);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="flex items-center gap-2 py-2 px-3">
+      <div className="flex items-center gap-1">
+        <input
+          type="number" min="0" max="999" value={minutes}
+          onChange={(e) => setMinutes(e.target.value)}
+          className="w-12 px-1.5 py-1 text-xs text-center rounded-md border border-border/50 bg-background/50 tabular-nums focus:outline-none focus:ring-1 focus:ring-primary/40"
+          aria-label="Minutes"
+        />
+        <span className="text-xs text-muted-foreground">m</span>
+        <input
+          type="number" min="0" max="59" value={secs}
+          onChange={(e) => setSecs(e.target.value)}
+          className="w-12 px-1.5 py-1 text-xs text-center rounded-md border border-border/50 bg-background/50 tabular-nums focus:outline-none focus:ring-1 focus:ring-primary/40"
+          aria-label="Seconds"
+        />
+        <span className="text-xs text-muted-foreground">s</span>
+      </div>
+      <input
+        type="time" value={startTime}
+        onChange={(e) => setStartTime(e.target.value)}
+        className="ml-2 px-1.5 py-1 text-xs rounded-md border border-border/50 bg-background/50 tabular-nums focus:outline-none focus:ring-1 focus:ring-primary/40"
+        aria-label="Start time"
+      />
+      <div className="flex items-center gap-1 ml-auto">
+        <button type="submit" disabled={isSaving}
+          className="p-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+          aria-label="Save">
+          <Check className="w-3.5 h-3.5" />
+        </button>
+        <button type="button" onClick={onCancel} disabled={isSaving}
+          className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary/40 transition-colors disabled:opacity-50"
+          aria-label="Cancel">
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </form>
+  );
+}
+
 import { ConfirmBanner } from "@/components/ui/confirm-banner";
 
 export function SessionList({ onRestart }: SessionListProps) {
@@ -282,6 +405,7 @@ export function SessionList({ onRestart }: SessionListProps) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [confirmDeleteId2, setConfirmDeleteId2] = useState<number | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingBreakId, setEditingBreakId] = useState<number | null>(null);
   const [expandedNoteId, setExpandedNoteId] = useState<number | null>(null);
 
   const dayGroups = useMemo(() => {
@@ -373,64 +497,218 @@ export function SessionList({ onRestart }: SessionListProps) {
             </div>
 
             <div className="space-y-2">
-              {/* ── Manual break cards ── */}
-              {day.breaks.map((brk) => {
-                const endTime   = new Date(brk.createdAt);
-                const startTime = new Date(endTime.getTime() - brk.durationSeconds * 1000);
-                const labelText = cleanBreakLabel(brk.notes);
+              {/* ── Break groups ── */}
+              {day.breaks.map((brkGroup) => {
+                const isGroupExpanded = expanded.has(brkGroup.key);
+                const isMulti = brkGroup.sessions.length > 1;
+                const bg = breakBg(brkGroup.label);
                 return (
-                <motion.div
-                  key={brk.id}
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2, ease: "easeOut" }}
-                  className="space-y-1"
-                >
-                  <div
-                    className="flex items-center gap-3 px-4 py-3 rounded-2xl"
-                    style={{ background: breakBg(brk.notes), boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}
-                  >
-                    {/* Emoji icon */}
-                    <span className="text-xl shrink-0 leading-none select-none" aria-hidden="true">
-                      {breakEmoji(brk.notes)}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      {/* "{Label} Break" — italic, muted */}
-                      <p className="text-[14px] italic font-medium text-foreground/60 truncate leading-snug">
-                        {labelText ? `${labelText} Break` : "Break"}
-                      </p>
-                      {/* Time range + duration */}
-                      <p className="text-[11px] text-muted-foreground/45 mt-0.5 tabular-nums">
-                        {format(startTime, "h:mm a")} – {format(endTime, "h:mm a")}
-                        &nbsp;&middot;&nbsp;{formatShortDuration(brk.durationSeconds)}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => { setConfirmDeleteId(brk.id); setConfirmDeleteId2(null); }}
-                      className="p-1.5 rounded-lg text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
-                      aria-label="Delete break"
+                  <div key={brkGroup.key} className="space-y-1">
+                    {/* Group header row */}
+                    <motion.div
+                      onClick={() => isMulti && toggleExpand(brkGroup.key)}
+                      role={isMulti ? "button" : undefined}
+                      tabIndex={isMulti ? 0 : undefined}
+                      onKeyDown={isMulti ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleExpand(brkGroup.key); } } : undefined}
+                      whileTap={isMulti ? { scale: 0.98 } : undefined}
+                      transition={{ duration: 0.12 }}
+                      className="flex items-center gap-3 px-4 py-3 rounded-2xl"
+                      style={{
+                        background: bg,
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                        cursor: isMulti ? "pointer" : "default",
+                      }}
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                      {/* Count badge — only when multiple */}
+                      {isMulti && (
+                        <span
+                          className="inline-flex items-center justify-center font-semibold text-[12px] text-foreground/50 bg-black/[0.06] shrink-0"
+                          style={{ height: "22px", minWidth: "22px", padding: "0 6px", borderRadius: "8px", border: "1px solid rgba(0,0,0,0.10)" }}
+                        >
+                          {brkGroup.sessions.length}
+                        </span>
+                      )}
+
+                      {/* Label — italic, muted */}
+                      <p className="flex-1 text-[14px] italic font-medium text-foreground/60 truncate leading-snug min-w-0">
+                        {brkGroup.label} Break
+                      </p>
+
+                      {/* Total duration */}
+                      <span className="text-[13px] font-semibold text-foreground/50 tabular-nums shrink-0">
+                        {formatShortDuration(brkGroup.totalSeconds)}
+                      </span>
+
+                      {/* Emoji — right side */}
+                      <span className="text-lg shrink-0 leading-none select-none" aria-hidden="true">
+                        {brkGroup.emoji}
+                      </span>
+
+                      {/* Chevron for multi-session groups */}
+                      {isMulti && (
+                        <motion.span
+                          animate={{ rotate: isGroupExpanded ? 180 : 0 }}
+                          transition={{ duration: 0.2, ease: "easeOut" }}
+                          className="flex items-center justify-center shrink-0"
+                        >
+                          <ChevronDown className="w-3.5 h-3.5 text-foreground/30" />
+                        </motion.span>
+                      )}
+
+                      {/* Edit + delete for single-session groups */}
+                      {!isMulti && (() => {
+                        const s = brkGroup.sessions[0];
+                        return (
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setEditingBreakId(s.id); }}
+                              className="p-1.5 rounded-lg text-muted-foreground/30 hover:text-foreground hover:bg-black/[0.06] transition-colors"
+                              aria-label="Edit break"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(s.id); setConfirmDeleteId2(null); }}
+                              className="p-1.5 rounded-lg text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              aria-label="Delete break"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        );
+                      })()}
+                    </motion.div>
+
+                    {/* Inline edit form for single-session groups */}
+                    <AnimatePresence>
+                      {!isMulti && editingBreakId === brkGroup.sessions[0].id && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.18, ease: "easeOut" }}
+                          className="overflow-hidden rounded-xl"
+                          style={{ background: bg }}
+                        >
+                          <EditBreakForm
+                            session={brkGroup.sessions[0]}
+                            onSave={(dur, createdAt) => handleUpdate(brkGroup.sessions[0].id, dur, createdAt, undefined)}
+                            onCancel={() => setEditingBreakId(null)}
+                            isSaving={updateSession.isPending}
+                          />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    {/* Delete confirm for single-session groups */}
+                    <AnimatePresence>
+                      {!isMulti && (() => {
+                        const s = brkGroup.sessions[0];
+                        return (
+                          <>
+                            {confirmDeleteId === s.id && confirmDeleteId2 !== s.id && (
+                              <ConfirmBanner
+                                message="Delete this break?"
+                                onConfirm={() => setConfirmDeleteId2(s.id)}
+                                onCancel={() => { setConfirmDeleteId(null); setConfirmDeleteId2(null); }}
+                              />
+                            )}
+                            {confirmDeleteId2 === s.id && (
+                              <ConfirmBanner
+                                message="Hold up a sec! Once it's gone, it's gone for good."
+                                confirmLabel="Yes, delete it"
+                                onConfirm={() => handleDelete(s.id)}
+                                onCancel={() => { setConfirmDeleteId(null); setConfirmDeleteId2(null); }}
+                              />
+                            )}
+                          </>
+                        );
+                      })()}
+                    </AnimatePresence>
+
+                    {/* Expanded individual sessions (multi-session groups) */}
+                    <AnimatePresence>
+                      {isMulti && isGroupExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2, ease: "easeOut" }}
+                          className="overflow-hidden"
+                        >
+                          <div className="ml-4 mr-2 mt-1 mb-2 border-l-2 border-black/[0.08] pl-4 space-y-1">
+                            {brkGroup.sessions.map((s, idx) => {
+                              const endT   = new Date(s.createdAt);
+                              const startT = new Date(endT.getTime() - s.durationSeconds * 1000);
+                              const isEditingThis = editingBreakId === s.id;
+                              return (
+                                <motion.div
+                                  key={s.id}
+                                  className="space-y-1"
+                                  initial={{ opacity: 0, y: -4 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ duration: 0.18, delay: idx * 0.04, ease: "easeOut" }}
+                                >
+                                  {isEditingThis ? (
+                                    <div className="rounded-xl overflow-hidden" style={{ background: bg }}>
+                                      <EditBreakForm
+                                        session={s}
+                                        onSave={(dur, createdAt) => handleUpdate(s.id, dur, createdAt, undefined)}
+                                        onCancel={() => setEditingBreakId(null)}
+                                        isSaving={updateSession.isPending}
+                                      />
+                                    </div>
+                                  ) : (
+                                    <div className="group/brksession flex items-center gap-3 py-2 px-3 rounded-xl hover:bg-black/[0.03] transition-colors">
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-[11px] text-muted-foreground/50 tabular-nums">
+                                          {format(startT, "h:mm a")} – {format(endT, "h:mm a")}
+                                          &nbsp;&middot;&nbsp;{formatShortDuration(s.durationSeconds)}
+                                        </p>
+                                      </div>
+                                      <div className="flex items-center gap-1 shrink-0">
+                                        <button
+                                          onClick={() => setEditingBreakId(s.id)}
+                                          className="p-1.5 rounded-lg text-muted-foreground/30 hover:text-foreground hover:bg-black/[0.06] transition-colors"
+                                          aria-label="Edit break"
+                                        >
+                                          <Pencil className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button
+                                          onClick={() => { setConfirmDeleteId(s.id); setConfirmDeleteId2(null); }}
+                                          className="p-1.5 rounded-lg text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                          aria-label="Delete break"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+                                  <AnimatePresence>
+                                    {confirmDeleteId === s.id && confirmDeleteId2 !== s.id && (
+                                      <ConfirmBanner
+                                        message="Delete this break?"
+                                        onConfirm={() => setConfirmDeleteId2(s.id)}
+                                        onCancel={() => { setConfirmDeleteId(null); setConfirmDeleteId2(null); }}
+                                      />
+                                    )}
+                                    {confirmDeleteId2 === s.id && (
+                                      <ConfirmBanner
+                                        message="Hold up a sec! Once it's gone, it's gone for good."
+                                        confirmLabel="Yes, delete it"
+                                        onConfirm={() => handleDelete(s.id)}
+                                        onCancel={() => { setConfirmDeleteId(null); setConfirmDeleteId2(null); }}
+                                      />
+                                    )}
+                                  </AnimatePresence>
+                                </motion.div>
+                              );
+                            })}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
-                  <AnimatePresence>
-                    {confirmDeleteId === brk.id && confirmDeleteId2 !== brk.id && (
-                      <ConfirmBanner
-                        message="Delete this break?"
-                        onConfirm={() => setConfirmDeleteId2(brk.id)}
-                        onCancel={() => { setConfirmDeleteId(null); setConfirmDeleteId2(null); }}
-                      />
-                    )}
-                    {confirmDeleteId2 === brk.id && (
-                      <ConfirmBanner
-                        message="Hold up a sec! Once it's gone, it's gone for good."
-                        confirmLabel="Yes, delete it"
-                        onConfirm={() => handleDelete(brk.id)}
-                        onCancel={() => { setConfirmDeleteId(null); setConfirmDeleteId2(null); }}
-                      />
-                    )}
-                  </AnimatePresence>
-                </motion.div>
                 );
               })}
 

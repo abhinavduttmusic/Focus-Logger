@@ -464,12 +464,10 @@ export function CalendarView({ isActive }: CalendarViewProps) {
                     })()}
                   </span>
                 </div>
-                {!isBreakSession(detailSession.type) && (
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <Tag className="w-3.5 h-3.5" />
-                    <span>{formatShortDuration(detailSession.durationSeconds)}</span>
-                  </div>
-                )}
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <Tag className="w-3.5 h-3.5" />
+                  <span>{formatShortDuration(detailSession.durationSeconds)}</span>
+                </div>
               </div>
 
               {!isBreakSession(detailSession.type) && detailSession.notes && (

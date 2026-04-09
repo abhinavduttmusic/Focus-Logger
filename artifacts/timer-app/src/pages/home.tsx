@@ -1034,7 +1034,8 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                     transition={{ duration: 0.18, ease: "easeOut" }}
                     className="overflow-hidden"
                   >
-                    <div className="flex gap-2 mt-1">
+                    {/* px-px + pb-2 give the focus ring room — parent overflow-hidden would clip it otherwise */}
+                    <div className="flex gap-2 mt-1 px-px pb-2">
                       <input
                         autoFocus
                         type="text"
