@@ -987,57 +987,62 @@ function Home({ restored }: { restored: RestoredSession | null }) {
               animate={{ y: 0, opacity: 1, scale: 1 }}
               exit={{ y: "100%", opacity: 0 }}
               transition={SHEET_TRANSITION}
-              className="fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-3xl pt-5 shadow-xl"
+              className="fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-3xl px-6 pt-5 pb-8 shadow-xl"
+              style={{ maxHeight: "60vh" }}
             >
               {/* Drag handle */}
-              <div className="w-10 h-1 bg-border/40 rounded-full mx-auto mb-5" />
-              <h2 className="text-base font-semibold text-foreground text-center mb-5 px-6">
+              <div className="w-10 h-1 bg-border/40 rounded-full mx-auto mb-4" />
+              <h2 className="text-base font-semibold text-foreground text-center mb-4">
                 Take a Break
               </h2>
 
-              {/* Scrollable content — max 65 vh so sheet never overflows the screen */}
-              <div className="overflow-y-auto px-6 pb-10" style={{ maxHeight: "65vh" }}>
-
-              {/* Break option grid — strict 3 columns, grows vertically */}
-              <div className="grid grid-cols-3 gap-3 mb-3">
-                {[
-                  { emoji: "☕", label: "Tea / Coffee", bg: "#F5EFE6" },
-                  { emoji: "🥞", label: "Breakfast",    bg: "#FFF8E7" },
-                  { emoji: "🥪", label: "Lunch",        bg: "#FFF4E5" },
-                  { emoji: "🍲", label: "Dinner",       bg: "#FFF1E8" },
-                  { emoji: "🚶", label: "Walk",         bg: "#EAF0FF" },
-                  { emoji: "🧘", label: "Rest",         bg: "#F3E8FF" },
-                  { emoji: "🎧", label: "Music",        bg: "#FFF0F8" },
-                  { emoji: "📺", label: "TV",           bg: "#EEEEF5" },
-                  { emoji: "▶️", label: "YouTube",      bg: "#FFF0EE" },
-                ].map(({ emoji, label, bg }) => (
-                  <motion.button
-                    key={label}
-                    onClick={() => handleStartManualBreak(`${label} ${emoji}`)}
-                    whileTap={{ scale: 0.94 }}
-                    transition={{ duration: 0.1, ease: "easeOut" }}
-                    className="flex flex-col items-center justify-center gap-1.5 py-4 px-2 rounded-2xl text-center transition-opacity active:opacity-80"
-                    style={{ background: bg }}
-                  >
-                    <span className="text-2xl leading-none">{emoji}</span>
-                    <span className="text-[11px] font-medium text-foreground/70 leading-tight">{label}</span>
-                  </motion.button>
-                ))}
+              {/* Grid-only scroll area — 220px cap shows exactly 2 rows; 3rd row peeks to hint scroll */}
+              <div className="relative">
+                <div
+                  className="grid gap-3"
+                  style={{
+                    gridTemplateColumns: "repeat(3, 1fr)",
+                    maxHeight: "220px",
+                    overflowY: "auto",
+                    scrollBehavior: "smooth",
+                    paddingBottom: "8px",
+                  }}
+                >
+                  {[
+                    { emoji: "☕", label: "Tea / Coffee", bg: "#F5EFE6" },
+                    { emoji: "🥪", label: "Lunch",        bg: "#FFF4E5" },
+                    { emoji: "🚶", label: "Walk",         bg: "#EAF0FF" },
+                    { emoji: "🧘", label: "Rest",         bg: "#F3E8FF" },
+                    { emoji: "🎧", label: "Music",        bg: "#FFF0F8" },
+                    { emoji: "▶️", label: "YouTube",      bg: "#FFF0EE" },
+                    { emoji: "📺", label: "TV",           bg: "#EEEEF5" },
+                    { emoji: "✏️", label: "+ Custom",     bg: "#F2F2F7", isCustom: true },
+                  ].map(({ emoji, label, bg, isCustom }) => (
+                    <motion.button
+                      key={label}
+                      onClick={() =>
+                        isCustom
+                          ? setShowCustomBreakInput((v) => !v)
+                          : handleStartManualBreak(`${label} ${emoji}`)
+                      }
+                      whileTap={{ scale: 0.94 }}
+                      transition={{ duration: 0.1, ease: "easeOut" }}
+                      className="flex flex-col items-center justify-center gap-1.5 px-2 rounded-2xl text-center transition-opacity active:opacity-80"
+                      style={{ background: bg, minHeight: "72px", padding: "16px 8px" }}
+                    >
+                      <span className="text-2xl leading-none">{emoji}</span>
+                      <span className="text-[11px] font-medium text-foreground/70 leading-tight">{label}</span>
+                    </motion.button>
+                  ))}
+                </div>
+                {/* Bottom-fade hint to signal scrollability */}
+                <div
+                  className="pointer-events-none absolute bottom-0 left-0 right-0 h-8"
+                  style={{ background: "linear-gradient(to bottom, transparent, var(--card))" }}
+                />
               </div>
 
-              {/* Custom break — full-width button */}
-              <motion.button
-                onClick={() => setShowCustomBreakInput((v) => !v)}
-                whileTap={{ scale: 0.98 }}
-                transition={{ duration: 0.1, ease: "easeOut" }}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-medium text-foreground/60 transition-colors"
-                style={{ background: "#F2F2F7" }}
-              >
-                <span className="text-base leading-none">✏️</span>
-                <span>+ Custom</span>
-              </motion.button>
-
-              {/* Custom label input — inline within sheet */}
+              {/* Custom label input — slides in below the grid */}
               <AnimatePresence>
                 {showCustomBreakInput && (
                   <motion.div
@@ -1048,7 +1053,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                     className="overflow-hidden"
                   >
                     {/* px-px + pb-2 give the focus ring room — parent overflow-hidden would clip it otherwise */}
-                    <div className="flex gap-2 mt-1 px-px pb-2">
+                    <div className="flex gap-2 mt-3 px-px pb-2">
                       <input
                         autoFocus
                         type="text"
@@ -1073,8 +1078,6 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                   </motion.div>
                 )}
               </AnimatePresence>
-
-              </div>{/* end scrollable content */}
             </motion.div>
           </>
         )}
