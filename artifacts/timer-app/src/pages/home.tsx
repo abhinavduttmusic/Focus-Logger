@@ -68,6 +68,16 @@ async function uploadClips(sessionId: number, clips: AudioClip[]) {
   }
 }
 
+const DEFAULT_BREAK_TYPES: { id: string; label: string; emoji: string; bg: string }[] = [
+  { id: "tea",     label: "Tea / Coffee", emoji: "☕", bg: "#F5EFE6" },
+  { id: "lunch",   label: "Lunch",        emoji: "🥪", bg: "#FFF4E5" },
+  { id: "walk",    label: "Walk",         emoji: "🚶", bg: "#EAF0FF" },
+  { id: "rest",    label: "Rest",         emoji: "🧘", bg: "#F3E8FF" },
+  { id: "music",   label: "Music",        emoji: "🎧", bg: "#FFF0F8" },
+  { id: "youtube", label: "YouTube",      emoji: "▶️", bg: "#FFF0EE" },
+  { id: "tv",      label: "TV",           emoji: "📺", bg: "#EEEEF5" },
+];
+
 export default function HomeLoader() {
   const [restored, setRestored] = useState<RestoredSession | null | undefined>(undefined);
 
@@ -132,10 +142,17 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const [showCustomBreakInput,      setShowCustomBreakInput]      = useState(false);
   const [breakCustomInput,          setBreakCustomInput]          = useState("");
   const [showBreakInterruptConfirm, setShowBreakInterruptConfirm] = useState(false);
-  const [customBreakTypes, setCustomBreakTypes] = useState<{ id: string; label: string; emoji: string }[]>(() => {
-    try { return JSON.parse(localStorage.getItem("customBreakTypes") || "[]"); } catch { return []; }
+  /** Unified break type list — persisted in localStorage under "breakTypes" */
+  const [breakTypes, setBreakTypes] = useState<{ id: string; label: string; emoji: string; bg: string }[]>(() => {
+    try {
+      const stored = localStorage.getItem("breakTypes");
+      if (stored) return JSON.parse(stored);
+      localStorage.setItem("breakTypes", JSON.stringify(DEFAULT_BREAK_TYPES));
+      return DEFAULT_BREAK_TYPES;
+    } catch { return DEFAULT_BREAK_TYPES; }
   });
-  const [isBreakEditMode, setIsBreakEditMode] = useState(false);
+  /** id of the tile currently in "long-press edit" state (null = none) */
+  const [activeBreakEditId, setActiveBreakEditId] = useState<string | null>(null);
   const breakLongPressRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
   const breakDidLongPressRef = useRef(false);
 
@@ -331,7 +348,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     setShowBreakSheet(false);
     setShowCustomBreakInput(false);
     setBreakCustomInput("");
-    setIsBreakEditMode(false);
+    setActiveBreakEditId(null);
 
     // Defensive guard: if focus session is running, ask first
     if (sessionIsInProgressRef.current) {
@@ -357,28 +374,29 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     const emojiMatch = text.match(/\p{Emoji_Presentation}/u);
     const emoji = emojiMatch ? emojiMatch[0] : "💤";
     const label = text.replace(/\s*\p{Emoji_Presentation}\s*$/u, "").trim() || text;
-    const newBreak = { id: `custom_${Date.now()}`, label, emoji };
-    const updated = [...customBreakTypes, newBreak];
-    setCustomBreakTypes(updated);
-    localStorage.setItem("customBreakTypes", JSON.stringify(updated));
+    const newBreak = { id: `custom_${Date.now()}`, label, emoji, bg: "#E8F3EC" };
+    const updated = [...breakTypes, newBreak];
+    setBreakTypes(updated);
+    localStorage.setItem("breakTypes", JSON.stringify(updated));
     setShowCustomBreakInput(false);
     setBreakCustomInput("");
     handleStartManualBreak(`${label} ${emoji}`);
-  }, [customBreakTypes, handleStartManualBreak]);
+  }, [breakTypes, handleStartManualBreak]);
 
-  /** Remove a custom break type by id */
-  const handleDeleteCustomBreak = useCallback((id: string) => {
-    const updated = customBreakTypes.filter((b) => b.id !== id);
-    setCustomBreakTypes(updated);
-    localStorage.setItem("customBreakTypes", JSON.stringify(updated));
-  }, [customBreakTypes]);
+  /** Remove any break type (default or custom) by id */
+  const handleDeleteBreakType = useCallback((id: string) => {
+    const updated = breakTypes.filter((b) => b.id !== id);
+    setBreakTypes(updated);
+    localStorage.setItem("breakTypes", JSON.stringify(updated));
+    setActiveBreakEditId(null);
+  }, [breakTypes]);
 
-  /** Long-press helpers — 500 ms hold enters jiggle/edit mode */
-  const handleBreakPressStart = useCallback(() => {
+  /** Long-press start — activates per-tile edit mode for that specific tile */
+  const handleBreakPressStart = useCallback((id: string) => {
     breakDidLongPressRef.current = false;
     breakLongPressRef.current = setTimeout(() => {
       breakDidLongPressRef.current = true;
-      setIsBreakEditMode(true);
+      setActiveBreakEditId(id);
       if (navigator.vibrate) navigator.vibrate(40);
     }, 500);
   }, []);
@@ -1022,11 +1040,14 @@ function Home({ restored }: { restored: RestoredSession | null }) {
               transition={{ duration: 0.22 }}
               className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]"
               onClick={() => {
-                // Dismiss only — do NOT start any break
+                // If a tile is in edit mode, just exit that; otherwise dismiss sheet
+                if (activeBreakEditId !== null) {
+                  setActiveBreakEditId(null);
+                  return;
+                }
                 setShowBreakSheet(false);
                 setShowCustomBreakInput(false);
                 setBreakCustomInput("");
-                setIsBreakEditMode(false);
               }}
             />
             <motion.div
@@ -1038,103 +1059,83 @@ function Home({ restored }: { restored: RestoredSession | null }) {
               className="fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-3xl px-6 pt-5 pb-8 shadow-xl"
               style={{ maxHeight: "60vh" }}
             >
-              {/* Drag handle + header row */}
+              {/* Drag handle + title */}
               <div className="w-10 h-1 bg-border/40 rounded-full mx-auto mb-4" />
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-14" />
-                <h2 className="text-base font-semibold text-foreground">Take a Break</h2>
-                <div className="w-14 flex justify-end">
-                  {isBreakEditMode && (
-                    <motion.button
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                      onClick={() => setIsBreakEditMode(false)}
-                      className="text-[13px] font-semibold text-primary"
-                    >
-                      Done
-                    </motion.button>
-                  )}
-                </div>
-              </div>
+              <h2 className="text-base font-semibold text-foreground text-center mb-4">
+                Take a Break
+              </h2>
 
-              {/* Grid-only scroll area — 220px cap shows 2 rows; 3rd row peeks to hint scroll */}
-              <div className="relative">
+              {/* Grid — strict 3-col, scrollable, overflow-x hidden to prevent jitter */}
+              <div className="relative" style={{ overflowX: "hidden" }}>
                 <div
                   className="grid gap-3"
                   style={{
                     gridTemplateColumns: "repeat(3, 1fr)",
                     maxHeight: "220px",
                     overflowY: "auto",
+                    overflowX: "hidden",
                     scrollBehavior: "smooth",
+                    paddingTop: "6px",    /* room for ❌ badge above tile */
                     paddingBottom: "8px",
-                    paddingTop: "6px",    /* room for delete badge overflow */
                   }}
                 >
-                  {(() => {
-                    const defaultBreaks = [
-                      { id: "tea",     label: "Tea / Coffee", emoji: "☕", bg: "#F5EFE6" },
-                      { id: "lunch",   label: "Lunch",        emoji: "🥪", bg: "#FFF4E5" },
-                      { id: "walk",    label: "Walk",         emoji: "🚶", bg: "#EAF0FF" },
-                      { id: "rest",    label: "Rest",         emoji: "🧘", bg: "#F3E8FF" },
-                      { id: "music",   label: "Music",        emoji: "🎧", bg: "#FFF0F8" },
-                      { id: "youtube", label: "YouTube",      emoji: "▶️", bg: "#FFF0EE" },
-                      { id: "tv",      label: "TV",           emoji: "📺", bg: "#EEEEF5" },
-                    ];
-                    const customItems = customBreakTypes.map((b) => ({ ...b, bg: "#E8F3EC", isCustomType: true }));
-                    const addCustomTile = { id: "__add__", label: "+ Custom", emoji: "✏️", bg: "#F2F2F7", isAddTile: true };
-                    const allItems = [
-                      ...defaultBreaks.map((b) => ({ ...b, isCustomType: false, isAddTile: false })),
-                      ...customItems.map((b) => ({ ...b, isAddTile: false })),
-                      { ...addCustomTile, isCustomType: false },
-                    ];
-
-                    return allItems.map(({ id, label, emoji, bg, isCustomType, isAddTile }) => (
+                  {[
+                    ...breakTypes,
+                    { id: "__add__", label: "+ Custom", emoji: "✏️", bg: "#F2F2F7" },
+                  ].map(({ id, label, emoji, bg }) => {
+                    const isAddTile     = id === "__add__";
+                    const isActiveEdit  = id === activeBreakEditId;
+                    return (
                       <motion.button
                         key={id}
                         className="relative flex flex-col items-center justify-center gap-1.5 rounded-2xl text-center select-none"
-                        style={{ background: bg, minHeight: "72px", padding: "16px 8px" }}
-                        animate={isBreakEditMode ? { rotate: [-1, 1, -1, 1, 0] } : { rotate: 0 }}
+                        style={{
+                          background: bg,
+                          minHeight: "72px",
+                          padding: "16px 8px",
+                          willChange: "transform",
+                        }}
+                        animate={isActiveEdit ? { rotate: [-1, 1, -1, 1, 0] } : { rotate: 0 }}
                         transition={
-                          isBreakEditMode
-                            ? { duration: 0.25, repeat: Infinity, repeatType: "mirror", ease: "easeInOut" }
+                          isActiveEdit
+                            ? { duration: 0.22, repeat: Infinity, repeatType: "mirror", ease: "easeInOut" }
                             : { duration: 0.15 }
                         }
-                        onPointerDown={handleBreakPressStart}
+                        onPointerDown={() => { if (!isAddTile) handleBreakPressStart(id); }}
                         onPointerUp={handleBreakPressEnd}
                         onPointerLeave={handleBreakPressEnd}
                         onPointerCancel={handleBreakPressEnd}
+                        whileTap={activeBreakEditId !== null ? undefined : { scale: 0.93 }}
                         onClick={() => {
                           if (breakDidLongPressRef.current) { breakDidLongPressRef.current = false; return; }
-                          if (isBreakEditMode) { setIsBreakEditMode(false); return; }
+                          if (activeBreakEditId !== null) { setActiveBreakEditId(null); return; }
                           if (isAddTile) { setShowCustomBreakInput((v) => !v); return; }
                           handleStartManualBreak(`${label} ${emoji}`);
                         }}
-                        whileTap={isBreakEditMode ? undefined : { scale: 0.93 }}
                       >
                         <span className="text-2xl leading-none">{emoji}</span>
                         <span className="text-[11px] font-medium text-foreground/70 leading-tight">{label}</span>
 
-                        {/* ❌ delete badge — custom tiles only, shown in edit mode */}
-                        {isBreakEditMode && isCustomType && (
+                        {/* ❌ delete badge — any tile, only when it's the active edit tile */}
+                        {isActiveEdit && !isAddTile && (
                           <motion.button
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
                             exit={{ scale: 0 }}
-                            transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                            transition={{ type: "spring", stiffness: 420, damping: 18 }}
                             onPointerDown={(e) => e.stopPropagation()}
-                            onClick={(e) => { e.stopPropagation(); handleDeleteCustomBreak(id); }}
+                            onClick={(e) => { e.stopPropagation(); handleDeleteBreakType(id); }}
                             className="absolute -top-1.5 -right-1.5 z-20 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center shadow-md"
                             aria-label={`Delete ${label}`}
                           >
-                            <svg viewBox="0 0 10 10" className="w-2.5 h-2.5 fill-white">
+                            <svg viewBox="0 0 10 10" className="w-2.5 h-2.5">
                               <path d="M2 2 L8 8 M8 2 L2 8" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
                             </svg>
                           </motion.button>
                         )}
                       </motion.button>
-                    ));
-                  })()}
+                    );
+                  })}
                 </div>
                 {/* Bottom-fade hint to signal scrollability */}
                 <div
