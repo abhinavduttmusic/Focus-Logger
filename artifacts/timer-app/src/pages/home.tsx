@@ -614,10 +614,10 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                 <main className="h-full w-full px-4 sm:px-6 flex flex-col items-center">
                   <div className="w-full max-w-md h-full flex flex-col">
 
-                    {/* ── TIMER SECTION: fixed 45vh, relative so overlays anchor here ── */}
+                    {/* ── TIMER SECTION: fixed 28vh, relative so overlays anchor here ── */}
                     <div
                       className="relative w-full flex flex-col justify-evenly items-center shrink-0"
-                      style={{ height: "45vh" }}
+                      style={{ height: "28vh" }}
                     >
                       {/* Ambient glow */}
                       <div className="absolute inset-0 -z-10 flex items-center justify-center pointer-events-none">
@@ -790,7 +790,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                       )}
                     </AnimatePresence>
 
-                    <div className="h-8 shrink-0" />
+                    <div className="h-3 shrink-0" />
 
                     {/* Notes / Task section — takes all remaining space, stays bounded */}
                     <section className="flex-1 min-h-0 pb-5">
