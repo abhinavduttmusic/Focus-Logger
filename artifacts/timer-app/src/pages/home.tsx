@@ -68,9 +68,6 @@ async function uploadClips(sessionId: number, clips: AudioClip[]) {
   }
 }
 
-/** Rotating palette for custom break tiles (distinct from preset colours) */
-const NOTES_DEFAULT_HEIGHT = 220;
-
 const CUSTOM_BREAK_COLORS = [
   "#E8F0FE", // light blue
   "#FDE8E8", // light red
@@ -173,12 +170,12 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const breakScrollTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ─── Notes card bottom-sheet drag ────────────────────────────────────────
-  const [notesCardHeight,  setNotesCardHeight]  = useState(NOTES_DEFAULT_HEIGHT);
+  const [notesCardHeight,  setNotesCardHeight]  = useState(220);
   const [notesAnimating,   setNotesAnimating]   = useState(false);
   const notesDraggingRef       = useRef(false);
   const notesDragStartYRef     = useRef(0);
   const notesDragStartHeightRef = useRef(0);
-  const isNotesExpanded = notesCardHeight > NOTES_DEFAULT_HEIGHT + 60;
+  const isNotesExpanded = notesCardHeight > 220 + 60;
 
   // ─── Session logging ─────────────────────────────────────────────────────
 
@@ -426,9 +423,9 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   useEffect(() => {
     if (activeTab !== "timer") {
       setNotesAnimating(false);
-      setNotesCardHeight(NOTES_DEFAULT_HEIGHT);
+      setNotesCardHeight(220);
     }
-  }, [activeTab, NOTES_DEFAULT_HEIGHT]);
+  }, [activeTab]);
 
   /** Save a custom break type to localStorage and immediately start it */
   const handleAddCustomBreak = useCallback((input: string) => {
@@ -860,7 +857,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                       </div>
 
                       {/* NotesArea card fills the rest */}
-                      <div className="flex-1 min-h-0 flex flex-col">
+                      <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                         <NotesArea
                           value={notes}
                           onChange={setNotes}

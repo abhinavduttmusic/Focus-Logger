@@ -622,8 +622,8 @@ export function NotesArea({
   return (
     <>
     {/* ─────────────────────── Card ─────────────────────────── */}
-    <div className="flex-1 min-h-0 w-full glass-panel rounded-3xl p-1 overflow-hidden flex flex-col transition-all duration-300 focus-within:ring-4 focus-within:ring-primary/10">
-      <div className="bg-card/50 rounded-[1.35rem] p-6 flex-1 min-h-0 flex flex-col">
+    <div className="w-full glass-panel rounded-3xl p-1 overflow-hidden transition-all duration-300 focus-within:ring-4 focus-within:ring-primary/10" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div className="bg-card/50 rounded-[1.35rem] p-6" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
 
         {/* Header */}
         <div className="flex items-center mb-4">
@@ -731,8 +731,8 @@ export function NotesArea({
         {/* ── Unified scroll container: recordings + notes scroll together ── */}
         <div
           ref={scrollRef}
-          className="notes-content-scroll flex-1 min-h-0 overflow-y-auto"
-          style={{ paddingRight: "2px" }}
+          className="notes-content-scroll"
+          style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: "2px" }}
         >
           {/* Saved clips */}
           <AnimatePresence initial={false}>
