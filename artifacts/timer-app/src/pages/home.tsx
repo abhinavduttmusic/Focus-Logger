@@ -69,6 +69,8 @@ async function uploadClips(sessionId: number, clips: AudioClip[]) {
 }
 
 /** Rotating palette for custom break tiles (distinct from preset colours) */
+const NOTES_DEFAULT_HEIGHT = 220;
+
 const CUSTOM_BREAK_COLORS = [
   "#E8F0FE", // light blue
   "#FDE8E8", // light red
@@ -171,7 +173,6 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const breakScrollTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ─── Notes card bottom-sheet drag ────────────────────────────────────────
-  const NOTES_DEFAULT_HEIGHT = 220;
   const [notesCardHeight,  setNotesCardHeight]  = useState(NOTES_DEFAULT_HEIGHT);
   const [notesAnimating,   setNotesAnimating]   = useState(false);
   const notesDraggingRef       = useRef(false);
@@ -415,8 +416,8 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const handleToggleNotes = useCallback(() => {
     setNotesAnimating(true);
     setNotesCardHeight((h) =>
-      h > 220 + 60
-        ? 220  // collapse to default
+      h > NOTES_DEFAULT_HEIGHT + 60
+        ? NOTES_DEFAULT_HEIGHT  // collapse to default
         : Math.round(window.innerHeight * 0.75) // expand to 75vh
     );
   }, []);
@@ -859,7 +860,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                       </div>
 
                       {/* NotesArea card fills the rest */}
-                      <div className="flex-1 min-h-0 pb-5">
+                      <div className="flex-1 min-h-0 flex flex-col">
                         <NotesArea
                           value={notes}
                           onChange={setNotes}
