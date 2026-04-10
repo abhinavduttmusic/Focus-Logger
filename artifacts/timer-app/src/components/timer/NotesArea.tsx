@@ -3,7 +3,7 @@ import WaveSurfer from "wavesurfer.js";
 import RegionsPlugin from "wavesurfer.js/plugins/regions";
 import {
   FileText, Mic, Pause, Square, X, Play, Trash2, Pencil,
-  BookmarkPlus, Repeat2, Rewind, FastForward,
+  BookmarkPlus, Repeat2, Rewind, FastForward, ChevronUp,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Task } from "@workspace/api-client-react/src/generated/api.schemas";
@@ -547,6 +547,8 @@ interface NotesAreaProps {
   onUpdateClip: (index: number, updates: Partial<AudioClip>) => void;
   onDeleteClip: (index: number) => void;
   onCancelRecording: () => void;
+  onToggleExpand: () => void;
+  isExpanded: boolean;
 }
 
 export function NotesArea({
@@ -566,6 +568,8 @@ export function NotesArea({
   onUpdateClip,
   onDeleteClip,
   onCancelRecording,
+  onToggleExpand,
+  isExpanded,
 }: NotesAreaProps) {
   const [showCancelConfirm,  setShowCancelConfirm]  = useState(false);
   const [editingIndex,       setEditingIndex]        = useState<number | null>(null);
@@ -628,36 +632,17 @@ export function NotesArea({
             <span>Session Notes & Goals</span>
           </div>
 
-          {/* Mic button — disabled when no active session */}
-          {!isRecording ? (
-            <motion.button
-              onClick={isSessionActive ? onStartRecording : undefined}
-              whileTap={isSessionActive ? { scale: 0.88 } : {}}
-              className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors shrink-0 ${
-                isSessionActive
-                  ? "bg-foreground/[0.06] hover:bg-foreground/[0.10] text-foreground/65 hover:text-foreground/90 cursor-pointer"
-                  : "bg-foreground/[0.03] text-foreground/20 cursor-not-allowed opacity-50"
-              }`}
-              aria-label="Start voice recording"
-              title={isSessionActive ? "Record a voice note" : "Start a session to record"}
-              disabled={!isSessionActive}
-            >
-              <Mic className="w-4 h-4" />
-            </motion.button>
-          ) : (
-            /* Pulsing red dot while recording */
-            <motion.span
-              className="relative flex items-center justify-center h-5 w-5 mr-0.5 shrink-0"
-              aria-label="Recording active"
-            >
-              <motion.span
-                className="absolute inline-flex rounded-full bg-red-500"
-                style={{ width: 10, height: 10 }}
-                animate={!isPaused ? { scale: [1, 1.08, 1] } : { scale: 1 }}
-                transition={!isPaused ? { duration: 1.2, ease: "easeInOut", repeat: Infinity } : {}}
-              />
-            </motion.span>
-          )}
+          {/* Chevron toggle — tap to expand / collapse the card */}
+          <motion.button
+            onClick={onToggleExpand}
+            whileTap={{ scale: 0.88 }}
+            animate={{ rotate: isExpanded ? 180 : 0 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className="w-8 h-8 rounded-full flex items-center justify-center bg-foreground/[0.05] hover:bg-foreground/[0.10] text-foreground/50 hover:text-foreground/80 transition-colors shrink-0"
+            aria-label={isExpanded ? "Collapse notes" : "Expand notes"}
+          >
+            <ChevronUp className="w-4 h-4" />
+          </motion.button>
         </div>
 
         {/* Inline recording controls */}
@@ -841,9 +826,40 @@ export function NotesArea({
           />
         </div>
 
-        {/* Divider + task selector — always visible at bottom of card */}
+        {/* Divider + mic + task selector — always visible at bottom of card */}
         <div className="h-px w-full bg-border/40 my-4 shrink-0" />
-        <TaskSelector selectedTask={selectedTask} onSelectTask={onSelectTask} />
+        <div className="flex items-center gap-2">
+          {/* Mic button — moved from header to here */}
+          {!isRecording ? (
+            <motion.button
+              onClick={isSessionActive ? onStartRecording : undefined}
+              whileTap={isSessionActive ? { scale: 0.88 } : {}}
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors shrink-0 ${
+                isSessionActive
+                  ? "bg-foreground/[0.06] hover:bg-foreground/[0.10] text-foreground/65 hover:text-foreground/90 cursor-pointer"
+                  : "bg-foreground/[0.03] text-foreground/20 cursor-not-allowed opacity-50"
+              }`}
+              aria-label="Start voice recording"
+              title={isSessionActive ? "Record a voice note" : "Start a session to record"}
+              disabled={!isSessionActive}
+            >
+              <Mic className="w-4 h-4" />
+            </motion.button>
+          ) : (
+            <motion.span
+              className="relative flex items-center justify-center h-8 w-8 shrink-0"
+              aria-label="Recording active"
+            >
+              <motion.span
+                className="absolute inline-flex rounded-full bg-red-500"
+                style={{ width: 10, height: 10 }}
+                animate={!isPaused ? { scale: [1, 1.08, 1] } : { scale: 1 }}
+                transition={!isPaused ? { duration: 1.2, ease: "easeInOut", repeat: Infinity } : {}}
+              />
+            </motion.span>
+          )}
+          <TaskSelector selectedTask={selectedTask} onSelectTask={onSelectTask} />
+        </div>
       </div>
     </div>
 

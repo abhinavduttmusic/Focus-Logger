@@ -170,6 +170,15 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const breakDidLongPressRef   = useRef(false);
   const breakScrollTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // ─── Notes card bottom-sheet drag ────────────────────────────────────────
+  const NOTES_DEFAULT_HEIGHT = 220;
+  const [notesCardHeight,  setNotesCardHeight]  = useState(NOTES_DEFAULT_HEIGHT);
+  const [notesAnimating,   setNotesAnimating]   = useState(false);
+  const notesDraggingRef       = useRef(false);
+  const notesDragStartYRef     = useRef(0);
+  const notesDragStartHeightRef = useRef(0);
+  const isNotesExpanded = notesCardHeight > NOTES_DEFAULT_HEIGHT + 60;
+
   // ─── Session logging ─────────────────────────────────────────────────────
 
   const createSession = useCreateSession({
@@ -380,6 +389,45 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     if (timer.mode !== "simple") timer.setMode("simple");
     timer.start();
   }, [timer]);
+
+  // ─── Notes card drag handlers ─────────────────────────────────────────────
+
+  const handleNotesDragDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    notesDraggingRef.current = true;
+    notesDragStartYRef.current = e.clientY;
+    notesDragStartHeightRef.current = notesCardHeight;
+    setNotesAnimating(false);
+  }, [notesCardHeight]);
+
+  const handleNotesDragMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!notesDraggingRef.current) return;
+    const delta = notesDragStartYRef.current - e.clientY; // drag up = positive = taller
+    const maxH = window.innerHeight - 100;
+    const newH = Math.max(200, Math.min(maxH, notesDragStartHeightRef.current + delta));
+    setNotesCardHeight(newH);
+  }, []);
+
+  const handleNotesDragUp = useCallback(() => {
+    notesDraggingRef.current = false;
+  }, []);
+
+  const handleToggleNotes = useCallback(() => {
+    setNotesAnimating(true);
+    setNotesCardHeight((h) =>
+      h > 220 + 60
+        ? 220  // collapse to default
+        : Math.round(window.innerHeight * 0.75) // expand to 75vh
+    );
+  }, []);
+
+  // Reset notes card height when navigating away from timer tab
+  useEffect(() => {
+    if (activeTab !== "timer") {
+      setNotesAnimating(false);
+      setNotesCardHeight(NOTES_DEFAULT_HEIGHT);
+    }
+  }, [activeTab, NOTES_DEFAULT_HEIGHT]);
 
   /** Save a custom break type to localStorage and immediately start it */
   const handleAddCustomBreak = useCallback((input: string) => {
@@ -612,7 +660,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
             >
               {tab === "timer" && (
                 <main className="h-full w-full px-4 sm:px-6 flex flex-col items-center">
-                  <div className="w-full max-w-md h-full flex flex-col">
+                  <div className="relative w-full max-w-md h-full flex flex-col">
 
                     {/* ── TIMER SECTION: fixed 45vh, relative so overlays anchor here ── */}
                     <div
@@ -790,29 +838,50 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                       )}
                     </AnimatePresence>
 
-                    <div className="h-8 shrink-0" />
+                    {/* ── Notes bottom sheet — absolute, slides over timer ── */}
+                    <div
+                      className="absolute left-0 right-0 bottom-0 z-20 flex flex-col"
+                      style={{
+                        height: notesCardHeight,
+                        transition: notesAnimating ? "height 0.38s cubic-bezier(0.22,1,0.36,1)" : "none",
+                      }}
+                    >
+                      {/* Drag handle — grab this to resize */}
+                      <div
+                        className="flex justify-center pt-2 pb-1 shrink-0 touch-none cursor-grab active:cursor-grabbing"
+                        style={{ userSelect: "none" }}
+                        onPointerDown={handleNotesDragDown}
+                        onPointerMove={handleNotesDragMove}
+                        onPointerUp={handleNotesDragUp}
+                        onPointerCancel={handleNotesDragUp}
+                      >
+                        <div className="w-10 h-1 bg-border/60 rounded-full" />
+                      </div>
 
-                    {/* Notes / Task section — takes all remaining space, stays bounded */}
-                    <section className="flex-1 min-h-0 pb-5">
-                      <NotesArea
-                        value={notes}
-                        onChange={setNotes}
-                        selectedTask={selectedTask}
-                        onSelectTask={setSelectedTask}
-                        isSessionActive={sessionIsInProgress}
-                        isRecording={recorder.isRecording}
-                        isPaused={recorder.isPaused}
-                        clips={recorder.clips}
-                        onStartRecording={handleStartRecording}
-                        onStopRecording={recorder.stopRecording}
-                        onPauseRecording={recorder.pauseRecording}
-                        onResumeRecording={recorder.resumeRecording}
-                        onRenameClip={recorder.renameClip}
-                        onUpdateClip={recorder.updateClip}
-                        onDeleteClip={recorder.deleteClip}
-                        onCancelRecording={recorder.discardAndStop}
-                      />
-                    </section>
+                      {/* NotesArea card fills the rest */}
+                      <div className="flex-1 min-h-0 pb-5">
+                        <NotesArea
+                          value={notes}
+                          onChange={setNotes}
+                          selectedTask={selectedTask}
+                          onSelectTask={setSelectedTask}
+                          isSessionActive={sessionIsInProgress}
+                          isRecording={recorder.isRecording}
+                          isPaused={recorder.isPaused}
+                          clips={recorder.clips}
+                          onStartRecording={handleStartRecording}
+                          onStopRecording={recorder.stopRecording}
+                          onPauseRecording={recorder.pauseRecording}
+                          onResumeRecording={recorder.resumeRecording}
+                          onRenameClip={recorder.renameClip}
+                          onUpdateClip={recorder.updateClip}
+                          onDeleteClip={recorder.deleteClip}
+                          onCancelRecording={recorder.discardAndStop}
+                          onToggleExpand={handleToggleNotes}
+                          isExpanded={isNotesExpanded}
+                        />
+                      </div>
+                    </div>
 
                   </div>
                 </main>
