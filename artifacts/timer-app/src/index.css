@@ -144,6 +144,29 @@
   @apply border-white/5 shadow-[0_8px_30px_rgb(0,0,0,0.2)];
 }
 
+/* ── Notes card scroll container — slim always-visible scrollbar ─────── */
+.notes-content-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+.notes-content-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.notes-content-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.notes-content-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 10px;
+  min-height: 40px;
+}
+.dark .notes-content-scroll {
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+.dark .notes-content-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+}
+
 /* ── Break grid scrollbar — hidden by default, slim on scroll ─────────── */
 .break-grid-scroll {
   scrollbar-width: none; /* Firefox — always hidden, native overlay handles UX */

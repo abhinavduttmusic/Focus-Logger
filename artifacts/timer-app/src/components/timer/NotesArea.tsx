@@ -578,6 +578,16 @@ export function NotesArea({
    */
   const [saveFormClipIndex,  setSaveFormClipIndex]   = useState<number | null>(null);
 
+  /** Ref for the unified recordings + notes scroll container */
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  /* Auto-scroll to bottom when a new clip is added */
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [clips.length]);
+
   /* Track auto-play for newly-completed recordings */
   const prevClipsLenRef = useRef(clips.length);
   const [autoPlayIndex, setAutoPlayIndex] = useState<number | null>(null);
@@ -733,98 +743,106 @@ export function NotesArea({
           )}
         </AnimatePresence>
 
-        {/* Saved clips */}
-        <AnimatePresence initial={false}>
-          {clips.length > 0 && (
-            <motion.div
-              key="clips"
-              initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-              animate={{ opacity: 1, height: "auto", marginBottom: 16 }}
-              exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-              transition={{ duration: 0.22, ease: EASE }}
-              className="overflow-hidden space-y-2"
-            >
-              {clips.map((clip, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: -6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.18 }}
-                  className="rounded-xl bg-secondary/30 border border-border/20 px-3 py-2.5 space-y-2"
-                >
-                  {/* Clip header: mic icon + editable label + rename + delete */}
-                  <div className="flex items-center gap-2">
-                    <Mic className="w-3 h-3 text-muted-foreground/35 shrink-0" />
+        {/* ── Unified scroll container: recordings + notes scroll together ── */}
+        <div
+          ref={scrollRef}
+          className="notes-content-scroll flex-1 min-h-0 overflow-y-auto"
+          style={{ paddingRight: "2px" }}
+        >
+          {/* Saved clips */}
+          <AnimatePresence initial={false}>
+            {clips.length > 0 && (
+              <motion.div
+                key="clips"
+                initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                animate={{ opacity: 1, height: "auto", marginBottom: 16 }}
+                exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                transition={{ duration: 0.22, ease: EASE }}
+                className="overflow-hidden space-y-2"
+              >
+                {clips.map((clip, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.18 }}
+                    className="rounded-xl bg-secondary/30 border border-border/20 px-3 py-2.5 space-y-2"
+                  >
+                    {/* Clip header: mic icon + editable label + rename + delete */}
+                    <div className="flex items-center gap-2">
+                      <Mic className="w-3 h-3 text-muted-foreground/35 shrink-0" />
 
-                    {editingIndex === i ? (
-                      <input
-                        autoFocus
-                        value={editDraft}
-                        onChange={(e) => setEditDraft(e.target.value)}
-                        onBlur={() => commitRename(i)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter")  commitRename(i);
-                          if (e.key === "Escape") setEditingIndex(null);
-                        }}
-                        className="flex-1 text-xs bg-transparent border-b border-primary/40 outline-none text-foreground/80 pb-0.5"
-                      />
-                    ) : (
+                      {editingIndex === i ? (
+                        <input
+                          autoFocus
+                          value={editDraft}
+                          onChange={(e) => setEditDraft(e.target.value)}
+                          onBlur={() => commitRename(i)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter")  commitRename(i);
+                            if (e.key === "Escape") setEditingIndex(null);
+                          }}
+                          className="flex-1 text-xs bg-transparent border-b border-primary/40 outline-none text-foreground/80 pb-0.5"
+                        />
+                      ) : (
+                        <button
+                          onClick={() => { setEditDraft(clip.label); setEditingIndex(i); }}
+                          className="flex-1 text-left text-xs text-foreground/65 hover:text-foreground truncate transition-colors"
+                          title="Tap to rename"
+                        >
+                          {clip.label || `Recording ${i + 1}`}
+                        </button>
+                      )}
+
                       <button
                         onClick={() => { setEditDraft(clip.label); setEditingIndex(i); }}
-                        className="flex-1 text-left text-xs text-foreground/65 hover:text-foreground truncate transition-colors"
-                        title="Tap to rename"
+                        className="p-1 rounded text-muted-foreground/25 hover:text-muted-foreground/60 transition-colors shrink-0"
+                        aria-label="Rename recording"
                       >
-                        {clip.label || `Recording ${i + 1}`}
+                        <Pencil className="w-3 h-3" />
                       </button>
+                      <button
+                        onClick={() => setPendingDeleteIndex(i)}
+                        className="p-1 rounded text-muted-foreground/25 hover:text-destructive/60 transition-colors shrink-0"
+                        aria-label="Delete recording"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+
+                    {/* Waveform + controls */}
+                    <WaveformPlayer
+                      clip={clip}
+                      autoPlay={autoPlayIndex === i}
+                      onUpdateClip={(updates) => onUpdateClip(i, updates)}
+                      onOpenSaveForm={() => setSaveFormClipIndex(i)}
+                    />
+
+                    {/* Notes preview under the clip */}
+                    {clip.noteNotes && (
+                      <p className="text-[11px] text-muted-foreground/55 leading-relaxed border-t border-border/20 pt-2 mt-1">
+                        {clip.noteNotes}
+                      </p>
                     )}
+                  </motion.div>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-                    <button
-                      onClick={() => { setEditDraft(clip.label); setEditingIndex(i); }}
-                      className="p-1 rounded text-muted-foreground/25 hover:text-muted-foreground/60 transition-colors shrink-0"
-                      aria-label="Rename recording"
-                    >
-                      <Pencil className="w-3 h-3" />
-                    </button>
-                    <button
-                      onClick={() => setPendingDeleteIndex(i)}
-                      className="p-1 rounded text-muted-foreground/25 hover:text-destructive/60 transition-colors shrink-0"
-                      aria-label="Delete recording"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
+          {/* Text notes textarea — grows with content, no internal scroll */}
+          <textarea
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="What are you aiming to accomplish? Drop your thoughts here..."
+            className="w-full min-h-[120px] bg-transparent border-none resize-none outline-none text-foreground placeholder:text-muted-foreground/60 leading-relaxed"
+            style={{ marginTop: clips.length > 0 ? 0 : undefined }}
+          />
+        </div>
 
-                  {/* Waveform + controls */}
-                  <WaveformPlayer
-                    clip={clip}
-                    autoPlay={autoPlayIndex === i}
-                    onUpdateClip={(updates) => onUpdateClip(i, updates)}
-                    onOpenSaveForm={() => setSaveFormClipIndex(i)}
-                  />
-
-                  {/* Notes preview under the clip */}
-                  {clip.noteNotes && (
-                    <p className="text-[11px] text-muted-foreground/55 leading-relaxed border-t border-border/20 pt-2 mt-1">
-                      {clip.noteNotes}
-                    </p>
-                  )}
-                </motion.div>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Text notes textarea */}
-        <textarea
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="What are you aiming to accomplish? Drop your thoughts here..."
-          className="w-full flex-1 min-h-[120px] bg-transparent border-none resize-none outline-none text-foreground placeholder:text-muted-foreground/60 leading-relaxed"
-        />
-
-        {/* Divider + task selector */}
-        <div className="h-px w-full bg-border/40 my-4" />
+        {/* Divider + task selector — always visible at bottom of card */}
+        <div className="h-px w-full bg-border/40 my-4 shrink-0" />
         <TaskSelector selectedTask={selectedTask} onSelectTask={onSelectTask} />
       </div>
     </div>
