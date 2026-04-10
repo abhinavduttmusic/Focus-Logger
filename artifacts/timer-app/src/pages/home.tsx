@@ -415,12 +415,12 @@ function Home({ restored }: { restored: RestoredSession | null }) {
 
   const handleToggleNotes = useCallback(() => {
     setNotesAnimating(true);
-    setNotesCardHeight((h) =>
-      h > NOTES_DEFAULT_HEIGHT + 60
-        ? NOTES_DEFAULT_HEIGHT  // collapse to default
-        : Math.round(window.innerHeight * 0.75) // expand to 75vh
-    );
-  }, []);
+    if (notesCardHeight > 220 + 60) {
+      setNotesCardHeight(220);
+    } else {
+      setNotesCardHeight(Math.round(window.innerHeight * 0.75));
+    }
+  }, [notesCardHeight]);
 
   // Reset notes card height when navigating away from timer tab
   useEffect(() => {

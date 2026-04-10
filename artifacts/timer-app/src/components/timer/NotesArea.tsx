@@ -622,8 +622,8 @@ export function NotesArea({
   return (
     <>
     {/* ─────────────────────── Card ─────────────────────────── */}
-    <div className="h-full w-full glass-panel rounded-3xl p-1 overflow-hidden transition-all duration-300 focus-within:ring-4 focus-within:ring-primary/10">
-      <div className="bg-card/50 rounded-[1.35rem] p-6 h-full flex flex-col">
+    <div className="flex-1 min-h-0 w-full glass-panel rounded-3xl p-1 overflow-hidden flex flex-col transition-all duration-300 focus-within:ring-4 focus-within:ring-primary/10">
+      <div className="bg-card/50 rounded-[1.35rem] p-6 flex-1 min-h-0 flex flex-col">
 
         {/* Header */}
         <div className="flex items-center mb-4">
