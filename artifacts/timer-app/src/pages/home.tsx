@@ -169,6 +169,14 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const breakDidLongPressRef   = useRef(false);
   const breakScrollTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // ─── Notes card drag ─────────────────────────────────────────────────────
+  const NOTES_DEFAULT_HEIGHT = Math.round(window.innerHeight * 0.38);
+  const NOTES_MAX_HEIGHT = window.innerHeight - 80;
+  const [notesCardHeight, setNotesCardHeight] = useState(NOTES_DEFAULT_HEIGHT);
+  const notesIsDragging = useRef(false);
+  const notesDragStartY = useRef(0);
+  const notesDragStartH = useRef(0);
+
   // ─── Session logging ─────────────────────────────────────────────────────
 
   const createSession = useCreateSession({
@@ -379,6 +387,38 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     if (timer.mode !== "simple") timer.setMode("simple");
     timer.start();
   }, [timer]);
+
+  // ─── Notes card drag handlers ─────────────────────────────────────────────
+
+  const handleNotesDragStart = useCallback((e: React.PointerEvent) => {
+    notesIsDragging.current = true;
+    notesDragStartY.current = e.clientY;
+    notesDragStartH.current = notesCardHeight;
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }, [notesCardHeight]);
+
+  const handleNotesDragMove = useCallback((e: React.PointerEvent) => {
+    if (!notesIsDragging.current) return;
+    const delta = notesDragStartY.current - e.clientY;
+    const newH = Math.max(NOTES_DEFAULT_HEIGHT, Math.min(NOTES_MAX_HEIGHT, notesDragStartH.current + delta));
+    setNotesCardHeight(newH);
+  }, []);
+
+  const handleNotesDragEnd = useCallback(() => {
+    notesIsDragging.current = false;
+  }, []);
+
+  useEffect(() => {
+    if (recorder.clips.length > 0 && notesCardHeight <= NOTES_DEFAULT_HEIGHT) {
+      setNotesCardHeight(Math.round(window.innerHeight * 0.6));
+    }
+  }, [recorder.clips.length]);
+
+  useEffect(() => {
+    if (activeTab !== "timer") {
+      setNotesCardHeight(NOTES_DEFAULT_HEIGHT);
+    }
+  }, [activeTab]);
 
   /** Save a custom break type to localStorage and immediately start it */
   const handleAddCustomBreak = useCallback((input: string) => {
@@ -790,26 +830,42 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                     </AnimatePresence>
 
                     {/* ── Notes ── */}
-                    <section className="flex-1 min-h-0 pb-5">
-                      <NotesArea
-                        value={notes}
-                        onChange={setNotes}
-                        selectedTask={selectedTask}
-                        onSelectTask={setSelectedTask}
-                        isSessionActive={sessionIsInProgress}
-                        isRecording={recorder.isRecording}
-                        isPaused={recorder.isPaused}
-                        clips={recorder.clips}
-                        onStartRecording={handleStartRecording}
-                        onStopRecording={recorder.stopRecording}
-                        onPauseRecording={recorder.pauseRecording}
-                        onResumeRecording={recorder.resumeRecording}
-                        onRenameClip={recorder.renameClip}
-                        onUpdateClip={recorder.updateClip}
-                        onDeleteClip={recorder.deleteClip}
-                        onCancelRecording={recorder.discardAndStop}
-                      />
-                    </section>
+                    <div
+                      className="absolute left-0 right-0 bottom-0 z-20 bg-background rounded-t-3xl shadow-lg"
+                      style={{ height: notesCardHeight }}
+                    >
+                      {/* Drag handle */}
+                      <div
+                        className="flex justify-center items-center pt-2 pb-1 cursor-grab active:cursor-grabbing touch-none"
+                        onPointerDown={handleNotesDragStart}
+                        onPointerMove={handleNotesDragMove}
+                        onPointerUp={handleNotesDragEnd}
+                        onPointerCancel={handleNotesDragEnd}
+                      >
+                        <div className="w-10 h-1 rounded-full bg-border/60" />
+                      </div>
+                      {/* NotesArea fills remaining height */}
+                      <div style={{ height: `calc(100% - 20px)`, overflow: 'hidden' }}>
+                        <NotesArea
+                          value={notes}
+                          onChange={setNotes}
+                          selectedTask={selectedTask}
+                          onSelectTask={setSelectedTask}
+                          isSessionActive={sessionIsInProgress}
+                          isRecording={recorder.isRecording}
+                          isPaused={recorder.isPaused}
+                          clips={recorder.clips}
+                          onStartRecording={handleStartRecording}
+                          onStopRecording={recorder.stopRecording}
+                          onPauseRecording={recorder.pauseRecording}
+                          onResumeRecording={recorder.resumeRecording}
+                          onRenameClip={recorder.renameClip}
+                          onUpdateClip={recorder.updateClip}
+                          onDeleteClip={recorder.deleteClip}
+                          onCancelRecording={recorder.discardAndStop}
+                        />
+                      </div>
+                    </div>
 
                   </div>
                 </main>
