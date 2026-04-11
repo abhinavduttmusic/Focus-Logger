@@ -307,12 +307,16 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
     });
 
     /* ── Loop enforcement — checked on every timeupdate ─────── */
+    let lastSeekTime = 0;
     ws.on("timeupdate", (currentTime) => {
       const loop = loopRegionRef.current;
       if (!isLoopingRef.current || !loop) return;
       if (currentTime >= loop.end) {
+        const now = Date.now();
+        if (now - lastSeekTime < 500) return;
+        lastSeekTime = now;
         const dur = durationRef.current;
-        if (dur > 0 && currentTime > loop.start) {
+        if (dur > 0) {
           ws.seekTo(loop.start / dur);
         }
       }
