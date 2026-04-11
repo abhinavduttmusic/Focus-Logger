@@ -425,7 +425,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   useEffect(() => {
     if (activeTab !== "timer") {
       setNotesAnimating(false);
-      setNotesCardHeight(220);
+      setNotesCardHeight(NOTES_DEFAULT_HEIGHT);
     }
   }, [activeTab]);
 
