@@ -626,7 +626,7 @@ export function NotesArea({
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', borderRadius: '1.35rem', padding: '16px', boxSizing: 'border-box' }} className="bg-card/50">
 
         {/* Header */}
-        <div className="flex items-center mb-4">
+        <div style={{ flexShrink: 0 }} className="flex items-center mb-4">
           <div className="flex items-center gap-2 text-muted-foreground font-medium flex-1">
             <FileText className="w-4 h-4" />
             <span>Session Notes & Goals</span>
@@ -646,6 +646,7 @@ export function NotesArea({
         </div>
 
         {/* Inline recording controls */}
+        <div style={{ flexShrink: 0 }}>
         <AnimatePresence initial={false}>
           {isRecording && (
             <motion.div
@@ -727,12 +728,13 @@ export function NotesArea({
             </motion.div>
           )}
         </AnimatePresence>
+        </div>
 
         {/* ── Unified scroll container: recordings + notes scroll together ── */}
         <div
           ref={scrollRef}
           className="notes-content-scroll"
-          style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: '2px', display: 'flex', flexDirection: 'column' }}
+          style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: '2px' }}
         >
           {/* Saved clips */}
           <AnimatePresence initial={false}>
@@ -822,12 +824,12 @@ export function NotesArea({
             onChange={(e) => onChange(e.target.value)}
             placeholder="What are you aiming to accomplish? Drop your thoughts here..."
             className="w-full bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/60 leading-relaxed"
-            style={{ minHeight: '120px', width: '100%', resize: 'none' }}
+            style={{ minHeight: '120px', width: '100%', resize: 'none', display: 'block' }}
           />
         </div>
 
         {/* Divider + mic + task selector — pinned to bottom of flex column */}
-        <div style={{ flexShrink: 0, marginTop: 'auto' }}>
+        <div style={{ flexShrink: 0 }}>
           <div className="h-px w-full bg-border/40 my-4" />
           <div className="flex items-center gap-2">
           {/* Mic button — moved from header to here */}
