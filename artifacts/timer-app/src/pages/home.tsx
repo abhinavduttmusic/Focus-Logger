@@ -29,6 +29,10 @@ const BASE = import.meta.env.BASE_URL;
 
 const TAB_TRANSITION = { duration: 0.2, ease: [0.22, 1, 0.36, 1] as const };
 const SHEET_TRANSITION = { duration: 0.24, ease: [0.22, 1, 0.36, 1] as const };
+
+const NOTES_DEFAULT_HEIGHT = Math.round(window.innerHeight * 0.38);
+const NOTES_MAX_HEIGHT = window.innerHeight - 80;
+
 const OVERLAY_VARIANTS = {
   hidden:  { opacity: 0, scale: 0.96, y: 6 },
   visible: { opacity: 1, scale: 1,    y: 0 },
@@ -170,8 +174,6 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const breakScrollTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ─── Notes card drag ─────────────────────────────────────────────────────
-  const NOTES_DEFAULT_HEIGHT = Math.round(window.innerHeight * 0.38);
-  const NOTES_MAX_HEIGHT = window.innerHeight - 80;
   const [notesCardHeight, setNotesCardHeight] = useState(NOTES_DEFAULT_HEIGHT);
   const notesIsDragging = useRef(false);
   const notesDragStartY = useRef(0);
@@ -391,6 +393,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   // ─── Notes card drag handlers ─────────────────────────────────────────────
 
   const handleNotesDragStart = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
     notesIsDragging.current = true;
     notesDragStartY.current = e.clientY;
     notesDragStartH.current = notesCardHeight;
@@ -400,7 +403,10 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     const onMove = (e: PointerEvent) => {
       if (!notesIsDragging.current) return;
       const delta = notesDragStartY.current - e.clientY;
-      const newH = Math.max(NOTES_DEFAULT_HEIGHT, Math.min(NOTES_MAX_HEIGHT, notesDragStartH.current + delta));
+      const newH = Math.max(
+        NOTES_DEFAULT_HEIGHT,
+        Math.min(NOTES_MAX_HEIGHT, notesDragStartH.current + delta)
+      );
       setNotesCardHeight(newH);
     };
     const onUp = () => {
