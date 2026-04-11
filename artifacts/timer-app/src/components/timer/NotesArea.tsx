@@ -290,8 +290,11 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
     regions.on("region-created", (region) => {
       regions.getRegions().forEach((r) => { if (r.id !== region.id) r.remove(); });
       loopRegionRef.current = { start: region.start, end: region.end };
-      isLoopingRef.current  = true;
+      isLoopingRef.current = true;
       setIsLooping(true);
+      region.on('click', () => {
+        ws.play(region.start, region.end);
+      });
     });
 
     regions.on("region-updated", (region) => {
@@ -306,24 +309,6 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
       }
     });
 
-    /* ── Loop enforcement — checked on every timeupdate ─────── */
-    let lastSeekTime = 0;
-    ws.on("timeupdate", (currentTime) => {
-      const loop = loopRegionRef.current;
-      if (!isLoopingRef.current || !loop) return;
-      if (currentTime >= loop.end) {
-        const now = Date.now();
-        if (now - lastSeekTime < 500) return;
-        lastSeekTime = now;
-        const dur = durationRef.current;
-        if (dur > 0) {
-          ws.seekTo(loop.start / dur);
-          setTimeout(() => {
-            if (isLoopingRef.current) ws.play();
-          }, 50);
-        }
-      }
-    });
 
     ws.on("ready", () => {
       const dur = ws.getDuration();
@@ -370,16 +355,20 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
   const togglePlay = () => {
     const ws = wsRef.current;
     if (!ws) return;
-    if (isLooping && loopRegionRef.current && !playing) {
-      const dur = durationRef.current;
-      const cur = ws.getCurrentTime();
+    if (playing) {
+      ws.pause();
+      return;
+    }
+    if (isLooping && loopRegionRef.current) {
       const { start, end } = loopRegionRef.current;
-      if (dur > 0 && (cur < start || cur >= end)) {
+      const cur = ws.getCurrentTime();
+      const dur = durationRef.current;
+      if (cur < start || cur >= end) {
         ws.seekTo(start / dur);
       }
-      ws.play();
+      ws.play(start, end);
     } else {
-      ws.playPause();
+      ws.play();
     }
   };
 
