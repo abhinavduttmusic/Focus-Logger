@@ -28,6 +28,7 @@ import { StatsTab } from "@/components/stats/StatsTab";
 const BASE = import.meta.env.BASE_URL;
 
 const TAB_TRANSITION = { duration: 0.2, ease: [0.22, 1, 0.36, 1] as const };
+const NOTES_DEFAULT_HEIGHT = Math.round(window.innerHeight * 0.35);
 const SHEET_TRANSITION = { duration: 0.24, ease: [0.22, 1, 0.36, 1] as const };
 const OVERLAY_VARIANTS = {
   hidden:  { opacity: 0, scale: 0.96, y: 6 },
@@ -170,7 +171,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const breakScrollTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ─── Notes card bottom-sheet drag ────────────────────────────────────────
-  const [notesCardHeight,  setNotesCardHeight]  = useState(() => Math.round(window.innerHeight * 0.35));
+  const [notesCardHeight,  setNotesCardHeight]  = useState(NOTES_DEFAULT_HEIGHT);
   const [notesAnimating,   setNotesAnimating]   = useState(false);
   const notesDraggingRef       = useRef(false);
   const notesDragStartYRef     = useRef(0);
