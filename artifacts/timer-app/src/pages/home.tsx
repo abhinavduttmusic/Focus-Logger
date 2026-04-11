@@ -844,8 +844,8 @@ function Home({ restored }: { restored: RestoredSession | null }) {
 
                     {/* ── Notes ── */}
                     <div
-                      className="absolute left-0 right-0 bottom-0 z-20 bg-background rounded-t-3xl shadow-lg"
-                      style={{ height: notesCardHeight }}
+                      className="absolute left-0 right-0 bottom-0 z-30 bg-background rounded-t-3xl shadow-lg"
+                      style={{ height: notesCardHeight, touchAction: 'none' }}
                     >
                       {/* Drag handle */}
                       <div
