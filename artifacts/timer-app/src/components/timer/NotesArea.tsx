@@ -743,7 +743,7 @@ export function NotesArea({
                 animate={{ opacity: 1, height: "auto", marginBottom: 16 }}
                 exit={{ opacity: 0, height: 0, marginBottom: 0 }}
                 transition={{ duration: 0.22, ease: EASE }}
-                className="overflow-hidden space-y-2"
+                className="space-y-2"
               >
                 {clips.map((clip, i) => (
                   <motion.div
@@ -822,7 +822,7 @@ export function NotesArea({
             onChange={(e) => onChange(e.target.value)}
             placeholder="What are you aiming to accomplish? Drop your thoughts here..."
             className="w-full bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/60 leading-relaxed"
-            style={{ flex: 1, minHeight: '120px', marginTop: clips.length > 0 ? 0 : undefined, resize: 'none' }}
+            style={{ minHeight: '120px', marginTop: clips.length > 0 ? 0 : undefined, resize: 'none', width: '100%' }}
           />
         </div>
 
