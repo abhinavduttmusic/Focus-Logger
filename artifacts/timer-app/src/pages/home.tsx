@@ -175,7 +175,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const notesDraggingRef       = useRef(false);
   const notesDragStartYRef     = useRef(0);
   const notesDragStartHeightRef = useRef(0);
-  const isNotesExpanded = notesCardHeight > 220 + 60;
+  const isNotesExpanded = notesCardHeight > 220;
 
   // ─── Session logging ─────────────────────────────────────────────────────
 

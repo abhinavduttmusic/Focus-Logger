@@ -623,7 +623,7 @@ export function NotesArea({
     <>
     {/* ─────────────────────── Card ─────────────────────────── */}
     <div className="w-full glass-panel rounded-3xl p-1 overflow-hidden transition-all duration-300 focus-within:ring-4 focus-within:ring-primary/10" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <div className="bg-card/50 rounded-[1.35rem] p-6" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      <div className="bg-card/50 rounded-[1.35rem] p-6" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
         {/* Header */}
         <div className="flex items-center mb-4">
@@ -732,7 +732,7 @@ export function NotesArea({
         <div
           ref={scrollRef}
           className="notes-content-scroll"
-          style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: "2px" }}
+          style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: "2px", height: 0 }}
         >
           {/* Saved clips */}
           <AnimatePresence initial={false}>
