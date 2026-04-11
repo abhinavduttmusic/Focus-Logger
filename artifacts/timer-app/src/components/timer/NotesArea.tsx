@@ -3,7 +3,7 @@ import WaveSurfer from "wavesurfer.js";
 import RegionsPlugin from "wavesurfer.js/plugins/regions";
 import {
   FileText, Mic, Pause, Square, X, Play, Trash2, Pencil,
-  BookmarkPlus, Repeat2, Rewind, FastForward, ChevronUp,
+  BookmarkPlus, Repeat2, Rewind, FastForward,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Task } from "@workspace/api-client-react/src/generated/api.schemas";
@@ -547,8 +547,6 @@ interface NotesAreaProps {
   onUpdateClip: (index: number, updates: Partial<AudioClip>) => void;
   onDeleteClip: (index: number) => void;
   onCancelRecording: () => void;
-  onToggleExpand: () => void;
-  isExpanded: boolean;
 }
 
 export function NotesArea({
@@ -568,8 +566,6 @@ export function NotesArea({
   onUpdateClip,
   onDeleteClip,
   onCancelRecording,
-  onToggleExpand,
-  isExpanded,
 }: NotesAreaProps) {
   const [showCancelConfirm,  setShowCancelConfirm]  = useState(false);
   const [editingIndex,       setEditingIndex]        = useState<number | null>(null);
@@ -584,24 +580,6 @@ export function NotesArea({
 
   /** Ref for the unified recordings + notes scroll container */
   const scrollRef = useRef<HTMLDivElement>(null);
-  const headerRowRef = useRef<HTMLDivElement>(null);
-  const footerRowRef = useRef<HTMLDivElement>(null);
-  const [scrollTop, setScrollTop] = useState(72);
-  const [scrollBottom, setScrollBottom] = useState(80);
-
-  useEffect(() => {
-    const update = () => {
-      if (headerRowRef.current && footerRowRef.current) {
-        const headerH = headerRowRef.current.getBoundingClientRect().height;
-        const footerH = footerRowRef.current.getBoundingClientRect().height;
-        setScrollTop(headerH + 24);
-        setScrollBottom(footerH + 16);
-      }
-    };
-    update();
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
-  }, [isRecording]);
 
   /* Auto-scroll to bottom when a new clip is added */
   useEffect(() => {
@@ -640,31 +618,48 @@ export function NotesArea({
   return (
     <>
     {/* ─────────────────────── Card ─────────────────────────── */}
-    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', borderRadius: '1.5rem', padding: '4px', boxSizing: 'border-box' }} className="glass-panel focus-within:ring-4 focus-within:ring-primary/10">
-      <div style={{ flex: 1, minHeight: 0, borderRadius: '1.35rem', padding: '16px', boxSizing: 'border-box', position: 'relative' }} className="bg-card/50">
+    <div className="w-full glass-panel rounded-3xl p-1 overflow-hidden transition-all duration-300 focus-within:ring-4 focus-within:ring-primary/10">
+      <div className="bg-card/50 rounded-[1.35rem] p-6 h-full flex flex-col">
 
         {/* Header */}
-        <div className="flex items-center mb-4" style={{ position: 'relative' }} ref={headerRowRef}>
+        <div className="flex items-center mb-4">
           <div className="flex items-center gap-2 text-muted-foreground font-medium flex-1">
             <FileText className="w-4 h-4" />
             <span>Session Notes & Goals</span>
           </div>
 
-          {/* Chevron toggle — tap to expand / collapse the card */}
-          <motion.button
-            onClick={onToggleExpand}
-            whileTap={{ scale: 0.88 }}
-            animate={{ rotate: isExpanded ? 180 : 0 }}
-            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-            className="w-8 h-8 rounded-full flex items-center justify-center bg-foreground/[0.05] hover:bg-foreground/[0.10] text-foreground/50 hover:text-foreground/80 transition-colors shrink-0"
-            aria-label={isExpanded ? "Collapse notes" : "Expand notes"}
-          >
-            <ChevronUp className="w-4 h-4" />
-          </motion.button>
+          {/* Mic button */}
+          {!isRecording ? (
+            <motion.button
+              onClick={isSessionActive ? onStartRecording : undefined}
+              whileTap={isSessionActive ? { scale: 0.88 } : {}}
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors shrink-0 ${
+                isSessionActive
+                  ? "bg-foreground/[0.06] hover:bg-foreground/[0.10] text-foreground/65 hover:text-foreground/90 cursor-pointer"
+                  : "bg-foreground/[0.03] text-foreground/20 cursor-not-allowed opacity-50"
+              }`}
+              aria-label="Start voice recording"
+              title={isSessionActive ? "Record a voice note" : "Start a session to record"}
+              disabled={!isSessionActive}
+            >
+              <Mic className="w-4 h-4" />
+            </motion.button>
+          ) : (
+            <motion.span
+              className="relative flex items-center justify-center h-8 w-8 shrink-0"
+              aria-label="Recording active"
+            >
+              <motion.span
+                className="absolute inline-flex rounded-full bg-red-500"
+                style={{ width: 10, height: 10 }}
+                animate={!isPaused ? { scale: [1, 1.08, 1] } : { scale: 1 }}
+                transition={!isPaused ? { duration: 1.2, ease: "easeInOut", repeat: Infinity } : {}}
+              />
+            </motion.span>
+          )}
         </div>
 
         {/* Inline recording controls */}
-        <div style={{ flexShrink: 0 }}>
         <AnimatePresence initial={false}>
           {isRecording && (
             <motion.div
@@ -746,13 +741,12 @@ export function NotesArea({
             </motion.div>
           )}
         </AnimatePresence>
-        </div>
 
         {/* ── Unified scroll container: recordings + notes scroll together ── */}
         <div
           ref={scrollRef}
-          className="notes-content-scroll"
-          style={{ position: 'absolute', top: `${scrollTop}px`, bottom: `${scrollBottom}px`, left: '16px', right: '16px', overflowY: 'auto', paddingRight: '2px' }}
+          className="notes-content-scroll flex-1 min-h-0 overflow-y-auto"
+          style={{ paddingRight: "2px" }}
         >
           {/* Saved clips */}
           <AnimatePresence initial={false}>
@@ -836,52 +830,18 @@ export function NotesArea({
             )}
           </AnimatePresence>
 
-          {/* Text notes textarea — grows with content, no internal scroll */}
+          {/* Text notes textarea */}
           <textarea
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder="What are you aiming to accomplish? Drop your thoughts here..."
-            className="w-full bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/60 leading-relaxed"
-            style={{ minHeight: '120px', width: '100%', resize: 'none', display: 'block' }}
+            className="w-full min-h-[120px] bg-transparent border-none resize-none outline-none text-foreground placeholder:text-muted-foreground/60 leading-relaxed"
           />
         </div>
 
-        {/* Divider + mic + task selector — pinned to bottom of flex column */}
-        <div style={{ position: 'absolute', bottom: '16px', left: '16px', right: '16px' }} ref={footerRowRef}>
-          <div className="h-px w-full bg-border/40 my-4" />
-          <div className="flex items-center gap-2">
-          {/* Mic button — moved from header to here */}
-          {!isRecording ? (
-            <motion.button
-              onClick={isSessionActive ? onStartRecording : undefined}
-              whileTap={isSessionActive ? { scale: 0.88 } : {}}
-              className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors shrink-0 ${
-                isSessionActive
-                  ? "bg-foreground/[0.06] hover:bg-foreground/[0.10] text-foreground/65 hover:text-foreground/90 cursor-pointer"
-                  : "bg-foreground/[0.03] text-foreground/20 cursor-not-allowed opacity-50"
-              }`}
-              aria-label="Start voice recording"
-              title={isSessionActive ? "Record a voice note" : "Start a session to record"}
-              disabled={!isSessionActive}
-            >
-              <Mic className="w-4 h-4" />
-            </motion.button>
-          ) : (
-            <motion.span
-              className="relative flex items-center justify-center h-8 w-8 shrink-0"
-              aria-label="Recording active"
-            >
-              <motion.span
-                className="absolute inline-flex rounded-full bg-red-500"
-                style={{ width: 10, height: 10 }}
-                animate={!isPaused ? { scale: [1, 1.08, 1] } : { scale: 1 }}
-                transition={!isPaused ? { duration: 1.2, ease: "easeInOut", repeat: Infinity } : {}}
-              />
-            </motion.span>
-          )}
-          <TaskSelector selectedTask={selectedTask} onSelectTask={onSelectTask} />
-          </div>
-        </div>
+        {/* Divider + task selector */}
+        <div className="h-px w-full bg-border/40 my-4 shrink-0" />
+        <TaskSelector selectedTask={selectedTask} onSelectTask={onSelectTask} />
       </div>
     </div>
 
