@@ -394,18 +394,26 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     notesIsDragging.current = true;
     notesDragStartY.current = e.clientY;
     notesDragStartH.current = notesCardHeight;
-    e.currentTarget.setPointerCapture(e.pointerId);
   }, [notesCardHeight]);
 
-  const handleNotesDragMove = useCallback((e: React.PointerEvent) => {
-    if (!notesIsDragging.current) return;
-    const delta = notesDragStartY.current - e.clientY;
-    const newH = Math.max(NOTES_DEFAULT_HEIGHT, Math.min(NOTES_MAX_HEIGHT, notesDragStartH.current + delta));
-    setNotesCardHeight(newH);
-  }, []);
-
-  const handleNotesDragEnd = useCallback(() => {
-    notesIsDragging.current = false;
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      if (!notesIsDragging.current) return;
+      const delta = notesDragStartY.current - e.clientY;
+      const newH = Math.max(NOTES_DEFAULT_HEIGHT, Math.min(NOTES_MAX_HEIGHT, notesDragStartH.current + delta));
+      setNotesCardHeight(newH);
+    };
+    const onUp = () => {
+      notesIsDragging.current = false;
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
   }, []);
 
   useEffect(() => {
@@ -836,11 +844,8 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                     >
                       {/* Drag handle */}
                       <div
-                        className="flex justify-center items-center pt-2 pb-1 cursor-grab active:cursor-grabbing touch-none"
+                        className="flex justify-center items-center pt-2 pb-1 cursor-grab active:cursor-grabbing touch-none select-none"
                         onPointerDown={handleNotesDragStart}
-                        onPointerMove={handleNotesDragMove}
-                        onPointerUp={handleNotesDragEnd}
-                        onPointerCancel={handleNotesDragEnd}
                       >
                         <div className="w-10 h-1 rounded-full bg-border/60" />
                       </div>
