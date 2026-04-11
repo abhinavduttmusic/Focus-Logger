@@ -839,7 +839,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
 
                     {/* ── Notes bottom sheet — absolute, slides over timer ── */}
                     <div
-                      className="absolute left-0 right-0 bottom-0 z-20 flex flex-col"
+                      className="absolute left-0 right-0 bottom-0 z-20 flex flex-col rounded-t-3xl bg-background shadow-lg ring-1 ring-border/40 focus-within:ring-2 focus-within:ring-border/70 transition-shadow"
                       style={{
                         height: notesCardHeight,
                         overflow: 'hidden',
@@ -857,7 +857,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                         onPointerUp={handleNotesDragUp}
                         onPointerCancel={handleNotesDragUp}
                       >
-                        <div className="w-10 h-1 bg-border/60 rounded-full" />
+                        <div className="w-10 h-1 rounded-full" style={{ backgroundColor: 'rgba(0,0,0,0.25)' }} />
                       </div>
 
                       {/* NotesArea card fills the rest */}
