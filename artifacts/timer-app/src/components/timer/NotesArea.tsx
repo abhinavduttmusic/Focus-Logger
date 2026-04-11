@@ -732,7 +732,7 @@ export function NotesArea({
         <div
           ref={scrollRef}
           className="notes-content-scroll"
-          style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: '2px' }}
+          style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: '2px', display: 'flex', flexDirection: 'column' }}
         >
           {/* Saved clips */}
           <AnimatePresence initial={false}>
