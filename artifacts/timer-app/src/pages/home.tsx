@@ -170,12 +170,12 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const breakScrollTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ─── Notes card bottom-sheet drag ────────────────────────────────────────
-  const [notesCardHeight,  setNotesCardHeight]  = useState(220);
+  const [notesCardHeight,  setNotesCardHeight]  = useState(() => Math.round(window.innerHeight * 0.35));
   const [notesAnimating,   setNotesAnimating]   = useState(false);
   const notesDraggingRef       = useRef(false);
   const notesDragStartYRef     = useRef(0);
   const notesDragStartHeightRef = useRef(0);
-  const isNotesExpanded = notesCardHeight > 220;
+  const isNotesExpanded = notesCardHeight > Math.round(window.innerHeight * 0.35) + 10;
 
   // ─── Session logging ─────────────────────────────────────────────────────
 
@@ -412,8 +412,9 @@ function Home({ restored }: { restored: RestoredSession | null }) {
 
   const handleToggleNotes = useCallback(() => {
     setNotesAnimating(true);
-    if (notesCardHeight > 220) {
-      setNotesCardHeight(220);
+    const defaultH = Math.round(window.innerHeight * 0.35);
+    if (notesCardHeight > defaultH) {
+      setNotesCardHeight(defaultH);
     } else {
       setNotesCardHeight(Math.round(window.innerHeight * 0.75));
     }
@@ -843,6 +844,10 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                         height: notesCardHeight,
                         overflow: 'hidden',
                         transition: notesAnimating ? "height 0.38s cubic-bezier(0.22,1,0.36,1)" : "none",
+                      }}
+                      onPointerUp={() => {
+                        const el = document.querySelector('.notes-content-scroll');
+                        console.log('card height:', notesCardHeight, 'inner scroll el clientHeight:', el?.clientHeight, 'scrollHeight:', el?.scrollHeight);
                       }}
                     >
                       {/* Drag handle — grab this to resize */}
