@@ -307,17 +307,13 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
     });
 
     /* ── Loop enforcement — checked on every timeupdate ─────── */
-    let isSeeking = false;
     ws.on("timeupdate", (currentTime) => {
       const loop = loopRegionRef.current;
-      if (isLoopingRef.current && loop && !isSeeking) {
-        if (currentTime >= loop.end) {
-          const dur = durationRef.current;
-          if (dur > 0) {
-            isSeeking = true;
-            ws.seekTo(loop.start / dur);
-            setTimeout(() => { isSeeking = false; }, 100);
-          }
+      if (!isLoopingRef.current || !loop) return;
+      if (currentTime >= loop.end) {
+        const dur = durationRef.current;
+        if (dur > 0 && currentTime > loop.start) {
+          ws.seekTo(loop.start / dur);
         }
       }
     });
