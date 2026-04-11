@@ -318,6 +318,7 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
         const dur = durationRef.current;
         if (dur > 0) {
           ws.seekTo(loop.start / dur);
+          ws.play();
         }
       }
     });
