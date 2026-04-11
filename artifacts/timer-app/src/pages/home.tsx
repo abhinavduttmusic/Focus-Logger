@@ -393,7 +393,6 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   // ─── Notes card drag handlers ─────────────────────────────────────────────
 
   const handleNotesDragStart = useCallback((e: React.PointerEvent) => {
-    e.preventDefault();
     notesIsDragging.current = true;
     notesDragStartY.current = e.clientY;
     notesDragStartH.current = notesCardHeight;
@@ -850,7 +849,8 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                     >
                       {/* Drag handle */}
                       <div
-                        className="flex justify-center items-center pt-2 pb-1 cursor-grab active:cursor-grabbing touch-none select-none"
+                        className="flex justify-center items-center pt-2 pb-1 select-none"
+                        style={{ touchAction: 'none', cursor: 'grab', userSelect: 'none' }}
                         onPointerDown={handleNotesDragStart}
                       >
                         <div className="w-10 h-1 rounded-full bg-border/60" />
