@@ -732,7 +732,7 @@ export function NotesArea({
         <div
           ref={scrollRef}
           className="notes-content-scroll"
-          style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: '2px' }}
+          style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: '2px', display: 'flex', flexDirection: 'column' }}
         >
           {/* Saved clips */}
           <AnimatePresence initial={false}>
@@ -822,7 +822,7 @@ export function NotesArea({
             onChange={(e) => onChange(e.target.value)}
             placeholder="What are you aiming to accomplish? Drop your thoughts here..."
             className="w-full bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/60 leading-relaxed"
-            style={{ minHeight: '120px', marginTop: clips.length > 0 ? 0 : undefined, resize: 'none', width: '100%' }}
+            style={{ flex: 1, minHeight: '120px', marginTop: clips.length > 0 ? 0 : undefined, resize: 'none', width: '100%' }}
           />
         </div>
 
