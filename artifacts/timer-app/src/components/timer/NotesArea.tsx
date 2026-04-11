@@ -623,7 +623,7 @@ export function NotesArea({
     <>
     {/* ─────────────────────── Card ─────────────────────────── */}
     <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', borderRadius: '1.5rem', padding: '4px', boxSizing: 'border-box' }} className="glass-panel focus-within:ring-4 focus-within:ring-primary/10">
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', borderRadius: '1.35rem', padding: '16px', boxSizing: 'border-box', overflow: 'visible' }} className="bg-card/50">
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', borderRadius: '1.35rem', padding: '16px', boxSizing: 'border-box' }} className="bg-card/50">
 
         {/* Header */}
         <div className="flex items-center mb-4">
@@ -732,7 +732,7 @@ export function NotesArea({
         <div
           ref={scrollRef}
           className="notes-content-scroll"
-          style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: "2px", display: 'flex', flexDirection: 'column' }}
+          style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: '2px' }}
         >
           {/* Saved clips */}
           <AnimatePresence initial={false}>
@@ -826,9 +826,10 @@ export function NotesArea({
           />
         </div>
 
-        {/* Divider + mic + task selector — always visible at bottom of card */}
-        <div className="h-px w-full bg-border/40 my-4 shrink-0" />
-        <div className="flex items-center gap-2">
+        {/* Divider + mic + task selector — pinned to bottom of flex column */}
+        <div style={{ flexShrink: 0, marginTop: 'auto' }}>
+          <div className="h-px w-full bg-border/40 my-4" />
+          <div className="flex items-center gap-2">
           {/* Mic button — moved from header to here */}
           {!isRecording ? (
             <motion.button
@@ -859,6 +860,7 @@ export function NotesArea({
             </motion.span>
           )}
           <TaskSelector selectedTask={selectedTask} onSelectTask={onSelectTask} />
+          </div>
         </div>
       </div>
     </div>
