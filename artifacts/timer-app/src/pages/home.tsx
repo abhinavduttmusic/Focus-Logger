@@ -175,7 +175,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const notesDraggingRef       = useRef(false);
   const notesDragStartYRef     = useRef(0);
   const notesDragStartHeightRef = useRef(0);
-  const isNotesExpanded = notesCardHeight > 220;
+  const isNotesExpanded = notesCardHeight > 240;
 
   // ─── Session logging ─────────────────────────────────────────────────────
 
@@ -412,7 +412,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
 
   const handleToggleNotes = useCallback(() => {
     setNotesAnimating(true);
-    if (notesCardHeight > 220 + 60) {
+    if (notesCardHeight > 240) {
       setNotesCardHeight(220);
     } else {
       setNotesCardHeight(Math.round(window.innerHeight * 0.75));
