@@ -622,7 +622,7 @@ export function NotesArea({
   return (
     <>
     {/* ─────────────────────── Card ─────────────────────────── */}
-    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', borderRadius: '1.5rem', padding: '4px', boxSizing: 'border-box' }} className="glass-panel focus-within:ring-4 focus-within:ring-primary/10">
+    <div className="w-full h-full" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', borderRadius: '1.35rem', padding: '16px', boxSizing: 'border-box' }} className="bg-card/50">
 
         {/* Header */}
