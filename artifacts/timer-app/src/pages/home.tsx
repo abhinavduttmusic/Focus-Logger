@@ -29,10 +29,6 @@ const BASE = import.meta.env.BASE_URL;
 
 const TAB_TRANSITION = { duration: 0.2, ease: [0.22, 1, 0.36, 1] as const };
 const SHEET_TRANSITION = { duration: 0.24, ease: [0.22, 1, 0.36, 1] as const };
-
-const NOTES_COLLAPSED_HEIGHT = Math.round(window.innerHeight * 0.38);
-const NOTES_EXPANDED_HEIGHT = Math.round(window.innerHeight * 0.75);
-
 const OVERLAY_VARIANTS = {
   hidden:  { opacity: 0, scale: 0.96, y: 6 },
   visible: { opacity: 1, scale: 1,    y: 0 },
@@ -173,9 +169,13 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const breakDidLongPressRef   = useRef(false);
   const breakScrollTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ─── Notes card ──────────────────────────────────────────────────────────
-  const [notesIsExpanded, setNotesIsExpanded] = useState(false);
-  const notesCardHeight = notesIsExpanded ? NOTES_EXPANDED_HEIGHT : NOTES_COLLAPSED_HEIGHT;
+  // ─── Notes card bottom-sheet drag ────────────────────────────────────────
+  const [notesCardHeight,  setNotesCardHeight]  = useState(() => Math.round(window.innerHeight * 0.35));
+  const [notesAnimating,   setNotesAnimating]   = useState(false);
+  const notesDraggingRef       = useRef(false);
+  const notesDragStartYRef     = useRef(0);
+  const notesDragStartHeightRef = useRef(0);
+  const isNotesExpanded = notesCardHeight > Math.round(window.innerHeight * 0.35) + 10;
 
   // ─── Session logging ─────────────────────────────────────────────────────
 
@@ -388,17 +388,43 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     timer.start();
   }, [timer]);
 
-  // ─── Notes card effects ───────────────────────────────────────────────────
+  // ─── Notes card drag handlers ─────────────────────────────────────────────
 
-  useEffect(() => {
-    if (recorder.clips.length > 0) {
-      setNotesIsExpanded(true);
+  const handleNotesDragDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    notesDraggingRef.current = true;
+    notesDragStartYRef.current = e.clientY;
+    notesDragStartHeightRef.current = notesCardHeight;
+    setNotesAnimating(false);
+  }, [notesCardHeight]);
+
+  const handleNotesDragMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!notesDraggingRef.current) return;
+    const delta = notesDragStartYRef.current - e.clientY; // drag up = positive = taller
+    const maxH = window.innerHeight - 100;
+    const newH = Math.max(200, Math.min(maxH, notesDragStartHeightRef.current + delta));
+    setNotesCardHeight(newH);
+  }, []);
+
+  const handleNotesDragUp = useCallback(() => {
+    notesDraggingRef.current = false;
+  }, []);
+
+  const handleToggleNotes = useCallback(() => {
+    setNotesAnimating(true);
+    const defaultH = Math.round(window.innerHeight * 0.35);
+    if (notesCardHeight > defaultH) {
+      setNotesCardHeight(defaultH);
+    } else {
+      setNotesCardHeight(Math.round(window.innerHeight * 0.75));
     }
-  }, [recorder.clips.length]);
+  }, [notesCardHeight]);
 
+  // Reset notes card height when navigating away from timer tab
   useEffect(() => {
     if (activeTab !== "timer") {
-      setNotesIsExpanded(false);
+      setNotesAnimating(false);
+      setNotesCardHeight(220);
     }
   }, [activeTab]);
 
@@ -811,20 +837,31 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                       )}
                     </AnimatePresence>
 
-                    {/* ── Notes ── */}
+                    {/* ── Notes bottom sheet — absolute, slides over timer ── */}
                     <div
-                      className="fixed left-0 right-0 z-30 bg-background rounded-t-3xl shadow-lg"
-                      style={{ bottom: '56px', height: notesCardHeight, transition: 'height 0.3s cubic-bezier(0.22,1,0.36,1)' }}
+                      className="absolute left-0 right-0 bottom-0 z-20 flex flex-col"
+                      style={{
+                        height: notesCardHeight,
+                        overflow: 'hidden',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        transition: notesAnimating ? "height 0.38s cubic-bezier(0.22,1,0.36,1)" : "none",
+                      }}
                     >
-                      {/* Tap-to-toggle handle */}
+                      {/* Drag handle — grab this to resize */}
                       <div
-                        style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '24px', cursor: 'pointer' }}
-                        onClick={() => setNotesIsExpanded(prev => !prev)}
+                        className="flex justify-center pt-2 pb-1 shrink-0 touch-none cursor-grab active:cursor-grabbing"
+                        style={{ userSelect: "none" }}
+                        onPointerDown={handleNotesDragDown}
+                        onPointerMove={handleNotesDragMove}
+                        onPointerUp={handleNotesDragUp}
+                        onPointerCancel={handleNotesDragUp}
                       >
-                        <div style={{ width: '40px', height: '4px', borderRadius: '999px', backgroundColor: 'rgba(0,0,0,0.15)' }} />
+                        <div className="w-10 h-1 bg-border/60 rounded-full" />
                       </div>
-                      {/* NotesArea fills remaining height */}
-                      <div style={{ height: `calc(100% - 20px)`, overflow: 'hidden' }}>
+
+                      {/* NotesArea card fills the rest */}
+                      <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                         <NotesArea
                           value={notes}
                           onChange={setNotes}
@@ -842,6 +879,8 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                           onUpdateClip={recorder.updateClip}
                           onDeleteClip={recorder.deleteClip}
                           onCancelRecording={recorder.discardAndStop}
+                          onToggleExpand={handleToggleNotes}
+                          isExpanded={isNotesExpanded}
                         />
                       </div>
                     </div>
