@@ -318,7 +318,9 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
         const dur = durationRef.current;
         if (dur > 0) {
           ws.seekTo(loop.start / dur);
-          ws.play();
+          setTimeout(() => {
+            if (isLoopingRef.current) ws.play();
+          }, 50);
         }
       }
     });
