@@ -623,10 +623,10 @@ export function NotesArea({
     <>
     {/* ─────────────────────── Card ─────────────────────────── */}
     <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', borderRadius: '1.5rem', padding: '4px', boxSizing: 'border-box' }} className="glass-panel focus-within:ring-4 focus-within:ring-primary/10">
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', borderRadius: '1.35rem', padding: '16px', boxSizing: 'border-box' }} className="bg-card/50">
+      <div style={{ flex: 1, minHeight: 0, borderRadius: '1.35rem', padding: '16px', boxSizing: 'border-box', position: 'relative' }} className="bg-card/50">
 
         {/* Header */}
-        <div style={{ flexShrink: 0 }} className="flex items-center mb-4">
+        <div className="flex items-center mb-4" style={{ position: 'relative' }} ref={(el) => { if (el) window._notesHeaderHeight = el.offsetHeight + 16; }}>
           <div className="flex items-center gap-2 text-muted-foreground font-medium flex-1">
             <FileText className="w-4 h-4" />
             <span>Session Notes & Goals</span>
@@ -734,7 +734,7 @@ export function NotesArea({
         <div
           ref={scrollRef}
           className="notes-content-scroll"
-          style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: '2px', height: '0px' }}
+          style={{ position: 'absolute', top: '72px', bottom: '80px', left: '16px', right: '16px', overflowY: 'auto', paddingRight: '2px' }}
         >
           {/* Saved clips */}
           <AnimatePresence initial={false}>
@@ -824,12 +824,12 @@ export function NotesArea({
             onChange={(e) => onChange(e.target.value)}
             placeholder="What are you aiming to accomplish? Drop your thoughts here..."
             className="w-full bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/60 leading-relaxed"
-            style={{ minHeight: '120px', width: '100%', resize: 'none', display: 'block', marginTop: clips.length > 0 ? '8px' : undefined }}
+            style={{ minHeight: '120px', width: '100%', resize: 'none', display: 'block' }}
           />
         </div>
 
         {/* Divider + mic + task selector — pinned to bottom of flex column */}
-        <div style={{ flexShrink: 0 }}>
+        <div style={{ position: 'absolute', bottom: '16px', left: '16px', right: '16px' }} ref={(el) => { if (el) window._notesFooterHeight = el.offsetHeight; }}>
           <div className="h-px w-full bg-border/40 my-4" />
           <div className="flex items-center gap-2">
           {/* Mic button — moved from header to here */}
