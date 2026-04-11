@@ -584,6 +584,24 @@ export function NotesArea({
 
   /** Ref for the unified recordings + notes scroll container */
   const scrollRef = useRef<HTMLDivElement>(null);
+  const headerRowRef = useRef<HTMLDivElement>(null);
+  const footerRowRef = useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(72);
+  const [scrollBottom, setScrollBottom] = useState(80);
+
+  useEffect(() => {
+    const update = () => {
+      if (headerRowRef.current && footerRowRef.current) {
+        const headerH = headerRowRef.current.getBoundingClientRect().height;
+        const footerH = footerRowRef.current.getBoundingClientRect().height;
+        setScrollTop(headerH + 24);
+        setScrollBottom(footerH + 16);
+      }
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, [isRecording]);
 
   /* Auto-scroll to bottom when a new clip is added */
   useEffect(() => {
@@ -626,7 +644,7 @@ export function NotesArea({
       <div style={{ flex: 1, minHeight: 0, borderRadius: '1.35rem', padding: '16px', boxSizing: 'border-box', position: 'relative' }} className="bg-card/50">
 
         {/* Header */}
-        <div className="flex items-center mb-4" style={{ position: 'relative' }} ref={(el) => { if (el) window._notesHeaderHeight = el.offsetHeight + 16; }}>
+        <div className="flex items-center mb-4" style={{ position: 'relative' }} ref={headerRowRef}>
           <div className="flex items-center gap-2 text-muted-foreground font-medium flex-1">
             <FileText className="w-4 h-4" />
             <span>Session Notes & Goals</span>
@@ -734,7 +752,7 @@ export function NotesArea({
         <div
           ref={scrollRef}
           className="notes-content-scroll"
-          style={{ position: 'absolute', top: '72px', bottom: '80px', left: '16px', right: '16px', overflowY: 'auto', paddingRight: '2px' }}
+          style={{ position: 'absolute', top: `${scrollTop}px`, bottom: `${scrollBottom}px`, left: '16px', right: '16px', overflowY: 'auto', paddingRight: '2px' }}
         >
           {/* Saved clips */}
           <AnimatePresence initial={false}>
@@ -829,7 +847,7 @@ export function NotesArea({
         </div>
 
         {/* Divider + mic + task selector — pinned to bottom of flex column */}
-        <div style={{ position: 'absolute', bottom: '16px', left: '16px', right: '16px' }} ref={(el) => { if (el) window._notesFooterHeight = el.offsetHeight; }}>
+        <div style={{ position: 'absolute', bottom: '16px', left: '16px', right: '16px' }} ref={footerRowRef}>
           <div className="h-px w-full bg-border/40 my-4" />
           <div className="flex items-center gap-2">
           {/* Mic button — moved from header to here */}
