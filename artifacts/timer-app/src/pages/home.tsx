@@ -30,8 +30,8 @@ const BASE = import.meta.env.BASE_URL;
 const TAB_TRANSITION = { duration: 0.2, ease: [0.22, 1, 0.36, 1] as const };
 const SHEET_TRANSITION = { duration: 0.24, ease: [0.22, 1, 0.36, 1] as const };
 
-const NOTES_DEFAULT_HEIGHT = Math.round(window.innerHeight * 0.38);
-const NOTES_MAX_HEIGHT = window.innerHeight - 80;
+const NOTES_COLLAPSED_HEIGHT = Math.round(window.innerHeight * 0.38);
+const NOTES_EXPANDED_HEIGHT = Math.round(window.innerHeight * 0.75);
 
 const OVERLAY_VARIANTS = {
   hidden:  { opacity: 0, scale: 0.96, y: 6 },
@@ -173,11 +173,9 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const breakDidLongPressRef   = useRef(false);
   const breakScrollTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ─── Notes card drag ─────────────────────────────────────────────────────
-  const [notesCardHeight, setNotesCardHeight] = useState(NOTES_DEFAULT_HEIGHT);
-  const notesIsDragging = useRef(false);
-  const notesDragStartY = useRef(0);
-  const notesDragStartH = useRef(0);
+  // ─── Notes card ──────────────────────────────────────────────────────────
+  const [notesIsExpanded, setNotesIsExpanded] = useState(false);
+  const notesCardHeight = notesIsExpanded ? NOTES_EXPANDED_HEIGHT : NOTES_COLLAPSED_HEIGHT;
 
   // ─── Session logging ─────────────────────────────────────────────────────
 
@@ -390,46 +388,17 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     timer.start();
   }, [timer]);
 
-  // ─── Notes card drag handlers ─────────────────────────────────────────────
-
-  const handleNotesDragStart = useCallback((e: React.PointerEvent) => {
-    notesIsDragging.current = true;
-    notesDragStartY.current = e.clientY;
-    notesDragStartH.current = notesCardHeight;
-  }, [notesCardHeight]);
+  // ─── Notes card effects ───────────────────────────────────────────────────
 
   useEffect(() => {
-    const onMove = (e: PointerEvent) => {
-      if (!notesIsDragging.current) return;
-      const delta = notesDragStartY.current - e.clientY;
-      const newH = Math.max(
-        NOTES_DEFAULT_HEIGHT,
-        Math.min(NOTES_MAX_HEIGHT, notesDragStartH.current + delta)
-      );
-      setNotesCardHeight(newH);
-    };
-    const onUp = () => {
-      notesIsDragging.current = false;
-    };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onUp);
-    return () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('pointercancel', onUp);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (recorder.clips.length > 0 && notesCardHeight <= NOTES_DEFAULT_HEIGHT) {
-      setNotesCardHeight(Math.round(window.innerHeight * 0.6));
+    if (recorder.clips.length > 0) {
+      setNotesIsExpanded(true);
     }
   }, [recorder.clips.length]);
 
   useEffect(() => {
     if (activeTab !== "timer") {
-      setNotesCardHeight(NOTES_DEFAULT_HEIGHT);
+      setNotesIsExpanded(false);
     }
   }, [activeTab]);
 
@@ -844,16 +813,15 @@ function Home({ restored }: { restored: RestoredSession | null }) {
 
                     {/* ── Notes ── */}
                     <div
-                      className="fixed left-0 right-0 bottom-0 z-30 bg-background rounded-t-3xl shadow-lg"
-                      style={{ height: notesCardHeight, touchAction: 'none', bottom: '56px' }}
+                      className="fixed left-0 right-0 z-30 bg-background rounded-t-3xl shadow-lg"
+                      style={{ bottom: '56px', height: notesCardHeight, transition: 'height 0.3s cubic-bezier(0.22,1,0.36,1)' }}
                     >
-                      {/* Drag handle */}
+                      {/* Tap-to-toggle handle */}
                       <div
-                        className="flex justify-center items-center pt-2 pb-1 select-none"
-                        style={{ touchAction: 'none', cursor: 'grab', userSelect: 'none' }}
-                        onPointerDown={handleNotesDragStart}
+                        style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '24px', cursor: 'pointer' }}
+                        onClick={() => setNotesIsExpanded(prev => !prev)}
                       >
-                        <div className="w-10 h-1 rounded-full bg-border/60" />
+                        <div style={{ width: '40px', height: '4px', borderRadius: '999px', backgroundColor: 'rgba(0,0,0,0.15)' }} />
                       </div>
                       {/* NotesArea fills remaining height */}
                       <div style={{ height: `calc(100% - 20px)`, overflow: 'hidden' }}>
