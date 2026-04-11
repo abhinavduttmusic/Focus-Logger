@@ -843,6 +843,8 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                       style={{
                         height: notesCardHeight,
                         overflow: 'hidden',
+                        display: 'flex',
+                        flexDirection: 'column',
                         transition: notesAnimating ? "height 0.38s cubic-bezier(0.22,1,0.36,1)" : "none",
                       }}
                       onPointerUp={() => {
