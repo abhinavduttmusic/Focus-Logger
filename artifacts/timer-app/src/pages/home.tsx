@@ -428,6 +428,17 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     }
   }, [activeTab]);
 
+  // Auto-expand notes card when a new recording clip is added
+  useEffect(() => {
+    if (recorder.clips.length > 0) {
+      const defaultH = Math.round(window.innerHeight * 0.35);
+      if (notesCardHeight <= defaultH) {
+        setNotesAnimating(true);
+        setNotesCardHeight(Math.round(window.innerHeight * 0.6));
+      }
+    }
+  }, [recorder.clips.length]);
+
   /** Save a custom break type to localStorage and immediately start it */
   const handleAddCustomBreak = useCallback((input: string) => {
     const text = input.trim();

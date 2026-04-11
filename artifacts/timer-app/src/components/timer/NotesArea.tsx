@@ -822,7 +822,7 @@ export function NotesArea({
             onChange={(e) => onChange(e.target.value)}
             placeholder="What are you aiming to accomplish? Drop your thoughts here..."
             className="w-full bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/60 leading-relaxed"
-            style={{ flex: 1, minHeight: '120px', marginTop: clips.length > 0 ? 0 : undefined, resize: 'none' }}
+            style={{ minHeight: '120px', width: '100%', resize: 'none' }}
           />
         </div>
 
