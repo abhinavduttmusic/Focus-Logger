@@ -839,7 +839,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
 
                     {/* ── Notes bottom sheet — absolute, slides over timer ── */}
                     <div
-                      className="absolute left-0 right-0 bottom-0 z-20 flex flex-col"
+                      className="notes-bottom-sheet absolute left-0 right-0 bottom-0 z-20 flex flex-col"
                       style={{
                         height: notesCardHeight,
                         overflow: 'hidden',
@@ -849,7 +849,11 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                       }}
                       onPointerUp={() => {
                         const el = document.querySelector('.notes-content-scroll');
-                        console.log('card height:', notesCardHeight, 'inner scroll el clientHeight:', el?.clientHeight, 'scrollHeight:', el?.scrollHeight);
+                        console.log('card outer div height:', document.querySelector('.notes-bottom-sheet')?.clientHeight);
+                        console.log('notesArea wrapper div height:', document.querySelector('.notes-bottom-sheet')?.firstElementChild?.clientHeight);
+                        console.log('glass panel height:', document.querySelector('.glass-panel')?.clientHeight);
+                        console.log('bg-card div height:', document.querySelector('.glass-panel')?.firstElementChild?.clientHeight);
+                        console.log('scroll el clientHeight:', el?.clientHeight, 'scrollHeight:', el?.scrollHeight);
                       }}
                     >
                       {/* Drag handle — grab this to resize */}
