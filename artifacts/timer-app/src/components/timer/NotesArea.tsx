@@ -734,18 +734,18 @@ export function NotesArea({
         <div
           ref={scrollRef}
           className="notes-content-scroll"
-          style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: '2px' }}
+          style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: '2px', height: '0px' }}
         >
           {/* Saved clips */}
           <AnimatePresence initial={false}>
             {clips.length > 0 && (
               <motion.div
                 key="clips"
-                initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-                animate={{ opacity: 1, height: "auto", marginBottom: 16 }}
-                exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
                 transition={{ duration: 0.22, ease: EASE }}
-                className="space-y-2"
+                className="space-y-2 mb-4"
               >
                 {clips.map((clip, i) => (
                   <motion.div
