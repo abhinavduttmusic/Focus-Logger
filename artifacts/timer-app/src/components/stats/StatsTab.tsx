@@ -327,6 +327,7 @@ function BarChartCard({ sessions, mode, periodStart, delay }: {
   delay: number;
 }) {
   const focusSessions = sessions.filter(isFocus);
+  const [selectedBar, setSelectedBar] = useState<number | null>(null);
 
   const bars = useMemo(() => {
     switch (mode) {
@@ -404,8 +405,9 @@ function BarChartCard({ sessions, mode, periodStart, delay }: {
             return (
               <div
                 key={i}
-                className="flex-1 flex flex-col justify-between rounded-sm overflow-hidden"
+                className="flex-1 flex flex-col justify-between rounded-sm overflow-hidden relative"
                 style={{ backgroundColor: '#F0EFED' }}
+                onClick={() => setSelectedBar(selectedBar === i ? null : i)}
               >
                 <span className="text-center font-medium leading-none pt-0.5" style={{ fontSize: '7px', color: '#6B7280' }}>
                   {label}
@@ -417,6 +419,11 @@ function BarChartCard({ sessions, mode, periodStart, delay }: {
                   animate={{ height: fillH }}
                   transition={{ duration: 0.4, ease: "easeOut", delay: delay + i * 0.01 }}
                 />
+                {selectedBar === i && seconds > 0 && (
+                  <span className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 text-[8px] font-semibold text-foreground bg-card shadow rounded px-1 py-0.5 whitespace-nowrap z-10">
+                    {formatDuration(seconds)}
+                  </span>
+                )}
               </div>
             );
           })}
@@ -426,8 +433,12 @@ function BarChartCard({ sessions, mode, periodStart, delay }: {
           {bars.map(({ label, seconds }, i) => {
             const barH = seconds > 0 ? Math.max(3, Math.round((seconds / maxSec) * MAX_H)) : 0;
             return (
-              <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                <div className="w-full flex flex-col justify-end" style={{ height: MAX_H }}>
+              <div
+                key={i}
+                className="flex-1 flex flex-col items-center gap-1 cursor-pointer"
+                onClick={() => setSelectedBar(selectedBar === i ? null : i)}
+              >
+                <div className="w-full flex flex-col justify-end relative" style={{ height: MAX_H }}>
                   <motion.div
                     className="w-full rounded-[4px]"
                     style={{ backgroundColor: 'hsl(152 45% 38%)' }}
@@ -435,9 +446,14 @@ function BarChartCard({ sessions, mode, periodStart, delay }: {
                     animate={{ height: barH }}
                     transition={{ duration: 0.4, ease: "easeOut", delay: delay + i * 0.02 }}
                   />
+                  {selectedBar === i && seconds > 0 && (
+                    <span className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 text-[9px] font-semibold text-foreground bg-card shadow rounded px-1.5 py-0.5 whitespace-nowrap z-10">
+                      {formatDuration(seconds)}
+                    </span>
+                  )}
                 </div>
                 <span className="text-[9px] text-muted-foreground/50 truncate w-full text-center">
-                  {label}
+                  {selectedBar === i && seconds > 0 ? formatDuration(seconds) : label}
                 </span>
               </div>
             );
@@ -619,8 +635,8 @@ export function StatsTab() {
     swipeStartX.current = null;
     if (Math.abs(dx) < 50) return;
     if (navigator.vibrate) navigator.vibrate(6);
-    if (dx < 0) setOffset(o => o - 1);
-    else if (offset < 0) setOffset(o => o + 1);
+    if (dx < 0 && offset < 0) setOffset(o => o + 1);
+    else if (dx > 0) setOffset(o => o - 1);
   };
 
   return (
@@ -637,7 +653,7 @@ export function StatsTab() {
           mode={viewMode}
           offset={offset}
           onPrev={() => setOffset(o => o - 1)}
-          onNext={() => { if (offset < 0) setOffset(o => o + 1); }}
+          onNext={() => setOffset(o => Math.min(0, o + 1))}
         />
 
         <TodayFocusCard sessions={periodSessions} delay={0} />
