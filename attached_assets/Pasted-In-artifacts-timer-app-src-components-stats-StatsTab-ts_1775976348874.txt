@@ -1,3 +1,5 @@
+In `artifacts/timer-app/src/components/stats/StatsTab.tsx`, replace the entire file content with this:
+
 import { useMemo, useRef, useState } from "react";
 import { motion, useInView } from "framer-motion";
 import { Clock, Flame, Target, Zap, BarChart2, ChevronLeft, ChevronRight } from "lucide-react";
@@ -288,7 +290,7 @@ function PeriodNavigator({ mode, offset, onPrev, onNext }: {
   );
 }
 
-// ─── Focus Summary Card ───────────────────────────────────────────────────────
+// ─── Today's Focus Card ───────────────────────────────────────────────────────
 
 function TodayFocusCard({ sessions, delay }: { sessions: Session[]; delay: number }) {
   const focusSessions = sessions.filter(isFocus);
@@ -331,6 +333,7 @@ function BarChartCard({ sessions, mode, periodStart, delay }: {
   const bars = useMemo(() => {
     switch (mode) {
       case "day": {
+        // 24 hours
         return Array.from({ length: 24 }, (_, h) => {
           const secs = focusSessions
             .filter(s => new Date(s.createdAt).getHours() === h)
@@ -398,6 +401,7 @@ function BarChartCard({ sessions, mode, periodStart, delay }: {
     <StatCard delay={delay}>
       <SectionTitle>{title}</SectionTitle>
       {mode === "day" ? (
+        // Hourly — special compact layout with labels inside bars
         <div className="flex items-stretch gap-0.5" style={{ height: MAX_H }}>
           {bars.map(({ label, seconds }, i) => {
             const fillH = seconds > 0 ? Math.max(3, Math.round((seconds / maxSec) * MAX_H)) : 0;
@@ -422,6 +426,7 @@ function BarChartCard({ sessions, mode, periodStart, delay }: {
           })}
         </div>
       ) : (
+        // Weekly/Monthly/Quarterly/Yearly — standard bar chart
         <div className="flex items-end gap-1 h-20">
           {bars.map(({ label, seconds }, i) => {
             const barH = seconds > 0 ? Math.max(3, Math.round((seconds / maxSec) * MAX_H)) : 0;
@@ -602,6 +607,7 @@ export function StatsTab() {
   const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [offset, setOffset] = useState(0);
 
+  // Reset offset when view mode changes
   const handleViewModeChange = (mode: ViewMode) => {
     setViewMode(mode);
     setOffset(0);
@@ -611,6 +617,7 @@ export function StatsTab() {
   const periodEnd = useMemo(() => getPeriodEnd(viewMode, periodStart), [viewMode, periodStart]);
   const periodSessions = useMemo(() => getSessionsInPeriod(sessions, periodStart, periodEnd), [sessions, periodStart, periodEnd]);
 
+  // Swipe gesture
   const swipeStartX = useRef<number | null>(null);
   const handleSwipeStart = (e: React.TouchEvent) => { swipeStartX.current = e.touches[0].clientX; };
   const handleSwipeEnd = (e: React.TouchEvent) => {
