@@ -445,7 +445,7 @@ function BarChartCard({ sessions, mode, periodStart, delay }: {
             gap: mode === "month" ? '2px' : '4px',
             overflowX: mode === "month" ? 'auto' : 'visible',
             paddingBottom: mode === "month" ? '2px' : undefined,
-            paddingTop: '24px',
+            paddingTop: '16px',
             touchAction: mode === "month" ? 'pan-x' : 'none',
             height: MAX_H + 24,
           }}
@@ -458,11 +458,11 @@ function BarChartCard({ sessions, mode, periodStart, delay }: {
             return (
               <div
                 key={i}
-                className="flex flex-col items-center gap-1 cursor-pointer"
+                className="flex flex-col items-center gap-1 cursor-pointer self-stretch"
                 style={{ minWidth: mode === "month" ? '18px' : undefined, flex: mode === "month" ? 'none' : 1 }}
                 onClick={() => setSelectedBar(selectedBar === i ? null : i)}
               >
-                <div className="w-full flex flex-col justify-end" style={{ height: MAX_H, overflow: 'visible' }}>
+                <div className="w-full flex flex-col justify-end flex-1" style={{ overflow: 'visible' }}>
                   <motion.div
                     className="w-full rounded-[4px]"
                     style={{ backgroundColor: 'hsl(152 45% 38%)' }}
