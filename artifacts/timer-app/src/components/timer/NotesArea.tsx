@@ -213,8 +213,6 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
   const durationRef    = useRef<number>(clip.durationSeconds);
   const loopRegionRef  = useRef<{ start: number; end: number } | null>(null);
   const isLoopingRef   = useRef(false);
-  const isSeekingRef   = useRef(false);
-  const pointerDownRef = useRef<{ x: number; y: number; t: number } | null>(null);
 
   /**
    * Use a ref so the ready-handler closure captures the latest value even if
@@ -258,32 +256,12 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
       barGap: 1.5,
       barRadius: 3,
       cursorWidth: 0,
-      interact: false,
+      interact: true,
       url: clip.url,
       plugins: [regions],
     });
     wsRef.current = ws;
 
-    /* ── Manual click-to-seek ──────────────────────────────────
-       Discriminate tap (seek) vs drag (region select) via pointer
-       movement + elapsed time between pointerdown and pointerup. */
-    const onPointerDown = (e: PointerEvent) => {
-      pointerDownRef.current = { x: e.clientX, y: e.clientY, t: Date.now() };
-    };
-    const onPointerUp = (e: PointerEvent) => {
-      const down = pointerDownRef.current;
-      if (!down) return;
-      const dx  = Math.abs(e.clientX - down.x);
-      const dt  = Date.now() - down.t;
-      pointerDownRef.current = null;
-      if (dx < 8 && dt < 400) {
-        const rect     = el.getBoundingClientRect();
-        const progress = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-        ws.seekTo(progress);
-      }
-    };
-    el.addEventListener("pointerdown", onPointerDown);
-    el.addEventListener("pointerup",   onPointerUp);
 
     /* ── Drag-to-select loop region ──────────────────────────── */
     regions.enableDragSelection({ color: regionColor });
@@ -293,13 +271,12 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
       loopRegionRef.current = { start: region.start, end: region.end };
       isLoopingRef.current = true;
       setIsLooping(true);
-      region.on('click', () => {
-        ws.play(region.start, region.end);
-      });
+      region.loop = true;
     });
 
     regions.on("region-updated", (region) => {
       loopRegionRef.current = { start: region.start, end: region.end };
+      region.loop = true;
     });
 
     regions.on("region-removed", () => {
@@ -307,23 +284,6 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
         loopRegionRef.current = null;
         isLoopingRef.current  = false;
         setIsLooping(false);
-      }
-    });
-
-
-    ws.on("timeupdate", (currentTime) => {
-      const loop = loopRegionRef.current;
-      if (!isLoopingRef.current || !loop || isSeekingRef.current) return;
-      if (currentTime >= loop.end) {
-        isSeekingRef.current = true;
-        const dur = durationRef.current;
-        if (dur > 0) {
-          ws.seekTo(loop.start / dur);
-        }
-        setTimeout(() => {
-          isSeekingRef.current = false;
-          if (isLoopingRef.current) ws.play();
-        }, 30);
       }
     });
 
@@ -354,8 +314,6 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
     });
 
     return () => {
-      el.removeEventListener("pointerdown", onPointerDown);
-      el.removeEventListener("pointerup",   onPointerUp);
       ws.destroy();
     };
   // clip.url is stable per-clip; re-mounting would lose waveform state
@@ -377,15 +335,9 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
       return;
     }
     if (isLooping && loopRegionRef.current) {
-      const { start } = loopRegionRef.current;
-      const dur = durationRef.current;
-      if (dur > 0) {
-        isSeekingRef.current = true;
-        ws.seekTo(start / dur);
-        setTimeout(() => {
-          isSeekingRef.current = false;
-          ws.play();
-        }, 30);
+      const region = regionsRef.current?.getRegions()[0];
+      if (region) {
+        region.play();
       }
     } else {
       ws.play();
