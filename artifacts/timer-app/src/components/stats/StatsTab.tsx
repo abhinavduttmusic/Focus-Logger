@@ -662,10 +662,10 @@ export function StatsTab() {
           <motion.div
             key={period}
             custom={swipeDirection.current}
-            initial={{ opacity: 0, x: swipeDirection.current * 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: swipeDirection.current * -40 }}
-            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15, ease: "easeInOut" }}
             className="space-y-4"
           >
             <TodayFocusCard
