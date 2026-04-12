@@ -394,7 +394,7 @@ function BarChartCard({ sessions, mode, periodStart, delay }: {
   }, [focusSessions, mode, periodStart]);
 
   const maxSec = Math.max(1, ...bars.map(b => b.seconds));
-  const MAX_H = 80;
+  const MAX_H = 100;
   const totalSeconds = bars.reduce((a, b) => a + b.seconds, 0);
 
   const title = {
@@ -440,13 +440,14 @@ function BarChartCard({ sessions, mode, periodStart, delay }: {
         </div>
       ) : (
         <div
-          className="flex items-end h-24"
+          className="flex items-end"
           style={{
             gap: mode === "month" ? '2px' : '4px',
             overflowX: mode === "month" ? 'auto' : 'visible',
             paddingBottom: mode === "month" ? '2px' : undefined,
-            paddingTop: '12px',
+            paddingTop: '24px',
             touchAction: mode === "month" ? 'pan-x' : 'none',
+            height: MAX_H + 24,
           }}
           onTouchStart={(e) => { if (mode === "month") e.stopPropagation(); }}
           onTouchMove={(e) => { if (mode === "month") e.stopPropagation(); }}
@@ -461,7 +462,7 @@ function BarChartCard({ sessions, mode, periodStart, delay }: {
                 style={{ minWidth: mode === "month" ? '18px' : undefined, flex: mode === "month" ? 'none' : 1 }}
                 onClick={() => setSelectedBar(selectedBar === i ? null : i)}
               >
-                <div className="w-full flex flex-col justify-end" style={{ height: MAX_H }}>
+                <div className="w-full flex flex-col justify-end" style={{ height: MAX_H, overflow: 'visible' }}>
                   <motion.div
                     className="w-full rounded-[4px]"
                     style={{ backgroundColor: 'hsl(152 45% 38%)' }}
