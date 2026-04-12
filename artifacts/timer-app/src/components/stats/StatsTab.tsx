@@ -310,7 +310,7 @@ function WeeklyOverviewCard({
                     <motion.div
                       className="w-full rounded-[5px] cursor-pointer"
                       style={{
-                        backgroundColor: isToday ? 'hsl(var(--focus))' : 'hsl(160 40% 45% / 0.4)',
+                        backgroundColor: isToday ? 'hsl(152 69% 45%)' : 'hsl(152 69% 45% / 0.4)',
                       }}
                       initial={{ height: 0 }}
                       animate={{ height: barH }}
