@@ -248,39 +248,37 @@ function WeeklyOverviewCard({
   return (
     <StatCard delay={delay}>
       <SectionTitle>Weekly Overview</SectionTitle>
-      <div className="flex items-end gap-1.5 h-28">
-        {weeklyData.map(({ label, seconds, isToday }) => {
-          const pct = seconds / maxSec;
-          return (
-            <div key={label} className="flex-1 flex flex-col items-center gap-1.5">
-              <div className="w-full flex-1 flex items-end rounded-t-sm overflow-hidden">
-                <div className="w-full flex items-end rounded-[5px] overflow-hidden bg-secondary/40 h-full">
-                  <motion.div
-                    className={cn(
-                      "w-full rounded-[5px]",
-                      isToday
-                        ? "bg-primary"
-                        : "bg-primary/30"
-                    )}
-                    initial={{ height: 0 }}
-                    animate={{ height: `${Math.max(pct * 100, seconds > 0 ? 4 : 0)}%` }}
-                    transition={{ duration: 0.5, ease: "easeOut", delay: delay + 0.1 }}
-                    style={{ minHeight: seconds > 0 ? 4 : 0 }}
-                  />
+      {(() => {
+        const maxH = 80;
+        return (
+          <div className="flex items-end gap-1.5">
+            {weeklyData.map(({ label, seconds, isToday }) => {
+              const barH = seconds > 0 ? Math.max(4, Math.round((seconds / maxSec) * maxH)) : 0;
+              return (
+                <div key={label} className="flex-1 flex flex-col items-center gap-1.5">
+                  <div className="w-full flex flex-col justify-end" style={{ height: maxH }}>
+                    <motion.div
+                      className={cn(
+                        "w-full rounded-[5px]",
+                        isToday ? "bg-primary" : "bg-primary/30"
+                      )}
+                      initial={{ height: 0 }}
+                      animate={{ height: barH }}
+                      transition={{ duration: 0.5, ease: "easeOut", delay: delay + 0.1 }}
+                    />
+                  </div>
+                  <span className={cn(
+                    "text-[10px] font-medium",
+                    isToday ? "text-primary font-semibold" : "text-muted-foreground/50"
+                  )}>
+                    {label}
+                  </span>
                 </div>
-              </div>
-              <span
-                className={cn(
-                  "text-[10px] font-medium",
-                  isToday ? "text-primary font-semibold" : "text-muted-foreground/50"
-                )}
-              >
-                {label}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+              );
+            })}
+          </div>
+        );
+      })()}
       <div className="mt-3 text-right">
         <span className="text-[10px] text-muted-foreground/40">
           {formatDuration(weeklyData.reduce((a, d) => a + d.seconds, 0))} this week
