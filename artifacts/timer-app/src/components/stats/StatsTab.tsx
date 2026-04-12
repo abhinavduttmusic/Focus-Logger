@@ -489,32 +489,39 @@ function HourlyActivityCard({ sessions, delay }: { sessions: Session[]; delay: n
     hourTotals[startHour] += s.durationSeconds;
   }
   const maxHour = Math.max(1, ...hourTotals);
+  const CHART_HEIGHT = 80;
 
   return (
     <StatCard delay={delay}>
       <SectionTitle>Hourly Activity</SectionTitle>
-      <div className="flex items-end gap-0.5 h-16">
+      <div className="flex items-stretch gap-0.5" style={{ height: CHART_HEIGHT }}>
         {hourTotals.map((secs, hour) => {
-          const pct = secs / maxHour;
-          const barH = secs > 0 ? Math.max(3, Math.round(pct * 56)) : 0;
+          const fillPct = secs / maxHour;
+          const fillH = secs > 0 ? Math.max(3, Math.round(fillPct * CHART_HEIGHT)) : 0;
           return (
-            <div key={hour} className="flex-1 flex flex-col justify-end items-center">
+            <div
+              key={hour}
+              className="flex-1 flex flex-col justify-between rounded-sm overflow-hidden"
+              style={{ backgroundColor: 'hsl(213 50% 20%)' }}
+            >
+              {/* Hour label at top */}
+              <span
+                className="text-center font-medium text-white/70 leading-none pt-0.5"
+                style={{ fontSize: '7px' }}
+              >
+                {String(hour).padStart(2, '0')}
+              </span>
+              {/* Fill from bottom */}
               <motion.div
-                className="w-full rounded-sm bg-sky-400/70"
+                className="w-full rounded-sm"
+                style={{ backgroundColor: 'hsl(213 70% 55%)' }}
                 initial={{ height: 0 }}
-                animate={{ height: barH }}
+                animate={{ height: fillH }}
                 transition={{ duration: 0.4, ease: "easeOut", delay: delay + hour * 0.01 }}
               />
             </div>
           );
         })}
-      </div>
-      <div className="flex justify-between mt-1">
-        <span className="text-[9px] text-muted-foreground/40">12am</span>
-        <span className="text-[9px] text-muted-foreground/40">6am</span>
-        <span className="text-[9px] text-muted-foreground/40">12pm</span>
-        <span className="text-[9px] text-muted-foreground/40">6pm</span>
-        <span className="text-[9px] text-muted-foreground/40">11pm</span>
       </div>
     </StatCard>
   );
