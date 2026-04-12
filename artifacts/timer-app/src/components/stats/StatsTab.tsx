@@ -344,8 +344,15 @@ function BarChartCard({ sessions, mode, periodStart, delay }: {
         return DAYS.map((label, i) => {
           const day = new Date(periodStart);
           day.setDate(day.getDate() + i);
+          const dayStart = new Date(day);
+          dayStart.setHours(0, 0, 0, 0);
+          const dayEnd = new Date(day);
+          dayEnd.setHours(23, 59, 59, 999);
           const secs = focusSessions
-            .filter(s => sameDay(new Date(s.createdAt), day))
+            .filter(s => {
+              const d = new Date(s.createdAt);
+              return d >= dayStart && d <= dayEnd;
+            })
             .reduce((a, s) => a + s.durationSeconds, 0);
           return { label, seconds: secs };
         });
@@ -353,10 +360,13 @@ function BarChartCard({ sessions, mode, periodStart, delay }: {
       case "month": {
         const daysInMonth = new Date(periodStart.getFullYear(), periodStart.getMonth() + 1, 0).getDate();
         return Array.from({ length: daysInMonth }, (_, i) => {
-          const day = new Date(periodStart);
-          day.setDate(i + 1);
+          const dayStart = new Date(periodStart.getFullYear(), periodStart.getMonth(), i + 1, 0, 0, 0, 0);
+          const dayEnd = new Date(periodStart.getFullYear(), periodStart.getMonth(), i + 1, 23, 59, 59, 999);
           const secs = focusSessions
-            .filter(s => sameDay(new Date(s.createdAt), day))
+            .filter(s => {
+              const d = new Date(s.createdAt);
+              return d >= dayStart && d <= dayEnd;
+            })
             .reduce((a, s) => a + s.durationSeconds, 0);
           return { label: String(i + 1), seconds: secs };
         });
@@ -429,16 +439,24 @@ function BarChartCard({ sessions, mode, periodStart, delay }: {
           })}
         </div>
       ) : (
-        <div className="flex items-end gap-1 h-20">
+        <div
+          className="flex items-end h-20"
+          style={{
+            gap: mode === "month" ? '2px' : '4px',
+            overflowX: mode === "month" ? 'auto' : 'visible',
+            paddingBottom: mode === "month" ? '2px' : undefined,
+          }}
+        >
           {bars.map(({ label, seconds }, i) => {
             const barH = seconds > 0 ? Math.max(3, Math.round((seconds / maxSec) * MAX_H)) : 0;
             return (
               <div
                 key={i}
-                className="flex-1 flex flex-col items-center gap-1 cursor-pointer"
+                className="flex flex-col items-center gap-1 cursor-pointer"
+                style={{ minWidth: mode === "month" ? '18px' : undefined, flex: mode === "month" ? 'none' : 1 }}
                 onClick={() => setSelectedBar(selectedBar === i ? null : i)}
               >
-                <div className="w-full flex flex-col justify-end relative" style={{ height: MAX_H }}>
+                <div className="w-full flex flex-col justify-end" style={{ height: MAX_H }}>
                   <motion.div
                     className="w-full rounded-[4px]"
                     style={{ backgroundColor: 'hsl(152 45% 38%)' }}
@@ -446,13 +464,11 @@ function BarChartCard({ sessions, mode, periodStart, delay }: {
                     animate={{ height: barH }}
                     transition={{ duration: 0.4, ease: "easeOut", delay: delay + i * 0.02 }}
                   />
-                  {selectedBar === i && seconds > 0 && (
-                    <span className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 text-[9px] font-semibold text-foreground bg-card shadow rounded px-1.5 py-0.5 whitespace-nowrap z-10">
-                      {formatDuration(seconds)}
-                    </span>
-                  )}
                 </div>
-                <span className="text-[9px] text-muted-foreground/50 truncate w-full text-center">
+                <span className={cn(
+                  "text-[9px] truncate w-full text-center",
+                  selectedBar === i && seconds > 0 ? "font-semibold text-foreground" : "text-muted-foreground/50"
+                )}>
                   {selectedBar === i && seconds > 0 ? formatDuration(seconds) : label}
                 </span>
               </div>
