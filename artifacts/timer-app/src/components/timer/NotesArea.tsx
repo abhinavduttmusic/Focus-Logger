@@ -291,6 +291,22 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
       }, 10);
     });
 
+    ws.on("timeupdate", (currentTime) => {
+      if (!isLoopingRef.current || !loopRegionRef.current) return;
+      if (isSeekingRef.current) return;
+      const { end } = loopRegionRef.current;
+      if (currentTime >= end - 0.05) {
+        isSeekingRef.current = true;
+        ws.pause();
+        const region = regionsRef.current?.getRegions()[0];
+        setTimeout(() => {
+          region?.play();
+          setTimeout(() => {
+            isSeekingRef.current = false;
+          }, 100);
+        }, 10);
+      }
+    });
 
     regions.on("region-removed", () => {
       if (regions.getRegions().length === 0) {
