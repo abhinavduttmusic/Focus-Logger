@@ -213,6 +213,7 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
   const durationRef    = useRef<number>(clip.durationSeconds);
   const loopRegionRef  = useRef<{ start: number; end: number } | null>(null);
   const isLoopingRef   = useRef(false);
+  const isSeekingRef   = useRef(false);
   const pointerDownRef = useRef<{ x: number; y: number; t: number } | null>(null);
 
   /**
@@ -310,6 +311,22 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
     });
 
 
+    ws.on("timeupdate", (currentTime) => {
+      const loop = loopRegionRef.current;
+      if (!isLoopingRef.current || !loop || isSeekingRef.current) return;
+      if (currentTime >= loop.end) {
+        isSeekingRef.current = true;
+        const dur = durationRef.current;
+        if (dur > 0) {
+          ws.seekTo(loop.start / dur);
+        }
+        setTimeout(() => {
+          isSeekingRef.current = false;
+          if (isLoopingRef.current) ws.play();
+        }, 30);
+      }
+    });
+
     ws.on("ready", () => {
       const dur = ws.getDuration();
       if (isFinite(dur) && dur > 0) {
@@ -360,13 +377,16 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
       return;
     }
     if (isLooping && loopRegionRef.current) {
-      const { start, end } = loopRegionRef.current;
-      const cur = ws.getCurrentTime();
+      const { start } = loopRegionRef.current;
       const dur = durationRef.current;
-      if (cur < start || cur >= end) {
+      if (dur > 0) {
+        isSeekingRef.current = true;
         ws.seekTo(start / dur);
+        setTimeout(() => {
+          isSeekingRef.current = false;
+          ws.play();
+        }, 30);
       }
-      ws.play(start, end);
     } else {
       ws.play();
     }
