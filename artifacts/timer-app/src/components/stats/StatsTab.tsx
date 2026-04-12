@@ -185,7 +185,6 @@ function computeStats(sessions: Session[]) {
 // ─── animation constants ─────────────────────────────────────────────────────
 
 const EASE = [0.22, 1, 0.36, 1] as const;
-const OCHRE_GRADIENT = "linear-gradient(to top, #8B6914, #D4A017, #F0C040)";
 const CARD_VARIANTS = {
   hidden: { opacity: 0, y: 10 },
   visible: { opacity: 1, y: 0 },
@@ -308,11 +307,7 @@ function WeeklyOverviewCard({
                 <div key={label} className="flex-1 flex flex-col items-center gap-1.5">
                   <div className="w-full flex flex-col justify-end" style={{ height: maxH }}>
                     <motion.div
-                      className="w-full rounded-[5px]"
-                      style={{
-                        background: OCHRE_GRADIENT,
-                        opacity: isToday ? 1 : 0.55,
-                      }}
+                      className={cn("w-full rounded-[5px]", isToday ? "bg-primary" : "bg-primary/40")}
                       initial={{ height: 0 }}
                       animate={{ height: barH }}
                       transition={{ duration: 0.5, ease: "easeOut", delay: delay + 0.1 }}
@@ -339,14 +334,6 @@ function WeeklyOverviewCard({
   );
 }
 
-// Accent colors — one per row (matches project palette)
-const BAR_COLORS = [
-  "bg-indigo-500",
-  "bg-violet-500",
-  "bg-emerald-500",
-  "bg-amber-500",
-  "bg-blue-500",
-];
 
 // Time by project — horizontal progress bars
 function TimeByProjectCard({
@@ -383,8 +370,8 @@ function TimeByProjectCard({
                   <motion.div
                     className="h-full rounded-full"
                     style={{
-                      background: `linear-gradient(to right, #8B6914, #D4A017, #F0C040)`,
-                      opacity: 0.7 + (i === 0 ? 0.3 : Math.max(0, 0.3 - i * 0.05))
+                      background: `linear-gradient(to right, #4f46e5, #7c3aed)`,
+                      opacity: Math.max(0.4, 1 - i * 0.12),
                     }}
                     initial={{ width: 0 }}
                     animate={{ width: `${pct}%` }}
@@ -501,8 +488,7 @@ function HourlyActivityCard({ sessions, delay }: { sessions: Session[]; delay: n
           return (
             <div key={hour} className="flex-1 flex flex-col justify-end items-center">
               <motion.div
-                className="w-full rounded-sm"
-                style={{ background: OCHRE_GRADIENT }}
+                className="w-full rounded-sm bg-sky-400/70"
                 initial={{ height: 0 }}
                 animate={{ height: barH }}
                 transition={{ duration: 0.4, ease: "easeOut", delay: delay + hour * 0.01 }}
@@ -548,8 +534,7 @@ function AvgByDayCard({ sessions, delay }: { sessions: Session[]; delay: number 
               <span className="text-[11px] text-muted-foreground/60 w-8 shrink-0">{label}</span>
               <div className="flex-1 h-2 rounded-full bg-secondary/60 overflow-hidden">
                 <motion.div
-                  className="h-full rounded-full"
-                  style={{ background: "linear-gradient(to right, #8B6914, #D4A017, #F0C040)" }}
+                  className="h-full rounded-full bg-amber-400/80"
                   initial={{ width: 0 }}
                   animate={{ width: `${pct}%` }}
                   transition={{ duration: 0.5, ease: "easeOut", delay: delay + 0.05 }}
