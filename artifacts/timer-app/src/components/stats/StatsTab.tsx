@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { motion, useInView } from "framer-motion";
+import { motion, useInView, AnimatePresence } from "framer-motion";
 import { Clock, Flame, Target, Zap, BarChart2 } from "lucide-react";
 import { useListSessions } from "@workspace/api-client-react";
 import type { Session } from "@workspace/api-client-react/src/generated/api.schemas";
@@ -471,7 +471,10 @@ function PeriodSelector({ value, onChange }: { value: Period; onChange: (p: Peri
       {(Object.keys(PERIOD_LABELS) as Period[]).map((period) => (
         <button
           key={period}
-          onClick={() => onChange(period)}
+          onClick={() => {
+            if (navigator.vibrate) navigator.vibrate(6);
+            onChange(period);
+          }}
           className={cn(
             "flex-1 px-2 py-1.5 rounded-full text-[11px] font-medium whitespace-nowrap transition-colors duration-150",
             value === period
@@ -585,6 +588,7 @@ export function StatsTab() {
 
   const PERIODS: Period[] = ["today", "week", "month", "quarter", "year"];
   const swipeStartX = useRef<number | null>(null);
+  const swipeDirection = useRef<number>(1);
 
   const handleSwipeStart = (e: React.TouchEvent) => {
     swipeStartX.current = e.touches[0].clientX;
@@ -597,8 +601,12 @@ export function StatsTab() {
     if (Math.abs(dx) < 50) return;
     const currentIndex = PERIODS.indexOf(period);
     if (dx < 0 && currentIndex < PERIODS.length - 1) {
+      swipeDirection.current = 1;
+      if (navigator.vibrate) navigator.vibrate(8);
       setPeriod(PERIODS[currentIndex + 1]);
     } else if (dx > 0 && currentIndex > 0) {
+      swipeDirection.current = -1;
+      if (navigator.vibrate) navigator.vibrate(8);
       setPeriod(PERIODS[currentIndex - 1]);
     }
   };
@@ -627,35 +635,51 @@ export function StatsTab() {
       onTouchStart={handleSwipeStart}
       onTouchEnd={handleSwipeEnd}
     >
-      <div className="w-full max-w-lg mx-auto pt-4 pb-10 px-4 sm:px-6 space-y-4">
+      <div className="w-full max-w-lg mx-auto pt-4 pb-10 px-4 sm:px-6">
+        <div className="mb-4">
+          <PeriodSelector value={period} onChange={(p) => {
+            swipeDirection.current = PERIODS.indexOf(p) > PERIODS.indexOf(period) ? 1 : -1;
+            if (navigator.vibrate) navigator.vibrate(6);
+            setPeriod(p);
+          }} />
+        </div>
+        <AnimatePresence mode="wait" custom={swipeDirection.current}>
+          <motion.div
+            key={period}
+            custom={swipeDirection.current}
+            initial={{ opacity: 0, x: swipeDirection.current * 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: swipeDirection.current * -40 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            className="space-y-4"
+          >
+            <TodayFocusCard
+              totalFocusToday={allStats.totalFocusToday}
+              sessionsToday={allStats.sessionsToday}
+              longestToday={allStats.longestToday}
+              delay={0}
+            />
 
-        <PeriodSelector value={period} onChange={setPeriod} />
+            <WeeklyOverviewCard weeklyData={allStats.weeklyData} delay={0.06} />
 
-        <TodayFocusCard
-          totalFocusToday={allStats.totalFocusToday}
-          sessionsToday={allStats.sessionsToday}
-          longestToday={allStats.longestToday}
-          delay={0}
-        />
+            <TimeByProjectCard
+              projectData={filteredProjectData}
+              maxProjectSeconds={filteredMaxProjectSeconds}
+              delay={0.12}
+            />
 
-        <WeeklyOverviewCard weeklyData={allStats.weeklyData} delay={0.06} />
+            <HourlyActivityCard sessions={filteredSessions} delay={0.16} />
 
-        <TimeByProjectCard
-          projectData={filteredProjectData}
-          maxProjectSeconds={filteredMaxProjectSeconds}
-          delay={0.12}
-        />
+            <AvgByDayCard sessions={filteredSessions} delay={0.20} />
 
-        <HourlyActivityCard sessions={filteredSessions} delay={0.16} />
-
-        <AvgByDayCard sessions={filteredSessions} delay={0.20} />
-
-        <InsightsCard
-          avgSession={allStats.avgSession}
-          mostProductiveTime={allStats.mostProductiveTime}
-          pomRate={allStats.pomRate}
-          delay={0.24}
-        />
+            <InsightsCard
+              avgSession={allStats.avgSession}
+              mostProductiveTime={allStats.mostProductiveTime}
+              pomRate={allStats.pomRate}
+              delay={0.24}
+            />
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   );
