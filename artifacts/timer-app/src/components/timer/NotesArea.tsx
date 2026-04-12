@@ -282,30 +282,12 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
       if (!isLoopingRef.current || !loopRegionRef.current) return;
       if (isSeekingRef.current) return;
       isSeekingRef.current = true;
-      ws.pause();
+      const startPos = loopRegionRef.current.start / durationRef.current;
+      ws.seekTo(startPos);
       setTimeout(() => {
-        region.play();
-        setTimeout(() => {
-          isSeekingRef.current = false;
-        }, 100);
-      }, 10);
-    });
-
-    ws.on("timeupdate", (currentTime) => {
-      if (!isLoopingRef.current || !loopRegionRef.current) return;
-      if (isSeekingRef.current) return;
-      const { end } = loopRegionRef.current;
-      if (currentTime >= end - 0.05) {
-        isSeekingRef.current = true;
-        ws.pause();
-        const region = regionsRef.current?.getRegions()[0];
-        setTimeout(() => {
-          region?.play();
-          setTimeout(() => {
-            isSeekingRef.current = false;
-          }, 100);
-        }, 10);
-      }
+        isSeekingRef.current = false;
+        if (isLoopingRef.current) ws.play();
+      }, 20);
     });
 
     regions.on("region-removed", () => {
@@ -364,9 +346,10 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
       return;
     }
     if (isLooping && loopRegionRef.current) {
-      const region = regionsRef.current?.getRegions()[0];
-      if (region) {
-        region.play();
+      const dur = durationRef.current;
+      if (dur > 0) {
+        ws.seekTo(loopRegionRef.current.start / dur);
+        setTimeout(() => ws.play(), 20);
       }
     } else {
       ws.play();
