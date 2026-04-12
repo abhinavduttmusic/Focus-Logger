@@ -271,12 +271,16 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
       loopRegionRef.current = { start: region.start, end: region.end };
       isLoopingRef.current = true;
       setIsLooping(true);
-      region.loop = true;
     });
 
     regions.on("region-updated", (region) => {
       loopRegionRef.current = { start: region.start, end: region.end };
-      region.loop = true;
+    });
+
+    regions.on("region-out", (region) => {
+      if (isLoopingRef.current && loopRegionRef.current) {
+        region.play();
+      }
     });
 
     regions.on("region-removed", () => {
