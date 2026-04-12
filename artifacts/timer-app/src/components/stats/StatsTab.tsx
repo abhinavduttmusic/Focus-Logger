@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { motion, useInView, AnimatePresence } from "framer-motion";
+import { motion, useInView } from "framer-motion";
 import { Clock, Flame, Target, Zap, BarChart2 } from "lucide-react";
 import { useListSessions } from "@workspace/api-client-react";
 import type { Session } from "@workspace/api-client-react/src/generated/api.schemas";
@@ -603,7 +603,6 @@ export function StatsTab() {
 
   const PERIODS: Period[] = ["today", "week", "month", "quarter", "year"];
   const swipeStartX = useRef<number | null>(null);
-  const swipeDirection = useRef<number>(1);
 
   const handleSwipeStart = (e: React.TouchEvent) => {
     swipeStartX.current = e.touches[0].clientX;
@@ -616,11 +615,9 @@ export function StatsTab() {
     if (Math.abs(dx) < 50) return;
     const currentIndex = PERIODS.indexOf(period);
     if (dx < 0 && currentIndex < PERIODS.length - 1) {
-      swipeDirection.current = 1;
       if (navigator.vibrate) navigator.vibrate(8);
       setPeriod(PERIODS[currentIndex + 1]);
     } else if (dx > 0 && currentIndex > 0) {
-      swipeDirection.current = -1;
       if (navigator.vibrate) navigator.vibrate(8);
       setPeriod(PERIODS[currentIndex - 1]);
     }
@@ -653,21 +650,11 @@ export function StatsTab() {
       <div className="w-full max-w-lg mx-auto pt-4 pb-10 px-4 sm:px-6">
         <div className="mb-4">
           <PeriodSelector value={period} onChange={(p) => {
-            swipeDirection.current = PERIODS.indexOf(p) > PERIODS.indexOf(period) ? 1 : -1;
             if (navigator.vibrate) navigator.vibrate(6);
             setPeriod(p);
           }} />
         </div>
-        <AnimatePresence mode="wait" custom={swipeDirection.current}>
-          <motion.div
-            key={period}
-            custom={swipeDirection.current}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15, ease: "easeInOut" }}
-            className="space-y-4"
-          >
+        <div className="space-y-4">
             <TodayFocusCard
               totalFocusToday={allStats.totalFocusToday}
               sessionsToday={allStats.sessionsToday}
@@ -693,8 +680,7 @@ export function StatsTab() {
               pomRate={allStats.pomRate}
               delay={0.24}
             />
-          </motion.div>
-        </AnimatePresence>
+        </div>
       </div>
     </div>
   );
