@@ -440,11 +440,13 @@ function BarChartCard({ sessions, mode, periodStart, delay }: {
         </div>
       ) : (
         <div
-          className="flex items-end h-20"
+          className="flex items-end h-24"
           style={{
             gap: mode === "month" ? '2px' : '4px',
             overflowX: mode === "month" ? 'auto' : 'visible',
             paddingBottom: mode === "month" ? '2px' : undefined,
+            paddingTop: '12px',
+            touchAction: mode === "month" ? 'pan-x' : 'none',
           }}
         >
           {bars.map(({ label, seconds }, i) => {
