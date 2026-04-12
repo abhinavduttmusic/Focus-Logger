@@ -514,7 +514,7 @@ function HourlyActivityCard({ sessions, delay }: { sessions: Session[]; delay: n
               {/* Fill from bottom */}
               <motion.div
                 className="w-full rounded-sm"
-                style={{ backgroundColor: '#4A9FD4' }}
+                style={{ backgroundColor: '#2B7CB8' }}
                 initial={{ height: 0 }}
                 animate={{ height: fillH }}
                 transition={{ duration: 0.4, ease: "easeOut", delay: delay + hour * 0.01 }}
