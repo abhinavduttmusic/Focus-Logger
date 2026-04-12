@@ -502,19 +502,19 @@ function HourlyActivityCard({ sessions, delay }: { sessions: Session[]; delay: n
             <div
               key={hour}
               className="flex-1 flex flex-col justify-between rounded-sm overflow-hidden"
-              style={{ backgroundColor: 'hsl(213 50% 20%)' }}
+              style={{ backgroundColor: '#F0EFED' }}
             >
               {/* Hour label at top */}
               <span
-                className="text-center font-medium text-white/70 leading-none pt-0.5"
-                style={{ fontSize: '7px' }}
+                className="text-center font-medium leading-none pt-0.5"
+                style={{ fontSize: '7px', color: '#6B7280' }}
               >
                 {String(hour).padStart(2, '0')}
               </span>
               {/* Fill from bottom */}
               <motion.div
                 className="w-full rounded-sm"
-                style={{ backgroundColor: 'hsl(213 70% 55%)' }}
+                style={{ backgroundColor: '#2B7CB8' }}
                 initial={{ height: 0 }}
                 animate={{ height: fillH }}
                 transition={{ duration: 0.4, ease: "easeOut", delay: delay + hour * 0.01 }}
