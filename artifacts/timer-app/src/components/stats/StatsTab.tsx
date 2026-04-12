@@ -466,9 +466,24 @@ function InsightsCard({
 }
 
 function PeriodSelector({ value, onChange }: { value: Period; onChange: (p: Period) => void }) {
+  const periods = Object.keys(PERIOD_LABELS) as Period[];
+
   return (
-    <div className="flex items-center gap-1 p-1 bg-secondary/40 rounded-full w-full overflow-x-auto">
-      {(Object.keys(PERIOD_LABELS) as Period[]).map((period) => (
+    <div className="relative flex items-center p-1 bg-secondary/40 rounded-full w-full">
+      {/* Sliding background pill */}
+      <motion.div
+        className="absolute bg-card shadow-sm rounded-full"
+        layoutId="period-pill"
+        transition={{ type: "spring", stiffness: 400, damping: 35 }}
+        style={{
+          width: `${100 / periods.length}%`,
+          height: 'calc(100% - 8px)',
+          top: '4px',
+          left: `calc(${periods.indexOf(value)} * ${100 / periods.length}%)`,
+        }}
+      />
+      {/* Labels */}
+      {periods.map((period) => (
         <button
           key={period}
           onClick={() => {
@@ -476,9 +491,9 @@ function PeriodSelector({ value, onChange }: { value: Period; onChange: (p: Peri
             onChange(period);
           }}
           className={cn(
-            "flex-1 px-2 py-1.5 rounded-full text-[11px] font-medium whitespace-nowrap transition-colors duration-150",
+            "relative z-10 flex-1 py-1.5 rounded-full text-[11px] font-medium transition-colors duration-200 whitespace-nowrap",
             value === period
-              ? "bg-card text-foreground shadow-sm"
+              ? "text-foreground"
               : "text-muted-foreground/60 hover:text-muted-foreground"
           )}
         >
