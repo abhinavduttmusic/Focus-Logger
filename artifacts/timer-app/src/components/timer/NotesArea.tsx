@@ -213,6 +213,7 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
   const durationRef    = useRef<number>(clip.durationSeconds);
   const loopRegionRef  = useRef<{ start: number; end: number } | null>(null);
   const isLoopingRef   = useRef(false);
+  const isSeekingRef   = useRef(false);
 
   /**
    * Use a ref so the ready-handler closure captures the latest value even if
@@ -278,23 +279,18 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
     });
 
     regions.on("region-out", (region) => {
-      if (isLoopingRef.current && loopRegionRef.current) {
-        ws.stop();
+      if (!isLoopingRef.current || !loopRegionRef.current) return;
+      if (isSeekingRef.current) return;
+      isSeekingRef.current = true;
+      ws.pause();
+      setTimeout(() => {
         region.play();
-      }
+        setTimeout(() => {
+          isSeekingRef.current = false;
+        }, 100);
+      }, 10);
     });
 
-    ws.on("timeupdate", (currentTime) => {
-      if (!isLoopingRef.current || !loopRegionRef.current) return;
-      const { start, end } = loopRegionRef.current;
-      if (currentTime >= end - 0.1) {
-        const region = regionsRef.current?.getRegions()[0];
-        if (region) {
-          ws.pause();
-          region.play();
-        }
-      }
-    });
 
     regions.on("region-removed", () => {
       if (regions.getRegions().length === 0) {
