@@ -63,14 +63,14 @@ function startOfYear(d: Date): Date {
   return c;
 }
 
-type Period = "today" | "week" | "month" | "year" | "all";
+type Period = "today" | "week" | "month" | "quarter" | "year";
 
 const PERIOD_LABELS: Record<Period, string> = {
   today: "Today",
   week: "This Week",
   month: "This Month",
+  quarter: "This Quarter",
   year: "This Year",
-  all: "All Time",
 };
 
 function getSessionsForPeriod(sessions: Session[], period: Period): Session[] {
@@ -82,9 +82,16 @@ function getSessionsForPeriod(sessions: Session[], period: Period): Session[] {
       return sessions.filter(s => new Date(s.createdAt) >= startOfWeek(now));
     case "month":
       return sessions.filter(s => new Date(s.createdAt) >= startOfMonth(now));
+    case "quarter": {
+      const quarterStart = new Date(now);
+      const currentMonth = quarterStart.getMonth();
+      const quarterFirstMonth = Math.floor(currentMonth / 3) * 3;
+      quarterStart.setMonth(quarterFirstMonth, 1);
+      quarterStart.setHours(0, 0, 0, 0);
+      return sessions.filter(s => new Date(s.createdAt) >= quarterStart);
+    }
     case "year":
       return sessions.filter(s => new Date(s.createdAt) >= startOfYear(now));
-    case "all":
     default:
       return sessions;
   }
