@@ -583,6 +583,26 @@ export function StatsTab() {
   const { data: sessions = [] } = useListSessions();
   const [period, setPeriod] = useState<Period>("week");
 
+  const PERIODS: Period[] = ["today", "week", "month", "quarter", "year"];
+  const swipeStartX = useRef<number | null>(null);
+
+  const handleSwipeStart = (e: React.TouchEvent) => {
+    swipeStartX.current = e.touches[0].clientX;
+  };
+
+  const handleSwipeEnd = (e: React.TouchEvent) => {
+    if (swipeStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - swipeStartX.current;
+    swipeStartX.current = null;
+    if (Math.abs(dx) < 50) return;
+    const currentIndex = PERIODS.indexOf(period);
+    if (dx < 0 && currentIndex < PERIODS.length - 1) {
+      setPeriod(PERIODS[currentIndex + 1]);
+    } else if (dx > 0 && currentIndex > 0) {
+      setPeriod(PERIODS[currentIndex - 1]);
+    }
+  };
+
   const allStats = useMemo(() => computeStats(sessions), [sessions]);
   const filteredSessions = useMemo(() => getSessionsForPeriod(sessions, period), [sessions, period]);
 
@@ -602,7 +622,11 @@ export function StatsTab() {
   const filteredMaxProjectSeconds = Math.max(1, ...filteredProjectData.map(p => p.seconds));
 
   return (
-    <div className="absolute inset-0 overflow-y-auto">
+    <div
+      className="absolute inset-0 overflow-y-auto"
+      onTouchStart={handleSwipeStart}
+      onTouchEnd={handleSwipeEnd}
+    >
       <div className="w-full max-w-lg mx-auto pt-4 pb-10 px-4 sm:px-6 space-y-4">
 
         <PeriodSelector value={period} onChange={setPeriod} />
