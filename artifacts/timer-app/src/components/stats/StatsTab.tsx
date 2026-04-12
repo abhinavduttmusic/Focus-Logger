@@ -440,41 +440,60 @@ function BarChartCard({ sessions, mode, periodStart, delay }: {
         </div>
       ) : (
         <div
-          className="flex items-end"
           style={{
+            display: 'flex',
+            alignItems: 'flex-end',
             gap: mode === "month" ? '2px' : '4px',
             overflowX: mode === "month" ? 'auto' : 'visible',
-            paddingBottom: mode === "month" ? '2px' : undefined,
+            height: '120px',
             paddingTop: '16px',
+            boxSizing: 'border-box',
             touchAction: mode === "month" ? 'pan-x' : 'none',
-            height: MAX_H + 24,
           }}
           onTouchStart={(e) => { if (mode === "month") e.stopPropagation(); }}
           onTouchMove={(e) => { if (mode === "month") e.stopPropagation(); }}
           onTouchEnd={(e) => { if (mode === "month") e.stopPropagation(); }}
         >
           {bars.map(({ label, seconds }, i) => {
-            const barH = seconds > 0 ? Math.max(3, Math.round((seconds / maxSec) * MAX_H)) : 0;
+            const barH = seconds > 0 ? Math.max(3, Math.round((seconds / maxSec) * 88)) : 0;
             return (
               <div
                 key={i}
-                className="flex flex-col items-center gap-1 cursor-pointer self-stretch"
-                style={{ minWidth: mode === "month" ? '18px' : undefined, flex: mode === "month" ? 'none' : 1 }}
-                onClick={() => setSelectedBar(selectedBar === i ? null : i)}
+                onClick={() => {
+                  if (navigator.vibrate) navigator.vibrate(4);
+                  setSelectedBar(selectedBar === i ? null : i);
+                }}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '4px',
+                  minWidth: mode === "month" ? '18px' : undefined,
+                  flex: mode === "month" ? 'none' : 1,
+                  cursor: 'pointer',
+                }}
               >
-                <div className="w-full flex flex-col justify-end flex-1" style={{ overflow: 'visible' }}>
-                  <motion.div
-                    className="w-full rounded-[4px]"
-                    style={{ backgroundColor: 'hsl(152 45% 38%)' }}
-                    initial={{ height: 0 }}
-                    animate={{ height: barH }}
-                    transition={{ duration: 0.4, ease: "easeOut", delay: delay + i * 0.02 }}
-                  />
-                </div>
-                <span className={cn(
-                  "text-[9px] truncate w-full text-center",
-                  selectedBar === i && seconds > 0 ? "font-semibold text-foreground" : "text-muted-foreground/50"
-                )}>
+                <motion.div
+                  style={{
+                    width: '100%',
+                    borderRadius: '4px',
+                    backgroundColor: 'hsl(152 45% 38%)',
+                    height: barH,
+                  }}
+                  initial={{ height: 0 }}
+                  animate={{ height: barH }}
+                  transition={{ duration: 0.4, ease: "easeOut", delay: delay + i * 0.02 }}
+                />
+                <span style={{
+                  fontSize: '9px',
+                  color: selectedBar === i && seconds > 0 ? '#374151' : '#9ca3af',
+                  fontWeight: selectedBar === i && seconds > 0 ? 600 : 400,
+                  width: '100%',
+                  textAlign: 'center',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}>
                   {selectedBar === i && seconds > 0 ? formatDuration(seconds) : label}
                 </span>
               </div>
