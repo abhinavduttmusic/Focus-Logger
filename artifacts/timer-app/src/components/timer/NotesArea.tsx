@@ -284,6 +284,18 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
       }
     });
 
+    ws.on("timeupdate", (currentTime) => {
+      if (!isLoopingRef.current || !loopRegionRef.current) return;
+      const { start, end } = loopRegionRef.current;
+      if (currentTime >= end - 0.1) {
+        const region = regionsRef.current?.getRegions()[0];
+        if (region) {
+          ws.pause();
+          region.play();
+        }
+      }
+    });
+
     regions.on("region-removed", () => {
       if (regions.getRegions().length === 0) {
         loopRegionRef.current = null;
