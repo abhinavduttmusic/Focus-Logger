@@ -406,7 +406,7 @@ function BarChartCard({ sessions, mode, periodStart, delay }: {
   }[mode];
 
   return (
-    <StatCard delay={delay}>
+    <StatCard delay={delay} className="overflow-visible">
       <SectionTitle>{title}</SectionTitle>
       {mode === "day" ? (
         <div className="flex items-stretch gap-0.5" style={{ height: MAX_H }}>
@@ -448,6 +448,9 @@ function BarChartCard({ sessions, mode, periodStart, delay }: {
             paddingTop: '12px',
             touchAction: mode === "month" ? 'pan-x' : 'none',
           }}
+          onTouchStart={(e) => { if (mode === "month") e.stopPropagation(); }}
+          onTouchMove={(e) => { if (mode === "month") e.stopPropagation(); }}
+          onTouchEnd={(e) => { if (mode === "month") e.stopPropagation(); }}
         >
           {bars.map(({ label, seconds }, i) => {
             const barH = seconds > 0 ? Math.max(3, Math.round((seconds / maxSec) * MAX_H)) : 0;
