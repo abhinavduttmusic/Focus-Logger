@@ -279,7 +279,7 @@ function WaveformPlayer({ clip, autoPlay, onUpdateClip: _onUpdateClip, onOpenSav
 
     regions.on("region-out", (region) => {
       if (isLoopingRef.current && loopRegionRef.current) {
-        ws.pause();
+        ws.stop();
         region.play();
       }
     });
