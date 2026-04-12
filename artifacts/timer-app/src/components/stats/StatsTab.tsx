@@ -292,6 +292,7 @@ function WeeklyOverviewCard({
   weeklyData: { label: string; seconds: number; isToday: boolean }[];
   delay: number;
 }) {
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const maxSec = Math.max(1, ...weeklyData.map((d) => d.seconds));
 
   return (
@@ -307,18 +308,29 @@ function WeeklyOverviewCard({
                 <div key={label} className="flex-1 flex flex-col items-center gap-1.5">
                   <div className="w-full flex flex-col justify-end" style={{ height: maxH }}>
                     <motion.div
-                      className={cn("w-full rounded-[5px]", isToday ? "bg-primary" : "bg-primary/40")}
+                      className="w-full rounded-[5px] cursor-pointer"
+                      style={{
+                        backgroundColor: isToday ? 'hsl(var(--primary))' : 'hsl(var(--primary) / 0.45)',
+                      }}
                       initial={{ height: 0 }}
                       animate={{ height: barH }}
                       transition={{ duration: 0.5, ease: "easeOut", delay: delay + 0.1 }}
+                      onClick={() => setSelectedDay(selectedDay === label ? null : label)}
                     />
                   </div>
-                  <span className={cn(
-                    "text-[10px] font-medium",
-                    isToday ? "text-primary font-semibold" : "text-muted-foreground/50"
-                  )}>
-                    {label}
-                  </span>
+                  {selectedDay === label && seconds > 0 && (
+                    <span className="text-[10px] font-semibold text-primary tabular-nums">
+                      {formatDuration(seconds)}
+                    </span>
+                  )}
+                  {selectedDay !== label && (
+                    <span className={cn(
+                      "text-[10px] font-medium",
+                      isToday ? "text-primary font-semibold" : "text-muted-foreground/50"
+                    )}>
+                      {label}
+                    </span>
+                  )}
                 </div>
               );
             })}
