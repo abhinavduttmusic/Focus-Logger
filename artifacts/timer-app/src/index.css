@@ -74,7 +74,7 @@
   --ring: 220 20% 15%;
 
   /* Timer specific colors */
-  --focus: 152 69% 45%;           /* Emerald green */
+  --focus: 152 45% 38%;           /* Muted emerald green */
   --break: 210 60% 65%;           /* Soft relaxing blue */
 
   --radius: 1rem;
@@ -109,7 +109,7 @@
   --input: 220 20% 20%;
   --ring: 120 10% 95%;
 
-  --focus: 152 69% 55%;           /* Emerald green */
+  --focus: 152 45% 48%;           /* Muted emerald green */
   --break: 210 60% 70%;
 }
 
