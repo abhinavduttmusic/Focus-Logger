@@ -1,0 +1,62 @@
+In `artifacts/timer-app/src/pages/home.tsx`, make these changes:
+
+1. Add these refs and state near the other break-related state declarations:
+const [breakOrder, setBreakOrder] = useState<string[]>(() => breakTypes.map(b => b.id));
+const dragBreakIdRef = useRef<string | null>(null);
+const dragBreakOverIdRef = useRef<string | null>(null);
+
+2. Add this reorder function after the existing break handlers:
+const reorderBreaks = useCallback((fromId: string, toId: string) => {
+  if (fromId === toId) return;
+  const updated = [...breakTypes];
+  const fromIdx = updated.findIndex(b => b.id === fromId);
+  const toIdx = updated.findIndex(b => b.id === toId);
+  if (fromIdx === -1 || toIdx === -1) return;
+  const [moved] = updated.splice(fromIdx, 1);
+  updated.splice(toIdx, 0, moved);
+  setBreakTypes(updated);
+  localStorage.setItem("breakTypes", JSON.stringify(updated));
+}, [breakTypes]);
+
+3. Find the motion.button for each break tile. Add these pointer event handlers to it, inside the existing onPointerDown/Up/Leave/Cancel handlers. Replace the existing pointer handlers with:
+
+onPointerDown={(e) => {
+  if (!isAddTile) {
+    handleBreakPressStart(id);
+    if (activeBreakEditId === id) {
+      dragBreakIdRef.current = id;
+    }
+  }
+}}
+onPointerMove={(e) => {
+  if (!dragBreakIdRef.current || !activeBreakEditId) return;
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  const tile = el?.closest('[data-break-id]');
+  const overId = tile?.getAttribute('data-break-id');
+  if (overId && overId !== dragBreakIdRef.current) {
+    dragBreakOverIdRef.current = overId;
+    reorderBreaks(dragBreakIdRef.current, overId);
+    dragBreakIdRef.current = overId;
+  }
+}}
+onPointerUp={() => {
+  dragBreakIdRef.current = null;
+  dragBreakOverIdRef.current = null;
+  handleBreakPressEnd();
+}}
+onPointerLeave={() => {
+  handleBreakPressEnd();
+}}
+onPointerCancel={() => {
+  dragBreakIdRef.current = null;
+  dragBreakOverIdRef.current = null;
+  handleBreakPressEnd();
+}}
+
+4. Add data-break-id attribute to the motion.button:
+data-break-id={isAddTile ? undefined : id}
+
+5. Add style to visually indicate dragging. In the motion.button style, add:
+cursor: activeBreakEditId === id ? 'grab' : 'pointer',
+
+Do not change anything else.

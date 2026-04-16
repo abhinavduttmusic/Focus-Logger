@@ -167,6 +167,9 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const [pendingDeleteBreakId, setPendingDeleteBreakId] = useState<string | null>(null);
   const [draggedBreakId, setDraggedBreakId] = useState<string | null>(null);
   const dragOverBreakId = useRef<string | null>(null);
+  const [breakOrder, setBreakOrder] = useState<string[]>(() => breakTypes.map(b => b.id));
+  const dragBreakIdRef = useRef<string | null>(null);
+  const dragBreakOverIdRef = useRef<string | null>(null);
   const [breakGridScrolling,   setBreakGridScrolling]   = useState(false);
   const breakLongPressRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
   const breakDidLongPressRef   = useRef(false);
@@ -504,6 +507,18 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     setDraggedBreakId(null);
     dragOverBreakId.current = null;
   }, [draggedBreakId, breakTypes]);
+
+  const reorderBreaks = useCallback((fromId: string, toId: string) => {
+    if (fromId === toId) return;
+    const updated = [...breakTypes];
+    const fromIdx = updated.findIndex(b => b.id === fromId);
+    const toIdx = updated.findIndex(b => b.id === toId);
+    if (fromIdx === -1 || toIdx === -1) return;
+    const [moved] = updated.splice(fromIdx, 1);
+    updated.splice(toIdx, 0, moved);
+    setBreakTypes(updated);
+    localStorage.setItem("breakTypes", JSON.stringify(updated));
+  }, [breakTypes]);
 
   const handleBreakInterruptConfirm = useCallback(() => {
     setShowBreakInterruptConfirm(false);
@@ -1239,6 +1254,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                         onDragOver={(e) => { e.preventDefault(); if (isActiveEdit) dragOverBreakId.current = id; }}
                         onDrop={(e) => { e.preventDefault(); if (isActiveEdit) handleBreakDrop(); }}
                         onDragEnd={() => handleBreakDrop()}
+                        data-break-id={isAddTile ? undefined : id}
                         style={{
                           background: bg,
                           minHeight: "72px",
@@ -1246,6 +1262,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                           willChange: "transform",
                           opacity: draggedBreakId === id ? 0.4 : 1,
                           transition: 'opacity 0.15s ease',
+                          cursor: activeBreakEditId === id ? 'grab' : 'pointer',
                         }}
                         animate={isActiveEdit ? { rotate: [-1, 1, -1, 1, 0] } : { rotate: 0 }}
                         transition={
@@ -1253,10 +1270,38 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                             ? { duration: 0.22, repeat: Infinity, repeatType: "mirror", ease: "easeInOut" }
                             : { duration: 0.15 }
                         }
-                        onPointerDown={() => { if (!isAddTile) handleBreakPressStart(id); }}
-                        onPointerUp={handleBreakPressEnd}
-                        onPointerLeave={handleBreakPressEnd}
-                        onPointerCancel={handleBreakPressEnd}
+                        onPointerDown={(e) => {
+                          if (!isAddTile) {
+                            handleBreakPressStart(id);
+                            if (activeBreakEditId === id) {
+                              dragBreakIdRef.current = id;
+                            }
+                          }
+                        }}
+                        onPointerMove={(e) => {
+                          if (!dragBreakIdRef.current || !activeBreakEditId) return;
+                          const el = document.elementFromPoint(e.clientX, e.clientY);
+                          const tile = el?.closest('[data-break-id]');
+                          const overId = tile?.getAttribute('data-break-id');
+                          if (overId && overId !== dragBreakIdRef.current) {
+                            dragBreakOverIdRef.current = overId;
+                            reorderBreaks(dragBreakIdRef.current, overId);
+                            dragBreakIdRef.current = overId;
+                          }
+                        }}
+                        onPointerUp={() => {
+                          dragBreakIdRef.current = null;
+                          dragBreakOverIdRef.current = null;
+                          handleBreakPressEnd();
+                        }}
+                        onPointerLeave={() => {
+                          handleBreakPressEnd();
+                        }}
+                        onPointerCancel={() => {
+                          dragBreakIdRef.current = null;
+                          dragBreakOverIdRef.current = null;
+                          handleBreakPressEnd();
+                        }}
                         whileTap={activeBreakEditId !== null ? undefined : { scale: 0.93 }}
                         onClick={() => {
                           if (breakDidLongPressRef.current) { breakDidLongPressRef.current = false; return; }
