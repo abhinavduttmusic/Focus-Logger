@@ -165,6 +165,8 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   /** id of the tile currently in "long-press edit" state (null = none) */
   const [activeBreakEditId,    setActiveBreakEditId]    = useState<string | null>(null);
   const [pendingDeleteBreakId, setPendingDeleteBreakId] = useState<string | null>(null);
+  const [draggedBreakId, setDraggedBreakId] = useState<string | null>(null);
+  const dragOverBreakId = useRef<string | null>(null);
   const [breakGridScrolling,   setBreakGridScrolling]   = useState(false);
   const breakLongPressRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
   const breakDidLongPressRef   = useRef(false);
@@ -481,6 +483,27 @@ function Home({ restored }: { restored: RestoredSession | null }) {
       breakLongPressRef.current = null;
     }
   }, []);
+
+  const handleBreakDragStart = useCallback((id: string) => {
+    setDraggedBreakId(id);
+  }, []);
+
+  const handleBreakDrop = useCallback(() => {
+    if (!draggedBreakId || !dragOverBreakId.current || draggedBreakId === dragOverBreakId.current) {
+      setDraggedBreakId(null);
+      return;
+    }
+    const from = breakTypes.findIndex(b => b.id === draggedBreakId);
+    const to = breakTypes.findIndex(b => b.id === dragOverBreakId.current);
+    if (from === -1 || to === -1) { setDraggedBreakId(null); return; }
+    const updated = [...breakTypes];
+    const [moved] = updated.splice(from, 1);
+    updated.splice(to, 0, moved);
+    setBreakTypes(updated);
+    localStorage.setItem("breakTypes", JSON.stringify(updated));
+    setDraggedBreakId(null);
+    dragOverBreakId.current = null;
+  }, [draggedBreakId, breakTypes]);
 
   const handleBreakInterruptConfirm = useCallback(() => {
     setShowBreakInterruptConfirm(false);
@@ -1211,11 +1234,18 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                       <motion.button
                         key={id}
                         className="relative flex flex-col items-center justify-center gap-1.5 rounded-2xl text-center select-none"
+                        draggable={isActiveEdit && !isAddTile}
+                        onDragStart={() => { if (isActiveEdit && !isAddTile) handleBreakDragStart(id); }}
+                        onDragOver={(e) => { e.preventDefault(); if (isActiveEdit) dragOverBreakId.current = id; }}
+                        onDrop={(e) => { e.preventDefault(); if (isActiveEdit) handleBreakDrop(); }}
+                        onDragEnd={() => handleBreakDrop()}
                         style={{
                           background: bg,
                           minHeight: "72px",
                           padding: "16px 8px",
                           willChange: "transform",
+                          opacity: draggedBreakId === id ? 0.4 : 1,
+                          transition: 'opacity 0.15s ease',
                         }}
                         animate={isActiveEdit ? { rotate: [-1, 1, -1, 1, 0] } : { rotate: 0 }}
                         transition={
