@@ -164,6 +164,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   });
   /** id of the tile currently in "long-press edit" state (null = none) */
   const [activeBreakEditId,    setActiveBreakEditId]    = useState<string | null>(null);
+  const activeBreakEditIdRef = useRef<string | null>(null);
   const [pendingDeleteBreakId, setPendingDeleteBreakId] = useState<string | null>(null);
   const [draggedBreakId, setDraggedBreakId] = useState<string | null>(null);
   const dragOverBreakId = useRef<string | null>(null);
@@ -475,6 +476,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     breakDidLongPressRef.current = false;
     breakLongPressRef.current = setTimeout(() => {
       breakDidLongPressRef.current = true;
+      activeBreakEditIdRef.current = id;
       setActiveBreakEditId(id);
       if (navigator.vibrate) navigator.vibrate(40);
     }, 500);
@@ -1213,7 +1215,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                       color: "#333",
                       padding: "8px 12px",
                     }}
-                    onClick={() => setActiveBreakEditId(null)}
+                    onClick={() => { activeBreakEditIdRef.current = null; setActiveBreakEditId(null); }}
                   >
                     Done
                   </motion.button>
@@ -1273,25 +1275,24 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                         onPointerDown={(e) => {
                           if (!isAddTile) {
                             handleBreakPressStart(id);
-                            if (activeBreakEditId === id) {
-                              dragBreakIdRef.current = id;
-                            }
+                            dragBreakIdRef.current = id;
                           }
                         }}
                         onPointerMove={(e) => {
-                          if (!dragBreakIdRef.current || !activeBreakEditId) return;
+                          if (!activeBreakEditIdRef.current) return;
+                          if (!dragBreakIdRef.current) return;
+                          e.currentTarget.releasePointerCapture(e.pointerId);
                           const el = document.elementFromPoint(e.clientX, e.clientY);
                           const tile = el?.closest('[data-break-id]');
                           const overId = tile?.getAttribute('data-break-id');
-                          if (overId && overId !== dragBreakIdRef.current) {
-                            dragBreakOverIdRef.current = overId;
+                          if (overId && overId !== dragBreakIdRef.current && overId !== '__add__') {
                             reorderBreaks(dragBreakIdRef.current, overId);
                             dragBreakIdRef.current = overId;
+                            if (navigator.vibrate) navigator.vibrate(4);
                           }
                         }}
                         onPointerUp={() => {
                           dragBreakIdRef.current = null;
-                          dragBreakOverIdRef.current = null;
                           handleBreakPressEnd();
                         }}
                         onPointerLeave={() => {
@@ -1299,13 +1300,12 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                         }}
                         onPointerCancel={() => {
                           dragBreakIdRef.current = null;
-                          dragBreakOverIdRef.current = null;
                           handleBreakPressEnd();
                         }}
                         whileTap={activeBreakEditId !== null ? undefined : { scale: 0.93 }}
                         onClick={() => {
                           if (breakDidLongPressRef.current) { breakDidLongPressRef.current = false; return; }
-                          if (activeBreakEditId !== null) { setActiveBreakEditId(null); return; }
+                          if (activeBreakEditId !== null) { activeBreakEditIdRef.current = null; setActiveBreakEditId(null); return; }
                           if (isAddTile) { setShowCustomBreakInput((v) => !v); return; }
                           handleStartManualBreak(`${label} ${emoji}`);
                         }}
