@@ -124,6 +124,8 @@ Guidelines:
 - End with ONE specific actionable directive for tomorrow — make it a challenge not a compliment
 - Never use "great job", "keep it up", or corporate clichés
 - Write in 3-4 paragraphs maximum
+- Do NOT include a heading or title line at the start — go straight into the summary content
+- Do NOT write the date in your response at all
 
 Data for ${body.date}:
 

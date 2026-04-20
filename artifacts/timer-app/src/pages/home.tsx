@@ -1610,7 +1610,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                   const d = summaryDateKey
                     ? new Date(summaryDateKey + "T00:00:00")
                     : new Date();
-                  return d.toLocaleDateString("en-US", {
+                  return d.toLocaleDateString(undefined, {
                     weekday: "long",
                     month:   "long",
                     day:     "numeric",
