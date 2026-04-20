@@ -17,7 +17,8 @@
     "cors": "^2",
     "drizzle-orm": "catalog:",
     "express": "^5",
-    "google-auth-library": "^10.6.1"
+    "google-auth-library": "^10.6.1",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",

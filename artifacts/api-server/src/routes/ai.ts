@@ -1,43 +1,25 @@
 import { Router, type IRouter } from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import { db, debriefsTable } from "@workspace/db";
+import { DailyDebriefBody } from "@workspace/api-zod";
 import { desc, eq } from "drizzle-orm";
+import { ZodError } from "zod";
 
 const router: IRouter = Router();
 
+const anthropicBaseURL = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
+const anthropicApiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
+
+if (!anthropicBaseURL || !anthropicApiKey) {
+  throw new Error(
+    "Missing required Anthropic env vars: AI_INTEGRATIONS_ANTHROPIC_BASE_URL and AI_INTEGRATIONS_ANTHROPIC_API_KEY must both be set.",
+  );
+}
+
 const anthropic = new Anthropic({
-  baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
-  apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
+  baseURL: anthropicBaseURL,
+  apiKey: anthropicApiKey,
 });
-
-interface FocusSessionInput {
-  label: string;
-  durationSeconds: number;
-  /** Pre-formatted in the user's local timezone by the client. */
-  startedAtLabel: string;
-  /** Pre-formatted in the user's local timezone by the client. */
-  endedAtLabel: string;
-}
-
-interface BreakSessionInput {
-  label: string;
-  durationSeconds: number;
-}
-
-interface DailyDebriefBody {
-  date: string;
-  dateKey: string;
-  /** Pre-formatted in the user's local timezone by the client. */
-  dayStartedAtLabel: string | null;
-  totalFocusSeconds: number;
-  totalBreakSeconds: number;
-  focusCount: number;
-  breakCount: number;
-  focusSessions: FocusSessionInput[];
-  breakSessions: BreakSessionInput[];
-  notes: string;
-  regenerate?: boolean;
-}
 
 function formatMins(secs: number): string {
   const h = Math.floor(secs / 3600);
@@ -73,14 +55,21 @@ router.delete("/daily-debriefs/:dateKey", async (req, res) => {
 });
 
 router.post("/daily-debrief", async (req, res) => {
+  let body: DailyDebriefBody;
   try {
-    const body = req.body as DailyDebriefBody;
-
-    if (!body.dateKey) {
-      res.status(400).json({ error: "dateKey is required" });
+    body = DailyDebriefBody.parse(req.body);
+  } catch (err) {
+    if (err instanceof ZodError) {
+      res.status(400).json({
+        error: "Invalid daily debrief request body",
+        issues: err.issues,
+      });
       return;
     }
+    throw err;
+  }
 
+  try {
     if (!body.regenerate) {
       const [existing] = await db
         .select()
