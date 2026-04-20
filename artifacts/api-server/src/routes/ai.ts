@@ -86,13 +86,9 @@ router.post("/daily-debrief", async (req, res) => {
         ? (body.totalFocusSeconds / body.totalBreakSeconds).toFixed(1) + ":1"
         : "No breaks taken";
 
-    const sessionDetails =
-      body.focusSessions
-        .map(
-          (s) =>
-            `- ${s.label}: ${formatMins(s.durationSeconds)} (started ${s.startedAtLabel}, ended ${s.endedAtLabel})`
-        )
-        .join("\n") || "None";
+    const sessionDetails = body.focusSessions.map((s: any) =>
+      `- ${s.label}: ${s.duration} (${s.startTime} – ${s.endTime})${s.notes ? `\n  Notes: "${s.notes}"` : ''}`
+    ).join('\n');
 
     const breakDetails =
       body.breakSessions

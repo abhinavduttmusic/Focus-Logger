@@ -236,15 +236,21 @@ function Home({ restored }: { restored: RestoredSession | null }) {
           )
         : null;
 
+      const formatMins = (secs: number) => {
+        const h = Math.floor(secs / 3600);
+        const m = Math.floor((secs % 3600) / 60);
+        return h > 0 ? `${h}h ${m}m` : `${m}m`;
+      };
+
       const focusPayload = focusSessions.map((s) => {
         const endTime = new Date(s.createdAt);
         const startTime = new Date(endTime.getTime() - s.durationSeconds * 1000);
         return {
           label: s.projectName ?? s.taskName ?? "Independent work",
-          durationSeconds: s.durationSeconds,
-          startedAt: startTime.toISOString(),
-          startedAtLabel: formatLocalTime(startTime),
-          endedAtLabel:   formatLocalTime(endTime),
+          duration: formatMins(s.durationSeconds),
+          startTime: startTime.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }),
+          endTime: endTime.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }),
+          notes: s.notes?.trim() || null,
         };
       });
 

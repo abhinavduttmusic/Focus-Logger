@@ -2,9 +2,10 @@ import * as zod from "zod";
 
 export const FocusSessionInput = zod.object({
   label: zod.string(),
-  durationSeconds: zod.number().int().nonnegative(),
-  startedAtLabel: zod.string(),
-  endedAtLabel: zod.string(),
+  duration: zod.string(),
+  startTime: zod.string(),
+  endTime: zod.string(),
+  notes: zod.string().nullable(),
 });
 
 export const BreakSessionInput = zod.object({
