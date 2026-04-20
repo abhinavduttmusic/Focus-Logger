@@ -210,22 +210,29 @@ function Home({ restored }: { restored: RestoredSession | null }) {
       const totalFocusSeconds = focusSessions.reduce((a, s) => a + s.durationSeconds, 0);
       const totalBreakSeconds = breakSessions.reduce((a, s) => a + s.durationSeconds, 0);
 
+      // Format times in the BROWSER so they reflect the user's own timezone.
+      // (Server-side Node runs in UTC, which would skew every "started at" line.)
+      const TIME_OPTS: Intl.DateTimeFormatOptions = { hour: "numeric", minute: "2-digit" };
+      const formatLocalTime = (d: Date) => d.toLocaleTimeString(undefined, TIME_OPTS);
+
       // Sessions are returned newest-first; oldest = end of array
       const oldestFocus = focusSessions[focusSessions.length - 1];
-      const dayStartedAt = oldestFocus
-        ? new Date(
-            new Date(oldestFocus.createdAt).getTime() - oldestFocus.durationSeconds * 1000
-          ).toISOString()
+      const dayStartedAtLabel = oldestFocus
+        ? formatLocalTime(
+            new Date(
+              new Date(oldestFocus.createdAt).getTime() - oldestFocus.durationSeconds * 1000
+            )
+          )
         : null;
 
       const focusPayload = focusSessions.map((s) => {
-        const startedAt = new Date(
-          new Date(s.createdAt).getTime() - s.durationSeconds * 1000
-        ).toISOString();
+        const endTime = new Date(s.createdAt);
+        const startTime = new Date(endTime.getTime() - s.durationSeconds * 1000);
         return {
           label: s.projectName ?? s.taskName ?? "Independent work",
           durationSeconds: s.durationSeconds,
-          startedAt,
+          startedAtLabel: formatLocalTime(startTime),
+          endedAtLabel:   formatLocalTime(endTime),
         };
       });
 
@@ -234,7 +241,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
         durationSeconds: s.durationSeconds,
       }));
 
-      const dateLabel = new Date().toLocaleDateString("en-US", {
+      const dateLabel = new Date().toLocaleDateString(undefined, {
         weekday: "long",
         year:    "numeric",
         month:   "long",
@@ -246,7 +253,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           date: dateLabel,
-          dayStartedAt,
+          dayStartedAtLabel,
           totalFocusSeconds,
           totalBreakSeconds,
           focusCount: focusSessions.length,

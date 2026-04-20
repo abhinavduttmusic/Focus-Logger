@@ -11,7 +11,10 @@ const anthropic = new Anthropic({
 interface FocusSessionInput {
   label: string;
   durationSeconds: number;
-  startedAt: string;
+  /** Pre-formatted in the user's local timezone by the client. */
+  startedAtLabel: string;
+  /** Pre-formatted in the user's local timezone by the client. */
+  endedAtLabel: string;
 }
 
 interface BreakSessionInput {
@@ -21,7 +24,8 @@ interface BreakSessionInput {
 
 interface DailyDebriefBody {
   date: string;
-  dayStartedAt: string | null;
+  /** Pre-formatted in the user's local timezone by the client. */
+  dayStartedAtLabel: string | null;
   totalFocusSeconds: number;
   totalBreakSeconds: number;
   focusCount: number;
@@ -37,10 +41,6 @@ function formatMins(secs: number): string {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-}
-
 router.post("/daily-debrief", async (req, res) => {
   try {
     const body = req.body as DailyDebriefBody;
@@ -54,7 +54,7 @@ router.post("/daily-debrief", async (req, res) => {
       body.focusSessions
         .map(
           (s) =>
-            `- ${s.label}: ${formatMins(s.durationSeconds)} (started ${formatTime(s.startedAt)})`
+            `- ${s.label}: ${formatMins(s.durationSeconds)} (started ${s.startedAtLabel}, ended ${s.endedAtLabel})`
         )
         .join("\n") || "None";
 
@@ -80,7 +80,7 @@ Guidelines:
 
 Data for ${body.date}:
 
-Day started: ${body.dayStartedAt ? formatTime(body.dayStartedAt) : "No sessions recorded"}
+Day started: ${body.dayStartedAtLabel ?? "No sessions recorded"}
 Total focus time: ${formatMins(body.totalFocusSeconds)}
 Total break time: ${formatMins(body.totalBreakSeconds)}
 Focus to break ratio: ${ratio}
