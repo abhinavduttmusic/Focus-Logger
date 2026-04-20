@@ -1637,14 +1637,42 @@ function Home({ restored }: { restored: RestoredSession | null }) {
               {summaryText && !summaryLoading && (
                 <>
                   <div className="prose prose-sm max-w-none">
-                    {summaryText.split("\n\n").map((para, i) => (
-                      <p
-                        key={i}
-                        className="text-[14px] leading-relaxed text-foreground/80 mb-4 last:mb-0"
-                      >
-                        {para}
-                      </p>
-                    ))}
+                    {summaryText.split('\n\n').map((para, i) => {
+                      // Convert **bold** and *italic* markdown to JSX
+                      const renderLine = (text: string) => {
+                        const parts = text.split(/(\*\*.*?\*\*|\*.*?\*)/g);
+                        return parts.map((part, j) => {
+                          if (part.startsWith('**') && part.endsWith('**')) {
+                            return <strong key={j}>{part.slice(2, -2)}</strong>;
+                          }
+                          if (part.startsWith('*') && part.endsWith('*')) {
+                            return <em key={j}>{part.slice(1, -1)}</em>;
+                          }
+                          return part;
+                        });
+                      };
+
+                      // Handle heading lines starting with #
+                      if (para.startsWith('# ') || para.startsWith('## ')) {
+                        const text = para.replace(/^#+\s/, '');
+                        return (
+                          <p key={i} className="text-[15px] font-bold text-foreground mb-4">
+                            {renderLine(text)}
+                          </p>
+                        );
+                      }
+
+                      return (
+                        <p key={i} className="text-[14px] leading-relaxed text-foreground/80 mb-4 last:mb-0">
+                          {para.split('\n').map((line, j) => (
+                            <span key={j}>
+                              {renderLine(line)}
+                              {j < para.split('\n').length - 1 && <br />}
+                            </span>
+                          ))}
+                        </p>
+                      );
+                    })}
                   </div>
                   {summaryIsCached && (
                     <div className="mt-6 pt-4 border-t border-border/30 flex items-center justify-between gap-3">
