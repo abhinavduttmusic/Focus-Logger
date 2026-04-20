@@ -1,0 +1,123 @@
+In `artifacts/timer-app/src/components/stats/StatsTab.tsx`, make these changes:
+
+1. Add this helper function after the existing isFocus function:
+function isBreak(s: Session) {
+  return s.type === "manual_break" || s.type === "pomodoro_break";
+}
+
+2. Add this new BreakSummaryCard component after the TodayFocusCard component:
+
+function BreakSummaryCard({ sessions, focusSessions, delay }: { sessions: Session[]; focusSessions: Session[]; delay: number }) {
+  const breakSessions = sessions.filter(isBreak);
+  const totalBreakTime = breakSessions.reduce((a, s) => a + s.durationSeconds, 0);
+  const breakCount = breakSessions.length;
+  const avgBreak = breakCount > 0 ? Math.round(totalBreakTime / breakCount) : 0;
+  const totalFocusTime = focusSessions.reduce((a, s) => a + s.durationSeconds, 0);
+  const ratio = totalBreakTime > 0 ? (totalFocusTime / totalBreakTime).toFixed(1) : null;
+
+  // Group breaks by type
+  const breakMap = new Map<string, number>();
+  for (const s of breakSessions) {
+    const label = s.type === "pomodoro_break"
+      ? "Pomodoro Break"
+      : (s.notes?.trim() || "Break");
+    // Strip emoji for grouping key, keep full label for display
+    const key = label;
+    breakMap.set(key, (breakMap.get(key) ?? 0) + s.durationSeconds);
+  }
+  const breakTypes = [...breakMap.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([name, seconds]) => ({ name, seconds }));
+  const maxBreakSec = Math.max(1, ...breakTypes.map(b => b.seconds));
+
+  if (breakCount === 0) return (
+    <StatCard delay={delay}>
+      <SectionTitle>Break Activity</SectionTitle>
+      <p className="text-sm text-muted-foreground/50 text-center py-4">No breaks recorded yet</p>
+    </StatCard>
+  );
+
+  return (
+    <StatCard delay={delay}>
+      <SectionTitle>Break Activity</SectionTitle>
+
+      {/* 3 metric tiles */}
+      <div className="grid grid-cols-3 gap-2 mb-5">
+        {[
+          { label: "Breaks", value: String(breakCount) },
+          { label: "Total Time", value: formatDuration(totalBreakTime) },
+          { label: "Avg Break", value: avgBreak > 0 ? formatDuration(avgBreak) : "—" },
+        ].map(({ label, value }) => (
+          <div key={label} className="flex flex-col items-center gap-1 py-2.5 rounded-[14px] bg-secondary/40">
+            <span className="text-[18px] font-bold tracking-tight leading-none tabular-nums">{value}</span>
+            <span className="text-[10px] font-medium text-muted-foreground/60 text-center leading-tight">{label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Focus to break ratio */}
+      {ratio && (
+        <div className="flex items-center gap-3 p-3 rounded-[12px] bg-secondary/30 mb-4">
+          <div className="w-8 h-8 rounded-[10px] bg-blue-500/10 flex items-center justify-center shrink-0">
+            <span className="text-blue-500 text-sm font-bold">{ratio}x</span>
+          </div>
+          <div>
+            <p className="text-[11px] text-muted-foreground/55 font-medium">Focus to Break Ratio</p>
+            <p className="text-[13px] font-semibold leading-tight">
+              {Number(ratio) >= 3
+                ? "Great discipline — well balanced"
+                : Number(ratio) >= 1.5
+                ? "Good balance of work and rest"
+                : "Consider longer focus blocks"}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Breaks by type */}
+      {breakTypes.length > 0 && (
+        <div className="space-y-2.5">
+          {breakTypes.map(({ name, seconds }) => {
+            const pct = (seconds / maxBreakSec) * 100;
+            return (
+              <div key={name}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[12px] font-medium text-foreground/80 truncate max-w-[65%]">{name}</span>
+                  <span className="text-[11px] tabular-nums text-muted-foreground/60">{formatDuration(seconds)}</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-secondary/60 overflow-hidden">
+                  <motion.div
+                    className="h-full rounded-full"
+                    style={{ background: 'linear-gradient(to right, #0ea5e9, #38bdf8)' }}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${pct}%` }}
+                    transition={{ duration: 0.5, ease: "easeOut", delay: delay + 0.05 }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </StatCard>
+  );
+}
+
+3. Find the StatsTab main component return statement. Find where TodayFocusCard is rendered:
+<TodayFocusCard sessions={periodSessions} delay={0} />
+
+Add the BreakSummaryCard immediately after it:
+<BreakSummaryCard
+  sessions={periodSessions}
+  focusSessions={periodSessions.filter(isFocus)}
+  delay={0.06}
+/>
+
+And shift the delays of all subsequent cards up by 0.06:
+BarChartCard: delay={0.12}
+TimeByProjectCard: delay={0.18}
+AvgByDayCard: delay={0.22}
+InsightsCard: delay={0.26}
+
+Do not change anything else.
