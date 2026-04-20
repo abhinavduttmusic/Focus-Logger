@@ -372,7 +372,7 @@ function BreakSummaryCard({ sessions, focusSessions, delay }: { sessions: Sessio
       {ratio && (
         <div className="flex items-center gap-3 p-3 rounded-[12px] bg-secondary/30 mb-4">
           <div className="w-8 h-8 rounded-[10px] bg-blue-500/10 flex items-center justify-center shrink-0">
-            <span className="text-blue-500 text-sm font-bold">{ratio}x</span>
+            <span className="text-blue-500 text-sm font-bold">{ratio}:1</span>
           </div>
           <div>
             <p className="text-[11px] text-muted-foreground/55 font-medium">Focus to Break Ratio</p>
