@@ -1640,6 +1640,14 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                     {summaryText.split('\n\n').map((para, i) => {
                       // Convert **bold** and *italic* markdown to JSX
                       const renderLine = (text: string) => {
+                        // Auto-bold "Tomorrow's directive:" regardless of markdown
+                        const directivePattern = /^(Tomorrow's directive:)\s*/i;
+                        if (directivePattern.test(text)) {
+                          const match = text.match(directivePattern);
+                          const label = match?.[1] ?? "Tomorrow's directive:";
+                          const rest = text.replace(directivePattern, '');
+                          return [<strong key="directive">{label}</strong>, ' ', rest];
+                        }
                         const parts = text.split(/(\*\*.*?\*\*|\*.*?\*)/g);
                         return parts.map((part, j) => {
                           if (part.startsWith('**') && part.endsWith('**')) {
