@@ -344,7 +344,6 @@ function BreakSummaryCard({ sessions, focusSessions, delay }: { sessions: Sessio
     .sort((a, b) => b[1] - a[1])
     .slice(0, 6)
     .map(([name, seconds]) => ({ name, seconds }));
-  const maxBreakSec = Math.max(1, ...breakTypes.map(b => b.seconds));
 
   if (breakCount === 0) return (
     <StatCard delay={delay}>
@@ -391,7 +390,7 @@ function BreakSummaryCard({ sessions, focusSessions, delay }: { sessions: Sessio
       {breakTypes.length > 0 && (
         <div className="space-y-2.5">
           {breakTypes.map(({ name, seconds }) => {
-            const pct = (seconds / maxBreakSec) * 100;
+            const pct = totalBreakTime > 0 ? (seconds / totalBreakTime) * 100 : 0;
             return (
               <div key={name}>
                 <div className="flex items-center justify-between mb-1">
