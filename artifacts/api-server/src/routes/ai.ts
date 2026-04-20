@@ -110,7 +110,7 @@ Guidelines:
 - Acknowledge genuine effort without empty praise
 - Call out honestly: late starts (first session after 10am is late), long breaks (over 30 mins), task switching (4+ different projects), skewed focus/break ratio (less than 2:1 is concerning)
 - Recognize momentum when sessions stack on the same task
-- End with ONE specific actionable directive for tomorrow — make it a challenge not a compliment
+- End with ONE specific actionable directive for tomorrow — make it a challenge not a compliment. Format it exactly like this: **Tomorrow's directive:** followed by the directive text on the same line.
 - Never use "great job", "keep it up", or corporate clichés
 - Write in 3-4 paragraphs maximum
 - Do NOT include a heading or title line at the start — go straight into the summary content
