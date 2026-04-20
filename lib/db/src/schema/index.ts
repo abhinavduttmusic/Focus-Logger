@@ -21,3 +21,4 @@ export * from "./projects";
 export * from "./tasks";
 export * from "./sessions";
 export * from "./recordings";
+export * from "./debriefs";

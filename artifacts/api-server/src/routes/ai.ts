@@ -1,5 +1,7 @@
 import { Router, type IRouter } from "express";
 import Anthropic from "@anthropic-ai/sdk";
+import { db, debriefsTable } from "@workspace/db";
+import { desc, eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -24,6 +26,7 @@ interface BreakSessionInput {
 
 interface DailyDebriefBody {
   date: string;
+  dateKey: string;
   /** Pre-formatted in the user's local timezone by the client. */
   dayStartedAtLabel: string | null;
   totalFocusSeconds: number;
@@ -33,6 +36,7 @@ interface DailyDebriefBody {
   focusSessions: FocusSessionInput[];
   breakSessions: BreakSessionInput[];
   notes: string;
+  regenerate?: boolean;
 }
 
 function formatMins(secs: number): string {
@@ -41,9 +45,52 @@ function formatMins(secs: number): string {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
+router.get("/daily-debriefs", async (_req, res) => {
+  const rows = await db
+    .select()
+    .from(debriefsTable)
+    .orderBy(desc(debriefsTable.date));
+  res.json(rows);
+});
+
+router.get("/daily-debriefs/:dateKey", async (req, res) => {
+  const { dateKey } = req.params;
+  const [row] = await db
+    .select()
+    .from(debriefsTable)
+    .where(eq(debriefsTable.date, dateKey));
+  if (!row) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  res.json(row);
+});
+
+router.delete("/daily-debriefs/:dateKey", async (req, res) => {
+  const { dateKey } = req.params;
+  await db.delete(debriefsTable).where(eq(debriefsTable.date, dateKey));
+  res.status(204).send();
+});
+
 router.post("/daily-debrief", async (req, res) => {
   try {
     const body = req.body as DailyDebriefBody;
+
+    if (!body.dateKey) {
+      res.status(400).json({ error: "dateKey is required" });
+      return;
+    }
+
+    if (!body.regenerate) {
+      const [existing] = await db
+        .select()
+        .from(debriefsTable)
+        .where(eq(debriefsTable.date, body.dateKey));
+      if (existing) {
+        res.json({ summary: existing.summary, cached: true, debrief: existing });
+        return;
+      }
+    }
 
     const ratio =
       body.totalBreakSeconds > 0
@@ -107,7 +154,32 @@ Write the debrief now.`;
     const block = message.content[0];
     const summary = block && block.type === "text" ? block.text : "Unable to generate summary.";
 
-    res.json({ summary });
+    const values = {
+      date: body.dateKey,
+      summary,
+      totalFocusSeconds: body.totalFocusSeconds,
+      totalBreakSeconds: body.totalBreakSeconds,
+      focusCount: body.focusCount,
+      breakCount: body.breakCount,
+    };
+
+    const [saved] = await db
+      .insert(debriefsTable)
+      .values(values)
+      .onConflictDoUpdate({
+        target: debriefsTable.date,
+        set: {
+          summary: values.summary,
+          totalFocusSeconds: values.totalFocusSeconds,
+          totalBreakSeconds: values.totalBreakSeconds,
+          focusCount: values.focusCount,
+          breakCount: values.breakCount,
+          createdAt: new Date(),
+        },
+      })
+      .returning();
+
+    res.json({ summary, cached: false, debrief: saved });
   } catch (err) {
     console.error("[daily-debrief]", err);
     const msg = err instanceof Error ? err.message : "Failed to generate summary";

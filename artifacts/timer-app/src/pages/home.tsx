@@ -183,22 +183,33 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const [summaryText, setSummaryText]           = useState("");
   const [summaryLoading, setSummaryLoading]     = useState(false);
   const [summaryError, setSummaryError]         = useState<string | null>(null);
+  const [summaryDateKey, setSummaryDateKey]     = useState<string | null>(null);
+  const [summaryIsCached, setSummaryIsCached]   = useState(false);
+  const [summaryHistoryDate, setSummaryHistoryDate] = useState<string | null>(null);
 
-  const handleGenerateSummary = useCallback(async () => {
-    setSummaryModalOpen(true);
+  const generateDebrief = useCallback(async (regenerate: boolean, targetDateKey?: string) => {
     setSummaryLoading(true);
     setSummaryError(null);
     setSummaryText("");
 
     try {
+      const target = targetDateKey ? new Date(targetDateKey + "T00:00:00") : new Date();
+      const dateKey =
+        targetDateKey ||
+        `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, "0")}-${String(target.getDate()).padStart(2, "0")}`;
+      setSummaryDateKey(dateKey);
+
       const sessionsData =
         (queryClient.getQueryData(getListSessionsQueryKey()) as Session[] | undefined) ?? [];
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todaysSessions = sessionsData.filter(
-        (s) => new Date(s.createdAt) >= today
-      );
+      const dayStart = new Date(target);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(dayStart);
+      dayEnd.setDate(dayEnd.getDate() + 1);
+      const todaysSessions = sessionsData.filter((s) => {
+        const d = new Date(s.createdAt);
+        return d >= dayStart && d < dayEnd;
+      });
 
       const focusSessions = todaysSessions.filter(
         (s) => s.type === "simple" || s.type === "pomodoro_focus"
@@ -231,6 +242,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
         return {
           label: s.projectName ?? s.taskName ?? "Independent work",
           durationSeconds: s.durationSeconds,
+          startedAt: startTime.toISOString(),
           startedAtLabel: formatLocalTime(startTime),
           endedAtLabel:   formatLocalTime(endTime),
         };
@@ -241,7 +253,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
         durationSeconds: s.durationSeconds,
       }));
 
-      const dateLabel = new Date().toLocaleDateString(undefined, {
+      const dateLabel = target.toLocaleDateString(undefined, {
         weekday: "long",
         year:    "numeric",
         month:   "long",
@@ -253,6 +265,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           date: dateLabel,
+          dateKey,
           dayStartedAtLabel,
           totalFocusSeconds,
           totalBreakSeconds,
@@ -261,12 +274,15 @@ function Home({ restored }: { restored: RestoredSession | null }) {
           focusSessions: focusPayload,
           breakSessions: breakPayload,
           notes,
+          regenerate,
         }),
       });
 
       if (!res.ok) throw new Error(`Server returned ${res.status}`);
-      const data = (await res.json()) as { summary?: string };
+      const data = (await res.json()) as { summary?: string; cached?: boolean };
       setSummaryText(data.summary || "Unable to generate summary.");
+      setSummaryIsCached(!!data.cached);
+      queryClient.invalidateQueries({ queryKey: ["daily-debriefs"] });
     } catch (err) {
       console.error("[daily-debrief] failed", err);
       setSummaryError("Something went wrong. Please try again.");
@@ -275,6 +291,62 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     }
   }, [notes, queryClient]);
 
+  const handleGenerateSummary = useCallback(async () => {
+    setSummaryHistoryDate(null);
+    setSummaryModalOpen(true);
+    const today = new Date();
+    const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    setSummaryDateKey(todayKey);
+    setSummaryLoading(true);
+    setSummaryError(null);
+    setSummaryText("");
+    setSummaryIsCached(false);
+
+    try {
+      const existingRes = await fetch(`${BASE}api/daily-debriefs/${todayKey}`);
+      if (existingRes.ok) {
+        const existing = (await existingRes.json()) as { summary: string };
+        setSummaryText(existing.summary);
+        setSummaryIsCached(true);
+        setSummaryLoading(false);
+        return;
+      }
+    } catch {
+      // ignore — fall through to generation
+    }
+
+    await generateDebrief(false);
+  }, [generateDebrief]);
+
+  const handleRegenerateSummary = useCallback(async () => {
+    if (summaryHistoryDate) {
+      await generateDebrief(true, summaryHistoryDate);
+    } else {
+      await generateDebrief(true);
+    }
+  }, [generateDebrief, summaryHistoryDate]);
+
+  const handleViewHistoryDebrief = useCallback(async (dateKey: string) => {
+    setSummaryHistoryDate(dateKey);
+    setSummaryDateKey(dateKey);
+    setSummaryModalOpen(true);
+    setSummaryLoading(true);
+    setSummaryError(null);
+    setSummaryText("");
+    setSummaryIsCached(true);
+
+    try {
+      const res = await fetch(`${BASE}api/daily-debriefs/${dateKey}`);
+      if (!res.ok) throw new Error(`Server returned ${res.status}`);
+      const data = (await res.json()) as { summary: string };
+      setSummaryText(data.summary);
+    } catch (err) {
+      console.error("[daily-debrief] history fetch failed", err);
+      setSummaryError("Couldn't load that debrief.");
+    } finally {
+      setSummaryLoading(false);
+    }
+  }, []);
   // ─── Session logging ─────────────────────────────────────────────────────
 
   const createSession = useCreateSession({
@@ -990,7 +1062,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
               )}
 
               {tab === "tasks" && <TasksTab isActive={activeTab === "tasks"} />}
-              {tab === "stats" && <StatsTab />}
+              {tab === "stats" && <StatsTab onViewDebrief={handleViewHistoryDebrief} />}
 
               {tab === "activity" && (
                 <div className="absolute inset-0">
@@ -1534,11 +1606,16 @@ function Home({ restored }: { restored: RestoredSession | null }) {
               </div>
 
               <p className="text-xs text-muted-foreground/50 font-medium uppercase tracking-widest mb-4">
-                {new Date().toLocaleDateString("en-US", {
-                  weekday: "long",
-                  month:   "long",
-                  day:     "numeric",
-                })}
+                {(() => {
+                  const d = summaryDateKey
+                    ? new Date(summaryDateKey + "T00:00:00")
+                    : new Date();
+                  return d.toLocaleDateString("en-US", {
+                    weekday: "long",
+                    month:   "long",
+                    day:     "numeric",
+                  });
+                })()}
               </p>
 
               {summaryLoading && (
@@ -1558,16 +1635,32 @@ function Home({ restored }: { restored: RestoredSession | null }) {
               )}
 
               {summaryText && !summaryLoading && (
-                <div className="prose prose-sm max-w-none">
-                  {summaryText.split("\n\n").map((para, i) => (
-                    <p
-                      key={i}
-                      className="text-[14px] leading-relaxed text-foreground/80 mb-4 last:mb-0"
-                    >
-                      {para}
-                    </p>
-                  ))}
-                </div>
+                <>
+                  <div className="prose prose-sm max-w-none">
+                    {summaryText.split("\n\n").map((para, i) => (
+                      <p
+                        key={i}
+                        className="text-[14px] leading-relaxed text-foreground/80 mb-4 last:mb-0"
+                      >
+                        {para}
+                      </p>
+                    ))}
+                  </div>
+                  {summaryIsCached && (
+                    <div className="mt-6 pt-4 border-t border-border/30 flex items-center justify-between gap-3">
+                      <p className="text-[11px] text-muted-foreground/60">
+                        Saved debrief — regenerate to refresh.
+                      </p>
+                      <motion.button
+                        onClick={handleRegenerateSummary}
+                        whileTap={{ scale: 0.96 }}
+                        className="px-3 py-1.5 rounded-full bg-secondary/60 text-foreground/80 text-xs font-semibold hover:bg-secondary"
+                      >
+                        Regenerate
+                      </motion.button>
+                    </div>
+                  )}
+                </>
               )}
             </motion.div>
           </motion.div>

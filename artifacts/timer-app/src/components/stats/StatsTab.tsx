@@ -1,9 +1,23 @@
 import { useMemo, useRef, useState } from "react";
 import { motion, useInView } from "framer-motion";
-import { Clock, Flame, Target, Zap, BarChart2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Clock, Flame, Target, Zap, BarChart2, ChevronLeft, ChevronRight, Sparkles, ChevronRight as ChevronRightIcon } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { useListSessions } from "@workspace/api-client-react";
 import type { Session } from "@workspace/api-client-react/src/generated/api.schemas";
 import { cn } from "@/lib/utils";
+
+const BASE = import.meta.env.BASE_URL;
+
+interface DebriefRecord {
+  id: number;
+  date: string;
+  summary: string;
+  totalFocusSeconds: number;
+  totalBreakSeconds: number;
+  focusCount: number;
+  breakCount: number;
+  createdAt: string;
+}
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -749,9 +763,89 @@ function InsightsCard({ sessions, delay }: { sessions: Session[]; delay: number 
   );
 }
 
+// ─── Debrief History Card ────────────────────────────────────────────────────
+
+function DebriefHistoryCard({ delay, onView }: { delay: number; onView: (dateKey: string) => void }) {
+  const { data: debriefs, error } = useQuery<DebriefRecord[]>({
+    queryKey: ["daily-debriefs"],
+    queryFn: async () => {
+      const r = await fetch(`${BASE}api/daily-debriefs`);
+      if (!r.ok) throw new Error(`Server returned ${r.status}`);
+      return r.json();
+    },
+  });
+
+  const formatDate = (key: string) => {
+    const d = new Date(key + "T00:00:00");
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (sameDay(d, today)) return "Today";
+    if (sameDay(d, yesterday)) return "Yesterday";
+    return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  };
+
+  return (
+    <StatCard delay={delay}>
+      <div className="flex items-center gap-2 mb-4">
+        <Sparkles className="w-3.5 h-3.5 text-primary" />
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+          Debrief History
+        </p>
+      </div>
+
+      {error && (
+        <p className="text-sm text-destructive/80 text-center py-4">Couldn't load debriefs.</p>
+      )}
+
+      {!error && debriefs === undefined && (
+        <p className="text-sm text-muted-foreground/50 text-center py-4">Loading…</p>
+      )}
+
+      {!error && debriefs?.length === 0 && (
+        <p className="text-sm text-muted-foreground/50 text-center py-4">
+          No debriefs saved yet. Generate one from the timer screen.
+        </p>
+      )}
+
+      {!error && debriefs && debriefs.length > 0 && (
+        <div className="space-y-2">
+          {debriefs.slice(0, 30).map((d) => {
+            const preview = d.summary.replace(/\s+/g, " ").trim().slice(0, 90);
+            return (
+              <button
+                key={d.id}
+                onClick={() => {
+                  if (navigator.vibrate) navigator.vibrate(4);
+                  onView(d.date);
+                }}
+                className="w-full text-left flex items-center gap-3 p-3 rounded-[12px] bg-secondary/30 hover:bg-secondary/50 transition-colors"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-[12px] font-semibold text-foreground/85">
+                    {formatDate(d.date)}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground/60 truncate">
+                    {preview}{d.summary.length > 90 ? "…" : ""}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground/50 mt-0.5 tabular-nums">
+                    {formatDuration(d.totalFocusSeconds)} focus · {d.focusCount} {d.focusCount === 1 ? "session" : "sessions"}
+                  </p>
+                </div>
+                <ChevronRightIcon className="w-4 h-4 text-muted-foreground/40 shrink-0" />
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </StatCard>
+  );
+}
+
 // ─── Main StatsTab ────────────────────────────────────────────────────────────
 
-export function StatsTab() {
+export function StatsTab({ onViewDebrief }: { onViewDebrief?: (dateKey: string) => void } = {}) {
   const { data: sessions = [] } = useListSessions();
   const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [offset, setOffset] = useState(0);
@@ -804,6 +898,7 @@ export function StatsTab() {
         <TimeByProjectCard sessions={periodSessions} delay={0.18} />
         <AvgByDayCard sessions={periodSessions} delay={0.22} />
         <InsightsCard sessions={periodSessions} delay={0.26} />
+        {onViewDebrief && <DebriefHistoryCard delay={0.3} onView={onViewDebrief} />}
 
       </div>
     </div>
