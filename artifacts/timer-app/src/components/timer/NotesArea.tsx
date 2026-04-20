@@ -3,7 +3,7 @@ import WaveSurfer from "wavesurfer.js";
 import RegionsPlugin from "wavesurfer.js/plugins/regions";
 import {
   FileText, Mic, Pause, Square, X, Play, Trash2, Pencil,
-  BookmarkPlus, Repeat2, Rewind, FastForward, ChevronUp,
+  BookmarkPlus, Repeat2, Rewind, FastForward, ChevronUp, Sparkles,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Task } from "@workspace/api-client-react/src/generated/api.schemas";
@@ -530,6 +530,8 @@ interface NotesAreaProps {
   onCancelRecording: () => void;
   onToggleExpand: () => void;
   isExpanded: boolean;
+  onGenerateSummary: () => void;
+  isGeneratingSummary: boolean;
 }
 
 export function NotesArea({
@@ -551,6 +553,8 @@ export function NotesArea({
   onCancelRecording,
   onToggleExpand,
   isExpanded,
+  onGenerateSummary,
+  isGeneratingSummary,
 }: NotesAreaProps) {
   const [showCancelConfirm,  setShowCancelConfirm]  = useState(false);
   const [editingIndex,       setEditingIndex]        = useState<number | null>(null);
@@ -612,6 +616,27 @@ export function NotesArea({
             <FileText className="w-4 h-4" />
             <span>Session Notes & Goals</span>
           </div>
+
+          {/* Daily Debrief sparkle button */}
+          <motion.button
+            onClick={onGenerateSummary}
+            disabled={isGeneratingSummary}
+            whileTap={{ scale: 0.88 }}
+            className="w-8 h-8 rounded-full flex items-center justify-center bg-foreground/[0.05] hover:bg-foreground/[0.10] text-foreground/50 hover:text-foreground/80 transition-colors shrink-0 mr-1 disabled:opacity-60"
+            aria-label="Generate AI summary"
+            title="Generate your daily debrief"
+          >
+            {isGeneratingSummary ? (
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+              >
+                <Sparkles className="w-4 h-4" />
+              </motion.div>
+            ) : (
+              <Sparkles className="w-4 h-4" />
+            )}
+          </motion.button>
 
           {/* Chevron toggle — tap to expand / collapse the card */}
           <motion.button

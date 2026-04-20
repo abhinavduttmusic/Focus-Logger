@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCreateSession, getListSessionsQueryKey } from "@workspace/api-client-react";
-import type { SessionType, Task } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { Session, SessionType, Task } from "@workspace/api-client-react/src/generated/api.schemas";
 import { useTimer, type TimerMode, type TimerInitialState } from "@/hooks/use-timer";
 import {
   loadSession,
@@ -12,7 +12,7 @@ import {
 } from "@/hooks/use-session-persistence";
 import { useVoiceRecorder, type AudioClip } from "@/hooks/use-voice-recorder";
 import { playBell } from "@/hooks/use-bell";
-import { XCircle, LayoutList, Calendar } from "lucide-react";
+import { XCircle, LayoutList, Calendar, Sparkles, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -177,6 +177,96 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const notesDragStartYRef     = useRef(0);
   const notesDragStartHeightRef = useRef(0);
   const isNotesExpanded = notesCardHeight > Math.round(window.innerHeight * 0.35) + 10;
+
+  // ─── Daily Debrief (AI summary) ──────────────────────────────────────────
+  const [summaryModalOpen, setSummaryModalOpen] = useState(false);
+  const [summaryText, setSummaryText]           = useState("");
+  const [summaryLoading, setSummaryLoading]     = useState(false);
+  const [summaryError, setSummaryError]         = useState<string | null>(null);
+
+  const handleGenerateSummary = useCallback(async () => {
+    setSummaryModalOpen(true);
+    setSummaryLoading(true);
+    setSummaryError(null);
+    setSummaryText("");
+
+    try {
+      const sessionsData =
+        (queryClient.getQueryData(getListSessionsQueryKey()) as Session[] | undefined) ?? [];
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todaysSessions = sessionsData.filter(
+        (s) => new Date(s.createdAt) >= today
+      );
+
+      const focusSessions = todaysSessions.filter(
+        (s) => s.type === "simple" || s.type === "pomodoro_focus"
+      );
+      const breakSessions = todaysSessions.filter(
+        (s) => s.type === "manual_break" || s.type === "pomodoro_break"
+      );
+
+      const totalFocusSeconds = focusSessions.reduce((a, s) => a + s.durationSeconds, 0);
+      const totalBreakSeconds = breakSessions.reduce((a, s) => a + s.durationSeconds, 0);
+
+      // Sessions are returned newest-first; oldest = end of array
+      const oldestFocus = focusSessions[focusSessions.length - 1];
+      const dayStartedAt = oldestFocus
+        ? new Date(
+            new Date(oldestFocus.createdAt).getTime() - oldestFocus.durationSeconds * 1000
+          ).toISOString()
+        : null;
+
+      const focusPayload = focusSessions.map((s) => {
+        const startedAt = new Date(
+          new Date(s.createdAt).getTime() - s.durationSeconds * 1000
+        ).toISOString();
+        return {
+          label: s.projectName ?? s.taskName ?? "Independent work",
+          durationSeconds: s.durationSeconds,
+          startedAt,
+        };
+      });
+
+      const breakPayload = breakSessions.map((s) => ({
+        label: s.notes?.trim() || "Pomodoro break",
+        durationSeconds: s.durationSeconds,
+      }));
+
+      const dateLabel = new Date().toLocaleDateString("en-US", {
+        weekday: "long",
+        year:    "numeric",
+        month:   "long",
+        day:     "numeric",
+      });
+
+      const res = await fetch(`${BASE}api/daily-debrief`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: dateLabel,
+          dayStartedAt,
+          totalFocusSeconds,
+          totalBreakSeconds,
+          focusCount: focusSessions.length,
+          breakCount: breakSessions.length,
+          focusSessions: focusPayload,
+          breakSessions: breakPayload,
+          notes,
+        }),
+      });
+
+      if (!res.ok) throw new Error(`Server returned ${res.status}`);
+      const data = (await res.json()) as { summary?: string };
+      setSummaryText(data.summary || "Unable to generate summary.");
+    } catch (err) {
+      console.error("[daily-debrief] failed", err);
+      setSummaryError("Something went wrong. Please try again.");
+    } finally {
+      setSummaryLoading(false);
+    }
+  }, [notes, queryClient]);
 
   // ─── Session logging ─────────────────────────────────────────────────────
 
@@ -882,6 +972,8 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                           onCancelRecording={recorder.discardAndStop}
                           onToggleExpand={handleToggleNotes}
                           isExpanded={isNotesExpanded}
+                          onGenerateSummary={handleGenerateSummary}
+                          isGeneratingSummary={summaryLoading}
                         />
                       </div>
                     </div>
@@ -1398,6 +1490,80 @@ function Home({ restored }: { restored: RestoredSession | null }) {
               </div>
             </motion.div>
           </>
+        )}
+      </AnimatePresence>
+
+      {/* ───────── Daily Debrief modal ───────── */}
+      <AnimatePresence>
+        {summaryModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end justify-center"
+            style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+            onClick={() => setSummaryModalOpen(false)}
+          >
+            <motion.div
+              initial={{ y: 100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 100, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="w-full max-w-lg bg-card rounded-t-3xl p-6 pb-10 max-h-[85vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  <h2 className="text-lg font-semibold">Daily Debrief</h2>
+                </div>
+                <button
+                  onClick={() => setSummaryModalOpen(false)}
+                  className="w-8 h-8 rounded-full bg-secondary/60 flex items-center justify-center text-muted-foreground"
+                  aria-label="Close debrief"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <p className="text-xs text-muted-foreground/50 font-medium uppercase tracking-widest mb-4">
+                {new Date().toLocaleDateString("en-US", {
+                  weekday: "long",
+                  month:   "long",
+                  day:     "numeric",
+                })}
+              </p>
+
+              {summaryLoading && (
+                <div className="flex flex-col items-center justify-center py-12 gap-4">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                  >
+                    <Sparkles className="w-8 h-8 text-primary/60" />
+                  </motion.div>
+                  <p className="text-sm text-muted-foreground/60">Analysing your day…</p>
+                </div>
+              )}
+
+              {summaryError && (
+                <p className="text-sm text-destructive text-center py-8">{summaryError}</p>
+              )}
+
+              {summaryText && !summaryLoading && (
+                <div className="prose prose-sm max-w-none">
+                  {summaryText.split("\n\n").map((para, i) => (
+                    <p
+                      key={i}
+                      className="text-[14px] leading-relaxed text-foreground/80 mb-4 last:mb-0"
+                    >
+                      {para}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 

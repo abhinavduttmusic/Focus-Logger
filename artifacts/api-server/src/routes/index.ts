@@ -5,6 +5,7 @@ import tasksRouter from "./tasks";
 import projectsRouter from "./projects";
 import storageRouter from "./storage";
 import recordingsRouter from "./recordings";
+import aiRouter from "./ai";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.use(tasksRouter);
 router.use(projectsRouter);
 router.use(storageRouter);
 router.use(recordingsRouter);
+router.use(aiRouter);
 
 export default router;
