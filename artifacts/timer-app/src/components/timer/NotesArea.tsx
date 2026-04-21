@@ -608,7 +608,7 @@ export function NotesArea({
     <>
     {/* ─────────────────────── Card ─────────────────────────── */}
     <div className="w-full h-full" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', borderRadius: '1.35rem', padding: '16px', boxSizing: 'border-box' }} className="bg-card/50">
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', borderRadius: '1.35rem', padding: '16px 16px 0px 16px', boxSizing: 'border-box' }} className="bg-card/50">
 
         {/* Header */}
         <div className="flex items-center mb-4">
