@@ -505,6 +505,7 @@ function BarChartCard({ sessions, mode, periodStart, delay }: {
   }, [focusSessions, mode, periodStart]);
 
   const maxSec = Math.max(1, ...bars.map(b => b.seconds));
+  const MAX_SECONDS_PER_HOUR = 3600;
   const MAX_H = 100;
   const totalSeconds = bars.reduce((a, b) => a + b.seconds, 0);
 
@@ -522,7 +523,7 @@ function BarChartCard({ sessions, mode, periodStart, delay }: {
       {mode === "day" ? (
         <div className="flex items-stretch gap-0.5" style={{ height: MAX_H }}>
           {bars.map(({ label, seconds }, i) => {
-            const fillH = seconds > 0 ? Math.max(3, Math.round((seconds / maxSec) * MAX_H)) : 0;
+            const fillH = seconds > 0 ? Math.max(3, Math.round((seconds / MAX_SECONDS_PER_HOUR) * MAX_H)) : 0;
             return (
               <div
                 key={i}
