@@ -833,9 +833,9 @@ export function NotesArea({
         </div>
 
         {/* Divider + mic + task selector — pinned to bottom of flex column */}
-        <div style={{ flexShrink: 0 }}>
-          <div className="h-px w-full bg-border/40 my-0" />
-          <div className="flex items-center gap-2" style={{ paddingTop: '10px', paddingBottom: '10px' }}>
+        <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <div className="h-px w-full bg-border/40" style={{ marginBottom: '8px' }} />
+          <div className="flex items-center gap-2" style={{ paddingBottom: '8px' }}>
           {/* Mic button — moved from header to here */}
           {!isRecording ? (
             <motion.button
