@@ -834,14 +834,14 @@ export function NotesArea({
 
         {/* Divider + mic + task selector — pinned to bottom of flex column */}
         <div style={{ flexShrink: 0 }}>
-          <div className="h-px w-full bg-border/40 my-2.5" />
-          <div className="flex items-center gap-2 py-2">
+          <div className="h-px w-full bg-border/40 mt-2 mb-0" />
+          <div className="flex items-center gap-2 py-1.5">
           {/* Mic button — moved from header to here */}
           {!isRecording ? (
             <motion.button
               onClick={isSessionActive ? onStartRecording : undefined}
               whileTap={isSessionActive ? { scale: 0.88 } : {}}
-              className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors shrink-0 ${
+              className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors shrink-0 ${
                 isSessionActive
                   ? "bg-foreground/[0.06] hover:bg-foreground/[0.10] text-foreground/65 hover:text-foreground/90 cursor-pointer"
                   : "bg-foreground/[0.03] text-foreground/20 cursor-not-allowed opacity-50"
@@ -850,7 +850,7 @@ export function NotesArea({
               title={isSessionActive ? "Record a voice note" : "Start a session to record"}
               disabled={!isSessionActive}
             >
-              <Mic className="w-4 h-4" />
+              <Mic className="w-3.5 h-3.5" />
             </motion.button>
           ) : (
             <motion.span
