@@ -832,11 +832,17 @@ export function NotesArea({
           />
         </div>
 
-        {/* Divider + mic + task selector — pinned to bottom of flex column */}
-        <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <div className="h-px w-full bg-border/40" style={{ marginBottom: '8px' }} />
-          <div className="flex items-center gap-2" style={{ paddingBottom: '8px' }}>
-          {/* Mic button — moved from header to here */}
+        {/* Mic + task selector — pinned to bottom of flex column */}
+        <div style={{
+          flexShrink: 0,
+          borderTop: '1px solid hsl(var(--border) / 0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          paddingTop: '10px',
+          paddingBottom: '10px',
+        }}>
+          {/* Mic button */}
           {!isRecording ? (
             <motion.button
               onClick={isSessionActive ? onStartRecording : undefined}
@@ -866,7 +872,6 @@ export function NotesArea({
             </motion.span>
           )}
           <TaskSelector selectedTask={selectedTask} onSelectTask={onSelectTask} />
-          </div>
         </div>
       </div>
     </div>
