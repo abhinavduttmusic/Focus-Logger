@@ -1118,7 +1118,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
             transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
             className="flex justify-center items-center py-1.5"
           >
-            <div className="flex items-center gap-0.5 p-1 rounded-full bg-secondary/50 border border-border/30">
+            <div className="flex items-center gap-0.5 p-1.5 rounded-full bg-secondary/50 border border-border/30">
               {([
                 { view: "logs"     as const, Icon: LayoutList, label: "List view" },
                 { view: "calendar" as const, Icon: Calendar,   label: "Calendar view" },
