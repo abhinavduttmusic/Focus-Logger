@@ -722,8 +722,20 @@ function InsightsCard({ sessions, delay }: { sessions: Session[]; delay: number 
 
   const hourTotals = new Array(24).fill(0);
   for (const s of focusSessions) {
-    const startHour = new Date(new Date(s.createdAt).getTime() - s.durationSeconds * 1000).getHours();
-    hourTotals[startHour] += s.durationSeconds;
+    const endMs = new Date(s.createdAt).getTime();
+    const startMs = endMs - s.durationSeconds * 1000;
+
+    // Distribute session time across all hours it spans
+    let cursor = startMs;
+    while (cursor < endMs) {
+      const cursorDate = new Date(cursor);
+      const hour = cursorDate.getHours();
+      const nextHourMs = new Date(cursorDate.getFullYear(), cursorDate.getMonth(), cursorDate.getDate(), hour + 1, 0, 0, 0).getTime();
+      const sliceEnd = Math.min(nextHourMs, endMs);
+      const sliceSecs = (sliceEnd - cursor) / 1000;
+      hourTotals[hour] += sliceSecs;
+      cursor = sliceEnd;
+    }
   }
   let peakHour = -1;
   let peakTotal = 0;
