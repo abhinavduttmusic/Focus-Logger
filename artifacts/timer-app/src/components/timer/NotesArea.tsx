@@ -847,7 +847,7 @@ export function NotesArea({
             <motion.button
               onClick={isSessionActive ? onStartRecording : undefined}
               whileTap={isSessionActive ? { scale: 0.88 } : {}}
-              className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors shrink-0 ${
+              className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors shrink-0 ${
                 isSessionActive
                   ? "bg-foreground/[0.06] hover:bg-foreground/[0.10] text-foreground/65 hover:text-foreground/90 cursor-pointer"
                   : "bg-foreground/[0.03] text-foreground/20 cursor-not-allowed opacity-50"
@@ -856,7 +856,7 @@ export function NotesArea({
               title={isSessionActive ? "Record a voice note" : "Start a session to record"}
               disabled={!isSessionActive}
             >
-              <Mic className="w-3.5 h-3.5" />
+              <Mic className="w-3 h-3" />
             </motion.button>
           ) : (
             <motion.span
