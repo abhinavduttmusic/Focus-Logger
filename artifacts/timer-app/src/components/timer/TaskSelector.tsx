@@ -272,7 +272,7 @@ export function TaskSelector({ selectedTask, onSelectTask }: TaskSelectorProps) 
           <button
             ref={triggerRef as React.RefObject<HTMLButtonElement>}
             onClick={toggle}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-primary/7 border border-primary/12 text-primary/75 hover:bg-primary/12 hover:text-primary/90 transition-colors text-sm touch-manipulation max-w-[260px]"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-primary/7 border border-primary/12 text-primary/75 hover:bg-primary/12 hover:text-primary/90 transition-colors text-sm touch-manipulation max-w-[200px]"
           >
             <CircleCheck className="w-3.5 h-3.5 shrink-0" />
             <span className="font-medium truncate">{selectedTask.name}</span>
