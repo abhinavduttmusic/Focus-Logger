@@ -1130,13 +1130,13 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                   onClick={() => setActivityView(view)}
                   aria-label={label}
                   className={cn(
-                    "w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-150",
+                    "w-8 h-8 rounded-full flex items-center justify-center transition-colors duration-150",
                     activityView === view
                       ? "bg-foreground/10 text-foreground/85"
                       : "text-muted-foreground/40 hover:text-muted-foreground/60"
                   )}
                 >
-                  <Icon className="w-[18px] h-[18px]" />
+                  <Icon className="w-4 h-4" />
                 </motion.button>
               ))}
             </div>
