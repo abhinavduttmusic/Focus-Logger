@@ -443,12 +443,29 @@ function BarChartCard({ sessions, mode, periodStart, delay }: {
   const bars = useMemo(() => {
     switch (mode) {
       case "day": {
-        return Array.from({ length: 24 }, (_, h) => {
-          const secs = focusSessions
-            .filter(s => new Date(s.createdAt).getHours() === h)
-            .reduce((a, s) => a + s.durationSeconds, 0);
-          return { label: String(h).padStart(2, "0"), seconds: secs };
-        });
+        const dayTotals = new Array(24).fill(0);
+        for (const s of focusSessions) {
+          const endMs = new Date(s.createdAt).getTime();
+          const startMs = endMs - s.durationSeconds * 1000;
+          let cursor = startMs;
+          while (cursor < endMs) {
+            const cursorDate = new Date(cursor);
+            const hour = cursorDate.getHours();
+            const nextHourMs = new Date(
+              cursorDate.getFullYear(),
+              cursorDate.getMonth(),
+              cursorDate.getDate(),
+              hour + 1, 0, 0, 0
+            ).getTime();
+            const sliceEnd = Math.min(nextHourMs, endMs);
+            dayTotals[hour] += (sliceEnd - cursor) / 1000;
+            cursor = sliceEnd;
+          }
+        }
+        return Array.from({ length: 24 }, (_, h) => ({
+          label: String(h).padStart(2, "0"),
+          seconds: dayTotals[h],
+        }));
       }
       case "week": {
         const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
