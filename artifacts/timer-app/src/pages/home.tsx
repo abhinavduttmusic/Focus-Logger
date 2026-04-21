@@ -1118,7 +1118,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
             transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
             className="flex justify-center items-center py-1.5"
           >
-            <div className="flex items-center gap-0.5 p-1.5 rounded-full bg-secondary/50 border border-border/30">
+            <div className="flex items-center gap-0.5 p-1 rounded-full bg-secondary/50 border border-border/30">
               {([
                 { view: "logs"     as const, Icon: LayoutList, label: "List view" },
                 { view: "calendar" as const, Icon: Calendar,   label: "Calendar view" },
@@ -1130,13 +1130,13 @@ function Home({ restored }: { restored: RestoredSession | null }) {
                   onClick={() => setActivityView(view)}
                   aria-label={label}
                   className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center transition-colors duration-150",
+                    "w-6 h-6 rounded-full flex items-center justify-center transition-colors duration-150",
                     activityView === view
                       ? "bg-foreground/10 text-foreground/85"
                       : "text-muted-foreground/40 hover:text-muted-foreground/60"
                   )}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="w-3.5 h-3.5" />
                 </motion.button>
               ))}
             </div>
