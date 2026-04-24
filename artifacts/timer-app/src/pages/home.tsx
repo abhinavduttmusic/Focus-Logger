@@ -204,8 +204,6 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const [summaryStats, setSummaryStats] = useState<{
     focusSeconds: number;
     breakSeconds: number;
-    focusCount: number;
-    breakCount: number;
   } | null>(null);
 
   const generateDebrief = useCallback(async (regenerate: boolean, targetDateKey?: string) => {
@@ -313,8 +311,6 @@ function Home({ restored }: { restored: RestoredSession | null }) {
       setSummaryStats({
         focusSeconds: totalFocusSeconds,
         breakSeconds: totalBreakSeconds,
-        focusCount: focusSessions.length,
-        breakCount: breakSessions.length,
       });
       queryClient.invalidateQueries({ queryKey: ["daily-debriefs"] });
     } catch (err) {
@@ -344,16 +340,12 @@ function Home({ restored }: { restored: RestoredSession | null }) {
           summary: string;
           totalFocusSeconds?: number;
           totalBreakSeconds?: number;
-          focusCount?: number;
-          breakCount?: number;
         };
         setSummaryText(existing.summary);
         setSummaryIsCached(true);
         setSummaryStats({
           focusSeconds: existing.totalFocusSeconds ?? 0,
           breakSeconds: existing.totalBreakSeconds ?? 0,
-          focusCount: existing.focusCount ?? 0,
-          breakCount: existing.breakCount ?? 0,
         });
         setSummaryLoading(false);
         return;
@@ -390,15 +382,11 @@ function Home({ restored }: { restored: RestoredSession | null }) {
         summary: string;
         totalFocusSeconds?: number;
         totalBreakSeconds?: number;
-        focusCount?: number;
-        breakCount?: number;
       };
       setSummaryText(data.summary);
       setSummaryStats({
         focusSeconds: data.totalFocusSeconds ?? 0,
         breakSeconds: data.totalBreakSeconds ?? 0,
-        focusCount: data.focusCount ?? 0,
-        breakCount: data.breakCount ?? 0,
       });
     } catch (err) {
       console.error("[daily-debrief] history fetch failed", err);
