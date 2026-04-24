@@ -30,6 +30,21 @@ const BASE = import.meta.env.BASE_URL;
 const TAB_TRANSITION = { duration: 0.2, ease: [0.22, 1, 0.36, 1] as const };
 const NOTES_DEFAULT_HEIGHT = Math.round(window.innerHeight * 0.35);
 const SHEET_TRANSITION = { duration: 0.24, ease: [0.22, 1, 0.36, 1] as const };
+
+function formatStatDuration(seconds: number): string {
+  if (seconds <= 0) return "—";
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h > 0 && m > 0) return `${h}h ${m}m`;
+  if (h > 0) return `${h}h`;
+  return `${m}m`;
+}
+
+function formatStatRatio(focusSecs: number, breakSecs: number): string {
+  if (breakSecs <= 0) return "—";
+  return `${(focusSecs / breakSecs).toFixed(1)}:1`;
+}
+
 const OVERLAY_VARIANTS = {
   hidden:  { opacity: 0, scale: 0.96, y: 6 },
   visible: { opacity: 1, scale: 1,    y: 0 },
@@ -186,11 +201,18 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   const [summaryDateKey, setSummaryDateKey]     = useState<string | null>(null);
   const [summaryIsCached, setSummaryIsCached]   = useState(false);
   const [summaryHistoryDate, setSummaryHistoryDate] = useState<string | null>(null);
+  const [summaryStats, setSummaryStats] = useState<{
+    focusSeconds: number;
+    breakSeconds: number;
+    focusCount: number;
+    breakCount: number;
+  } | null>(null);
 
   const generateDebrief = useCallback(async (regenerate: boolean, targetDateKey?: string) => {
     setSummaryLoading(true);
     setSummaryError(null);
     setSummaryText("");
+    setSummaryStats(null);
 
     try {
       const target = targetDateKey ? new Date(targetDateKey + "T00:00:00") : new Date();
@@ -288,6 +310,12 @@ function Home({ restored }: { restored: RestoredSession | null }) {
       const data = (await res.json()) as { summary?: string; cached?: boolean };
       setSummaryText(data.summary || "Unable to generate summary.");
       setSummaryIsCached(!!data.cached);
+      setSummaryStats({
+        focusSeconds: totalFocusSeconds,
+        breakSeconds: totalBreakSeconds,
+        focusCount: focusSessions.length,
+        breakCount: breakSessions.length,
+      });
       queryClient.invalidateQueries({ queryKey: ["daily-debriefs"] });
     } catch (err) {
       console.error("[daily-debrief] failed", err);
@@ -307,13 +335,26 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     setSummaryError(null);
     setSummaryText("");
     setSummaryIsCached(false);
+    setSummaryStats(null);
 
     try {
       const existingRes = await fetch(`${BASE}api/daily-debriefs/${todayKey}`);
       if (existingRes.ok) {
-        const existing = (await existingRes.json()) as { summary: string };
+        const existing = (await existingRes.json()) as {
+          summary: string;
+          totalFocusSeconds?: number;
+          totalBreakSeconds?: number;
+          focusCount?: number;
+          breakCount?: number;
+        };
         setSummaryText(existing.summary);
         setSummaryIsCached(true);
+        setSummaryStats({
+          focusSeconds: existing.totalFocusSeconds ?? 0,
+          breakSeconds: existing.totalBreakSeconds ?? 0,
+          focusCount: existing.focusCount ?? 0,
+          breakCount: existing.breakCount ?? 0,
+        });
         setSummaryLoading(false);
         return;
       }
@@ -340,12 +381,25 @@ function Home({ restored }: { restored: RestoredSession | null }) {
     setSummaryError(null);
     setSummaryText("");
     setSummaryIsCached(true);
+    setSummaryStats(null);
 
     try {
       const res = await fetch(`${BASE}api/daily-debriefs/${dateKey}`);
       if (!res.ok) throw new Error(`Server returned ${res.status}`);
-      const data = (await res.json()) as { summary: string };
+      const data = (await res.json()) as {
+        summary: string;
+        totalFocusSeconds?: number;
+        totalBreakSeconds?: number;
+        focusCount?: number;
+        breakCount?: number;
+      };
       setSummaryText(data.summary);
+      setSummaryStats({
+        focusSeconds: data.totalFocusSeconds ?? 0,
+        breakSeconds: data.totalBreakSeconds ?? 0,
+        focusCount: data.focusCount ?? 0,
+        breakCount: data.breakCount ?? 0,
+      });
     } catch (err) {
       console.error("[daily-debrief] history fetch failed", err);
       setSummaryError("Couldn't load that debrief.");
@@ -1642,6 +1696,24 @@ function Home({ restored }: { restored: RestoredSession | null }) {
 
               {summaryText && !summaryLoading && (
                 <>
+                  {summaryStats && (
+                    <div className="flex items-center gap-3 mb-5 p-3 rounded-2xl bg-secondary/30">
+                      <div className="flex-1">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground/55 font-medium">Focus</p>
+                        <p className="text-sm font-semibold tabular-nums">{formatStatDuration(summaryStats.focusSeconds)}</p>
+                      </div>
+                      <div className="w-px h-8 bg-border/40" />
+                      <div className="flex-1">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground/55 font-medium">Breaks</p>
+                        <p className="text-sm font-semibold tabular-nums">{formatStatDuration(summaryStats.breakSeconds)}</p>
+                      </div>
+                      <div className="w-px h-8 bg-border/40" />
+                      <div className="flex-1">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground/55 font-medium">Ratio</p>
+                        <p className="text-sm font-semibold tabular-nums">{formatStatRatio(summaryStats.focusSeconds, summaryStats.breakSeconds)}</p>
+                      </div>
+                    </div>
+                  )}
                   <div className="prose prose-sm max-w-none">
                     {summaryText.split('\n\n').map((para, i) => {
                       // Convert **bold** and *italic* markdown to JSX

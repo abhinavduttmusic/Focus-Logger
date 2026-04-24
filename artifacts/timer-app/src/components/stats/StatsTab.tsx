@@ -30,6 +30,11 @@ function formatDuration(seconds: number): string {
   return `${m}m`;
 }
 
+function formatRatio(focusSecs: number, breakSecs: number): string {
+  if (breakSecs <= 0) return "—";
+  return `${(focusSecs / breakSecs).toFixed(1)}:1`;
+}
+
 function formatHour(h: number): string {
   if (h === 0) return "12am";
   if (h < 12) return `${h}am`;
@@ -860,7 +865,7 @@ function DebriefHistoryCard({ delay, onView }: { delay: number; onView: (dateKey
                     {preview}{d.summary.length > 90 ? "…" : ""}
                   </p>
                   <p className="text-[10px] text-muted-foreground/50 mt-0.5 tabular-nums">
-                    {formatDuration(d.totalFocusSeconds)} focus · {d.focusCount} {d.focusCount === 1 ? "session" : "sessions"}
+                    {formatDuration(d.totalFocusSeconds)} focus · {formatDuration(d.totalBreakSeconds)} break · {formatRatio(d.totalFocusSeconds, d.totalBreakSeconds)}
                   </p>
                 </div>
                 <ChevronRightIcon className="w-4 h-4 text-muted-foreground/40 shrink-0" />
