@@ -1,3 +1,8 @@
+
+const API_BASE_URL = typeof window !== "undefined" 
+  ? (window as any).__VITE_API_URL__ || "" 
+  : "";
+
 export type CustomFetchOptions = RequestInit & {
   responseType?: "json" | "text" | "blob" | "auto";
 };
@@ -299,7 +304,10 @@ export async function customFetch<T = unknown>(
 
   const requestInfo = { method, url: resolveUrl(input) };
 
-  const response = await fetch(input, { ...init, method, headers });
+  const resolvedInput = typeof input === "string" && input.startsWith("/") 
+    ? (API_BASE_URL + input) 
+    : input;
+  const response = await fetch(resolvedInput, { ...init, method, headers });
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);
