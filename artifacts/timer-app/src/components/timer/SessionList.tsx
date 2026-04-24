@@ -11,7 +11,7 @@ import { ActivityRecordingPlayer } from "./ActivityRecordingPlayer";
 const TAP_SPRING: Transition = { duration: 0.12, ease: "easeOut" };
 import { SessionTaskPicker } from "./SessionTaskPicker";
 
-const BASE = import.meta.env.BASE_URL;
+const BASE = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL + "/" : "/");
 
 type RecordingItem = {
   id: number;

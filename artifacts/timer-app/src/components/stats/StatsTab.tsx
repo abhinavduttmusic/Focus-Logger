@@ -6,7 +6,7 @@ import { useListSessions } from "@workspace/api-client-react";
 import type { Session } from "@workspace/api-client-react/src/generated/api.schemas";
 import { cn } from "@/lib/utils";
 
-const BASE = import.meta.env.BASE_URL;
+const BASE = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL + "/" : "/");
 
 interface DebriefRecord {
   id: number;

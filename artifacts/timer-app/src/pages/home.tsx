@@ -25,7 +25,7 @@ import { CalendarView } from "@/components/calendar/CalendarView";
 import { TasksTab } from "@/components/tasks/TasksTab";
 import { StatsTab } from "@/components/stats/StatsTab";
 
-const BASE = import.meta.env.BASE_URL;
+const BASE = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL + "/" : "/");
 
 const TAB_TRANSITION = { duration: 0.2, ease: [0.22, 1, 0.36, 1] as const };
 const NOTES_DEFAULT_HEIGHT = Math.round(window.innerHeight * 0.35);
