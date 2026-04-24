@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: focus-logger-app
+    env: static
+    rootDir: artifacts/timer-app
+    buildCommand: pnpm install --frozen-lockfile && pnpm run build
+    staticPublishPath: dist
