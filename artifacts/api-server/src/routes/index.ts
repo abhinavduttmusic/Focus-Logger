@@ -6,6 +6,7 @@ import projectsRouter from "./projects";
 import storageRouter from "./storage";
 import recordingsRouter from "./recordings";
 import aiRouter from "./ai";
+import debriefsRouter from "./debriefs";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(projectsRouter);
 router.use(storageRouter);
 router.use(recordingsRouter);
 router.use(aiRouter);
+router.use(debriefsRouter);
 
 export default router;
