@@ -22,3 +22,4 @@ export * from "./tasks";
 export * from "./sessions";
 export * from "./recordings";
 export * from "./debriefs";
+export * from "./periodScores";
