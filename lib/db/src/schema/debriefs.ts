@@ -11,6 +11,9 @@ export const debriefsTable = pgTable("debriefs", {
   focusCount: integer("focus_count").notNull().default(0),
   breakCount: integer("break_count").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  aiScore: integer("ai_score"),
+  aiScoreComputedAt: timestamp("ai_score_computed_at"),
+  aiScoreInputHash: text("ai_score_input_hash"),
 });
 
 export const insertDebriefSchema = createInsertSchema(debriefsTable).omit({ id: true, createdAt: true });
