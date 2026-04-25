@@ -16,6 +16,25 @@ function makeHash(data: unknown): string {
   return createHash("md5").update(JSON.stringify(data)).digest("hex");
 }
 
+// IST = UTC+5:30
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+function toISTDateKey(utcDate: Date): string {
+  return new Date(utcDate.getTime() + IST_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+function isFocusSession(type: string): boolean {
+  return type === "simple" || type === "pomodoro_focus";
+}
+
+// For a given YYYY-MM-DD date in IST, return UTC range to query
+function istDayToUTCRange(date: string): { from: Date; to: Date } {
+  // IST midnight = UTC 18:30 previous day
+  const from = new Date(date + "T00:00:00.000+05:30");
+  const to = new Date(date + "T23:59:59.999+05:30");
+  return { from, to };
+}
+
 // ── GET /debriefs/calendar?start=YYYY-MM-DD&end=YYYY-MM-DD ──────────────────
 
 router.get("/debriefs/calendar", async (req, res) => {
@@ -31,22 +50,21 @@ router.get("/debriefs/calendar", async (req, res) => {
       .from(debriefsTable)
       .where(and(gte(debriefsTable.date, start), lte(debriefsTable.date, end)));
 
+    // Fetch sessions for the full IST range (extend by 1 day on each side for safety)
+    const { from: rangeFrom } = istDayToUTCRange(start);
+    const { to: rangeTo } = istDayToUTCRange(end);
+
     const sessionRows = await db
       .select()
       .from(sessionsTable)
-      .where(
-        and(
-          gte(sessionsTable.createdAt, new Date(start)),
-          lte(sessionsTable.createdAt, new Date(end + "T23:59:59Z"))
-        )
-      );
+      .where(and(gte(sessionsTable.createdAt, rangeFrom), lte(sessionsTable.createdAt, rangeTo)));
 
-    // Group sessions by date
+    // Group sessions by IST date
     const sessionsByDate = new Map<string, { focusSecs: number; totalSecs: number; count: number; lastAt: Date | null }>();
     for (const s of sessionRows) {
-      const key = s.createdAt.toISOString().slice(0, 10);
+      const key = toISTDateKey(s.createdAt);
       const existing = sessionsByDate.get(key) ?? { focusSecs: 0, totalSecs: 0, count: 0, lastAt: null };
-      if (s.type === "focus") existing.focusSecs += s.durationSeconds ?? 0;
+      if (isFocusSession(s.type)) existing.focusSecs += s.durationSeconds ?? 0;
       existing.totalSecs += s.durationSeconds ?? 0;
       existing.count += 1;
       if (!existing.lastAt || s.createdAt > existing.lastAt) existing.lastAt = s.createdAt;
@@ -91,8 +109,7 @@ router.post("/debriefs/:id/score", async (req, res) => {
     const [debrief] = await db.select().from(debriefsTable).where(eq(debriefsTable.id, id));
     if (!debrief) { res.status(404).json({ error: "Debrief not found" }); return; }
 
-    const dateStart = new Date(debrief.date);
-    const dateEnd = new Date(debrief.date + "T23:59:59Z");
+    const { from: dateStart, to: dateEnd } = istDayToUTCRange(debrief.date);
     const sessionRows = await db.select().from(sessionsTable).where(
       and(gte(sessionsTable.createdAt, dateStart), lte(sessionsTable.createdAt, dateEnd))
     );
@@ -101,7 +118,7 @@ router.post("/debriefs/:id/score", async (req, res) => {
     const notes: string[] = [];
     let lastEndedAt: Date | null = null;
     for (const s of sessionRows) {
-      if (s.type === "focus") focusSecs += s.durationSeconds ?? 0;
+      if (isFocusSession(s.type)) focusSecs += s.durationSeconds ?? 0;
       totalSecs += s.durationSeconds ?? 0;
       if (s.notes) notes.push(s.notes);
       if (!lastEndedAt || s.createdAt > lastEndedAt) lastEndedAt = s.createdAt;
@@ -111,7 +128,6 @@ router.post("/debriefs/:id/score", async (req, res) => {
     const scoreInputs = { debriefText: debrief.summary, focusRatio: Math.round(focusRatio * 1000) / 1000, focusSecs, totalSecs, sessionCount: sessionRows.length, notes };
     const inputHash = makeHash(scoreInputs);
 
-    // Return cached if hash matches
     if (debrief.aiScore != null && debrief.aiScoreInputHash === inputHash) {
       res.json({ score: debrief.aiScore, stale: false, cached: true });
       return;
@@ -173,13 +189,18 @@ router.post("/debriefs/period-score", async (req, res) => {
     }
 
     const debriefRows = await db.select().from(debriefsTable).where(and(gte(debriefsTable.date, start), lte(debriefsTable.date, end)));
-    const sessionRows = await db.select().from(sessionsTable).where(and(gte(sessionsTable.createdAt, new Date(start)), lte(sessionsTable.createdAt, new Date(end + "T23:59:59Z"))));
+
+    const { from: rangeFrom } = istDayToUTCRange(start);
+    const { to: rangeTo } = istDayToUTCRange(end);
+    const sessionRows = await db.select().from(sessionsTable).where(
+      and(gte(sessionsTable.createdAt, rangeFrom), lte(sessionsTable.createdAt, rangeTo))
+    );
 
     let focusSecs = 0, totalSecs = 0;
     const allNotes: string[] = [];
     let lastEndedAt: Date | null = null;
     for (const s of sessionRows) {
-      if (s.type === "focus") focusSecs += s.durationSeconds ?? 0;
+      if (isFocusSession(s.type)) focusSecs += s.durationSeconds ?? 0;
       totalSecs += s.durationSeconds ?? 0;
       if (s.notes) allNotes.push(s.notes);
       if (!lastEndedAt || s.createdAt > lastEndedAt) lastEndedAt = s.createdAt;
@@ -190,7 +211,6 @@ router.post("/debriefs/period-score", async (req, res) => {
     const scoreInputs = { period, start, end, focusRatio: Math.round(focusRatio * 1000) / 1000, focusSecs, totalSecs, sessionCount: sessionRows.length, notes: allNotes, debriefs: debriefTexts };
     const inputHash = makeHash(scoreInputs);
 
-    // Check cache in period_scores table
     const [cached] = await db.select().from(periodScoresTable).where(
       and(eq(periodScoresTable.period, period), eq(periodScoresTable.periodStart, start))
     );
