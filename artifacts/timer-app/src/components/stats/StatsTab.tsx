@@ -936,8 +936,8 @@ export function StatsTab({ onViewDebrief }: { onViewDebrief?: (dateKey: string) 
         <AvgByDayCard sessions={periodSessions} delay={0.22} />
         <InsightsCard sessions={periodSessions} delay={0.26} />
         
-        <DebriefsCalendar apiBase={BASE} />
-        <AIScoreBadge period={viewMode === "quarter" ? "month" : viewMode} periodDate={periodStart.toISOString().slice(0, 10)} apiBase={BASE} size="md" />
+        <DebriefsCalendar apiBase={`${BASE}api`} />
+        <AIScoreBadge period={viewMode === "quarter" ? "month" : viewMode} periodDate={periodStart.toISOString().slice(0, 10)} apiBase={`${BASE}api`} size="md" />
 
       </div>
     </div>
