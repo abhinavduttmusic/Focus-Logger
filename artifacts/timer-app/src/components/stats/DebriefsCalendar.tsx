@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, X, FileText, Flame } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type ViewMode = "month" | "week" | "day";
 
@@ -18,39 +19,48 @@ interface DebriefDay {
 function pad(n: number) { return String(n).padStart(2, "0"); }
 function toKey(d: Date) { return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
 function addDays(d: Date, n: number) { const r = new Date(d); r.setDate(r.getDate()+n); return r; }
-function startOfWeek(d: Date) { const r = new Date(d); const day = r.getDay(); const diff = day === 0 ? -6 : 1 - day; r.setDate(r.getDate()+diff); return r; }
+function startOfWeek(d: Date) { const r = new Date(d); const day = r.getDay(); const diff = day === 0 ? -6 : 1 - day; r.setDate(r.getDate()+diff); r.setHours(0,0,0,0); return r; }
 function endOfWeek(d: Date) { return addDays(startOfWeek(d), 6); }
 function startOfMonth(d: Date) { return new Date(d.getFullYear(), d.getMonth(), 1); }
 function endOfMonth(d: Date) { return new Date(d.getFullYear(), d.getMonth()+1, 0); }
+
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const DAYS_SHORT = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
 function formatLabel(d: Date, mode: ViewMode) {
-  const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-  if (mode === "month") return `${months[d.getMonth()]} ${d.getFullYear()}`;
+  if (mode === "month") return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
   if (mode === "week") {
     const s = startOfWeek(d), e = endOfWeek(d);
-    return `${months[s.getMonth()].slice(0,3)} ${s.getDate()} – ${months[e.getMonth()].slice(0,3)} ${e.getDate()}`;
+    return `${MONTHS[s.getMonth()].slice(0,3)} ${s.getDate()} – ${MONTHS[e.getMonth()].slice(0,3)} ${e.getDate()}`;
   }
-  const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-  return `${days[d.getDay()]}, ${months[d.getMonth()].slice(0,3)} ${d.getDate()}`;
+  return `${MONTHS[d.getMonth()].slice(0,3)} ${d.getDate()}, ${d.getFullYear()}`;
 }
 
-function scoreColor(score: number | null | undefined) {
-  if (score == null) return "bg-zinc-800/60";
-  if (score >= 80) return "bg-emerald-500/80";
-  if (score >= 60) return "bg-emerald-600/60";
-  if (score >= 40) return "bg-amber-500/60";
-  if (score >= 20) return "bg-orange-500/50";
-  return "bg-rose-500/50";
+function scoreAccent(score: number | null | undefined): string {
+  if (score == null) return "bg-muted/60";
+  if (score >= 80) return "bg-emerald-100 border-emerald-200";
+  if (score >= 60) return "bg-emerald-50 border-emerald-100";
+  if (score >= 40) return "bg-amber-50 border-amber-100";
+  return "bg-rose-50 border-rose-100";
+}
+
+function scoreDot(score: number | null | undefined): string {
+  if (score == null) return "bg-border";
+  if (score >= 80) return "bg-emerald-500";
+  if (score >= 60) return "bg-emerald-400";
+  if (score >= 40) return "bg-amber-400";
+  return "bg-rose-400";
 }
 
 function ScorePip({ score }: { score: number | null | undefined }) {
   if (score == null) return null;
-  const color = score >= 80 ? "#10b981" : score >= 60 ? "#34d399" : score >= 40 ? "#f59e0b" : score >= 20 ? "#f97316" : "#ef4444";
+  const color = score >= 80 ? "#10b981" : score >= 60 ? "#34d399" : score >= 40 ? "#f59e0b" : "#ef4444";
   return (
-    <svg width="20" height="20" viewBox="0 0 20 20" className="shrink-0">
-      <circle cx="10" cy="10" r="8" fill="none" stroke="#27272a" strokeWidth="2.5" />
-      <circle cx="10" cy="10" r="8" fill="none" stroke={color} strokeWidth="2.5"
-        strokeDasharray={`${(score/100)*50.27} 50.27`} strokeLinecap="round" transform="rotate(-90 10 10)" />
-      <text x="10" y="13.5" textAnchor="middle" fontSize="6" fill={color} fontWeight="700">{score}</text>
+    <svg width="36" height="36" viewBox="0 0 36 36" className="shrink-0">
+      <circle cx="18" cy="18" r="14" fill="none" stroke="#e5e7eb" strokeWidth="3" />
+      <circle cx="18" cy="18" r="14" fill="none" stroke={color} strokeWidth="3"
+        strokeDasharray={`${(score/100)*87.96} 87.96`} strokeLinecap="round" transform="rotate(-90 18 18)" />
+      <text x="18" y="22" textAnchor="middle" fontSize="10" fill={color} fontWeight="700">{score}</text>
     </svg>
   );
 }
@@ -60,62 +70,75 @@ function DebriefSheet({ day, onClose, onRefreshScore, refreshingScore }: {
 }) {
   return (
     <motion.div className="fixed inset-0 z-50 flex items-end justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-      <motion.div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <motion.div className="relative w-full max-w-lg bg-zinc-900 border border-zinc-700/60 rounded-t-2xl p-5 pb-8 z-10"
-        initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 30, stiffness: 300 }}>
-        <div className="w-10 h-1 bg-zinc-600 rounded-full mx-auto mb-4" />
+      <motion.div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <motion.div
+        className="relative w-full max-w-lg bg-card border border-border/30 rounded-t-[24px] p-5 pb-10 z-10 shadow-[0_-8px_32px_rgba(0,0,0,0.12)]"
+        initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+        transition={{ type: "spring", damping: 30, stiffness: 300 }}
+      >
+        <div className="w-10 h-1 bg-border rounded-full mx-auto mb-5" />
         <div className="flex items-start justify-between mb-4">
           <div>
-            <p className="text-xs text-zinc-500 font-mono tracking-widest uppercase">{day.date}</p>
-            <h3 className="text-lg text-zinc-100 font-semibold">{day.date}</h3>
+            <p className="text-[11px] text-muted-foreground font-medium tracking-widest uppercase">{day.date}</p>
+            <h3 className="text-[18px] font-semibold text-foreground mt-0.5">{formatLabel(new Date(day.date + "T12:00:00"), "day")}</h3>
           </div>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300 transition-colors mt-1"><X size={18} /></button>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors p-1">
+            <X size={18} />
+          </button>
         </div>
-        <div className="flex gap-3 mb-5">
-          {day.totalFocusMinutes != null && (
-            <div className="flex-1 bg-zinc-800/70 rounded-xl p-3 border border-zinc-700/40">
-              <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Focus</p>
-              <p className="text-zinc-100 text-sm font-semibold">{Math.round(day.totalFocusMinutes)}m</p>
+
+        {/* Stats row */}
+        <div className="flex gap-2 mb-4">
+          {[
+            { label: "Focus", value: day.totalFocusMinutes != null ? `${Math.round(day.totalFocusMinutes)}m` : null },
+            { label: "Ratio", value: day.focusRatio != null ? `${Math.round(day.focusRatio * 100)}%` : null },
+            { label: "Sessions", value: day.sessionCount != null ? String(day.sessionCount) : null },
+          ].filter(s => s.value != null).map(({ label, value }) => (
+            <div key={label} className="flex-1 bg-muted/40 rounded-[14px] p-3 border border-border/20 text-center">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{label}</p>
+              <p className="text-foreground text-[15px] font-semibold">{value}</p>
             </div>
-          )}
-          {day.focusRatio != null && (
-            <div className="flex-1 bg-zinc-800/70 rounded-xl p-3 border border-zinc-700/40">
-              <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Ratio</p>
-              <p className="text-zinc-100 text-sm font-semibold">{Math.round(day.focusRatio * 100)}%</p>
-            </div>
-          )}
-          {day.sessionCount != null && (
-            <div className="flex-1 bg-zinc-800/70 rounded-xl p-3 border border-zinc-700/40">
-              <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Sessions</p>
-              <p className="text-zinc-100 text-sm font-semibold">{day.sessionCount}</p>
-            </div>
-          )}
+          ))}
         </div>
-        <div className="flex items-center justify-between bg-zinc-800/50 rounded-xl px-4 py-3 border border-zinc-700/40 mb-5">
+
+        {/* AI Score row */}
+        <div className="flex items-center justify-between bg-muted/30 rounded-[14px] px-4 py-3 border border-border/20 mb-4">
           <div className="flex items-center gap-3">
             <Flame size={15} className="text-amber-400" />
             <div>
-              <p className="text-[10px] text-zinc-500 uppercase tracking-wider">AI Score</p>
-              <p className="text-zinc-100 text-sm font-semibold">{day.aiScore != null ? `${day.aiScore} / 100` : "Not computed"}</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">AI Score</p>
+              <p className="text-foreground text-[15px] font-semibold">{day.aiScore != null ? `${day.aiScore} / 100` : "Not computed"}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {day.aiScore != null && <ScorePip score={day.aiScore} />}
             {day.debrief && (
-              <button onClick={() => day.debrief && onRefreshScore(day.debrief.id)} disabled={refreshingScore}
-                className={`text-[11px] px-3 py-1.5 rounded-lg border transition-all font-medium ${day.aiScoreStale ? "border-amber-500/50 text-amber-400 hover:bg-amber-500/10" : "border-zinc-600 text-zinc-400 hover:bg-zinc-700/40"}`}>
+              <button
+                onClick={() => day.debrief && onRefreshScore(day.debrief.id)}
+                disabled={refreshingScore}
+                className={cn("text-[11px] px-3 py-1.5 rounded-full border transition-all font-medium",
+                  day.aiScoreStale
+                    ? "border-amber-300 text-amber-600 bg-amber-50 hover:bg-amber-100"
+                    : "border-border text-muted-foreground hover:bg-muted/60"
+                )}
+              >
                 {refreshingScore ? "Scoring…" : day.aiScore == null ? "Generate" : day.aiScoreStale ? "↻ Refresh" : "↻ Rescore"}
               </button>
             )}
           </div>
         </div>
+
+        {/* Debrief text */}
         {day.debrief ? (
           <div>
-            <div className="flex items-center gap-1.5 mb-2"><FileText size={12} className="text-zinc-500" /><p className="text-[10px] text-zinc-500 uppercase tracking-wider">Debrief</p></div>
-            <p className="text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap">{day.debrief.text}</p>
+            <div className="flex items-center gap-1.5 mb-2">
+              <FileText size={12} className="text-muted-foreground" />
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Debrief</p>
+            </div>
+            <p className="text-foreground/80 text-[14px] leading-relaxed">{day.debrief.text}</p>
           </div>
         ) : (
-          <p className="text-zinc-600 text-sm italic">No debrief written for this day.</p>
+          <p className="text-muted-foreground text-sm italic">No debrief written for this day.</p>
         )}
       </motion.div>
     </motion.div>
@@ -170,15 +193,17 @@ export default function DebriefsCalendar({ apiBase = "/api" }: { apiBase?: strin
     } catch (e) { console.error(e); } finally { setRefreshingScore(false); }
   };
 
-  const weekLabels = ["Mo","Tu","We","Th","Fr","Sa","Su"];
-
   const renderMonth = () => {
-    const ms = startOfMonth(cursor), me = endOfMonth(cursor);
-    const gridStart = startOfWeek(ms), cells: Date[] = [];
+    const ms = startOfMonth(cursor);
+    const gridStart = startOfWeek(ms);
+    const cells: Date[] = [];
     for (let d = new Date(gridStart); cells.length < 42; d = addDays(d, 1)) cells.push(new Date(d));
+    const weekLabels = ["Mo","Tu","We","Th","Fr","Sa","Su"];
     return (
       <div>
-        <div className="grid grid-cols-7 mb-1">{weekLabels.map(l => <div key={l} className="text-center text-[10px] text-zinc-600 font-mono py-1">{l}</div>)}</div>
+        <div className="grid grid-cols-7 mb-2">
+          {weekLabels.map(l => <div key={l} className="text-center text-[11px] text-muted-foreground/60 font-medium py-1">{l}</div>)}
+        </div>
         <div className="grid grid-cols-7 gap-1">
           {cells.map((cell, i) => {
             const key = toKey(cell);
@@ -187,15 +212,48 @@ export default function DebriefsCalendar({ apiBase = "/api" }: { apiBase?: strin
             const isToday = key === today;
             const hasData = !!data?.hasDebrief || (data?.sessionCount ?? 0) > 0;
             return (
-              <motion.button key={key} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.008, type: "spring", stiffness: 400, damping: 25 }}
+              <motion.button
+                key={key}
+                initial={{ opacity: 0, scale: 0.85 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: i * 0.006, type: "spring", stiffness: 400, damping: 28 }}
                 onClick={() => data && hasData && setSelected(data)}
-                className={`relative aspect-square rounded-lg flex flex-col items-center justify-center transition-all duration-150 ${!inMonth ? "opacity-20" : ""} ${hasData ? `${scoreColor(data?.aiScore)} cursor-pointer hover:brightness-125 active:scale-95` : "bg-zinc-800/30 cursor-default"} ${isToday ? "ring-1 ring-emerald-400/70" : ""}`}>
-                <span className={`text-[11px] font-mono leading-none ${isToday ? "text-emerald-400 font-bold" : hasData ? "text-zinc-100" : "text-zinc-600"}`}>{cell.getDate()}</span>
-                {data?.aiScore != null && <div className={`w-1 h-1 rounded-full mt-0.5 ${data.aiScore >= 70 ? "bg-emerald-300" : data.aiScore >= 40 ? "bg-amber-300" : "bg-rose-400"}`} />}
-                {data?.aiScoreStale && <div className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-amber-400" />}
+                className={cn(
+                  "relative aspect-square rounded-xl flex flex-col items-center justify-center transition-all duration-150 border",
+                  !inMonth && "opacity-25",
+                  hasData
+                    ? cn(scoreAccent(data?.aiScore), "cursor-pointer hover:brightness-95 active:scale-95")
+                    : "bg-transparent border-transparent cursor-default",
+                  isToday && "ring-2 ring-emerald-400 ring-offset-1"
+                )}
+              >
+                <span className={cn(
+                  "text-[12px] font-medium leading-none",
+                  isToday ? "text-emerald-600 font-bold" : hasData ? "text-foreground" : "text-muted-foreground/50"
+                )}>
+                  {cell.getDate()}
+                </span>
+                {hasData && data?.aiScore != null && (
+                  <div className={cn("w-1.5 h-1.5 rounded-full mt-0.5", scoreDot(data.aiScore))} />
+                )}
+                {data?.aiScoreStale && (
+                  <div className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-amber-400" />
+                )}
               </motion.button>
             );
           })}
+        </div>
+        <div className="flex items-center gap-4 mt-4 px-1">
+          {[
+            { color: "bg-emerald-500", label: "Great (80+)" },
+            { color: "bg-amber-400", label: "OK (40–79)" },
+            { color: "bg-rose-400", label: "Low (<40)" },
+          ].map(({ color, label }) => (
+            <div key={label} className="flex items-center gap-1.5">
+              <div className={cn("w-2 h-2 rounded-full", color)} />
+              <span className="text-[10px] text-muted-foreground">{label}</span>
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -205,21 +263,31 @@ export default function DebriefsCalendar({ apiBase = "/api" }: { apiBase?: strin
     const ws = startOfWeek(cursor);
     const cells = Array.from({ length: 7 }, (_, i) => addDays(ws, i));
     return (
-      <div className="grid grid-cols-7 gap-2">
+      <div className="grid grid-cols-7 gap-1.5">
         {cells.map((cell, i) => {
           const key = toKey(cell);
           const data = dayMap.get(key);
           const hasData = !!data?.hasDebrief || (data?.sessionCount ?? 0) > 0;
           const isToday = key === today;
-          const dayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
           return (
-            <motion.button key={key} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05, type: "spring", stiffness: 350, damping: 28 }}
+            <motion.button
+              key={key}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.04, type: "spring", stiffness: 350, damping: 28 }}
               onClick={() => data && hasData && setSelected(data)}
-              className={`rounded-xl p-3 flex flex-col items-center gap-2 border transition-all ${hasData ? `${scoreColor(data?.aiScore)} border-zinc-600/30 cursor-pointer hover:brightness-110 active:scale-95` : "bg-zinc-800/30 border-zinc-700/30 cursor-default"} ${isToday ? "ring-1 ring-emerald-400/60" : ""}`}>
-              <p className="text-[10px] text-zinc-500 font-mono uppercase">{dayNames[cell.getDay()]}</p>
-              <p className={`text-sm font-semibold ${isToday ? "text-emerald-400" : "text-zinc-200"}`}>{cell.getDate()}</p>
-              {hasData && <ScorePip score={data?.aiScore} />}
-              {data?.aiScoreStale && <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />}
+              className={cn(
+                "rounded-[14px] p-2.5 flex flex-col items-center gap-1.5 border transition-all",
+                hasData
+                  ? cn(scoreAccent(data?.aiScore), "cursor-pointer hover:brightness-95 active:scale-95")
+                  : "bg-muted/30 border-border/20 cursor-default",
+                isToday && "ring-2 ring-emerald-400 ring-offset-1"
+              )}
+            >
+              <p className="text-[10px] text-muted-foreground font-medium uppercase">{DAYS_SHORT[cell.getDay()]}</p>
+              <p className={cn("text-[15px] font-semibold", isToday ? "text-emerald-600" : "text-foreground")}>{cell.getDate()}</p>
+              {hasData && <div className={cn("w-1.5 h-1.5 rounded-full", scoreDot(data?.aiScore))} />}
+              {data?.aiScoreStale && <div className="w-1 h-1 rounded-full bg-amber-400" />}
             </motion.button>
           );
         })}
@@ -231,67 +299,99 @@ export default function DebriefsCalendar({ apiBase = "/api" }: { apiBase?: strin
     const key = toKey(cursor);
     const data = dayMap.get(key);
     if (!data?.hasDebrief && !data?.sessionCount) {
-      return <div className="flex flex-col items-center justify-center py-16 gap-2"><FileText size={28} className="text-zinc-700" /><p className="text-zinc-600 text-sm">No data for this day</p></div>;
+      return (
+        <div className="flex flex-col items-center justify-center py-12 gap-2">
+          <FileText size={24} className="text-muted-foreground/30" />
+          <p className="text-muted-foreground/50 text-sm">No data for {formatLabel(new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate()), "day")}</p>
+        </div>
+      );
     }
     return (
-      <motion.div key={key} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-3">
+      <motion.div key={key} initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} className="space-y-3">
         {data?.aiScore != null && (
-          <div className="bg-zinc-800/60 rounded-xl p-4 border border-zinc-700/40">
+          <div className="bg-muted/30 rounded-[14px] p-4 border border-border/20">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] text-zinc-500 uppercase tracking-wider">AI Score</span>
-              <span className="text-zinc-100 font-semibold text-sm">{data.aiScore} / 100</span>
+              <span className="text-[11px] text-muted-foreground uppercase tracking-wider">AI Score</span>
+              <span className="text-foreground font-semibold text-[15px]">{data.aiScore} / 100</span>
             </div>
-            <div className="w-full bg-zinc-700/40 rounded-full h-2">
-              <motion.div className={`h-2 rounded-full ${data.aiScore >= 70 ? "bg-emerald-400" : data.aiScore >= 40 ? "bg-amber-400" : "bg-rose-400"}`}
-                initial={{ width: 0 }} animate={{ width: `${data.aiScore}%` }} transition={{ duration: 0.8, ease: "easeOut" }} />
+            <div className="w-full bg-border/40 rounded-full h-1.5">
+              <motion.div
+                className={cn("h-1.5 rounded-full", data.aiScore >= 70 ? "bg-emerald-500" : data.aiScore >= 40 ? "bg-amber-400" : "bg-rose-400")}
+                initial={{ width: 0 }}
+                animate={{ width: `${data.aiScore}%` }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+              />
             </div>
           </div>
         )}
         <div className="grid grid-cols-3 gap-2">
-          {[{ label: "Focus", value: data?.totalFocusMinutes != null ? `${Math.round(data.totalFocusMinutes)}m` : "—" },
+          {[
+            { label: "Focus", value: data?.totalFocusMinutes != null ? `${Math.round(data.totalFocusMinutes)}m` : "—" },
             { label: "Ratio", value: data?.focusRatio != null ? `${Math.round(data.focusRatio * 100)}%` : "—" },
-            { label: "Sessions", value: data?.sessionCount ?? "—" }].map(({ label, value }) => (
-            <div key={label} className="bg-zinc-800/50 rounded-xl p-3 border border-zinc-700/30 text-center">
-              <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">{label}</p>
-              <p className="text-zinc-100 text-sm font-semibold">{value}</p>
+            { label: "Sessions", value: data?.sessionCount ?? "—" },
+          ].map(({ label, value }) => (
+            <div key={label} className="bg-muted/30 rounded-[14px] p-3 border border-border/20 text-center">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{label}</p>
+              <p className="text-foreground text-[15px] font-semibold">{value}</p>
             </div>
           ))}
         </div>
-        {data?.debrief && <div className="bg-zinc-800/40 rounded-xl p-4 border border-zinc-700/30"><p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2">Debrief</p><p className="text-zinc-300 text-sm leading-relaxed">{data.debrief.text}</p></div>}
+        {data?.debrief && (
+          <div className="bg-muted/20 rounded-[14px] p-4 border border-border/20">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Debrief</p>
+            <p className="text-foreground/80 text-[14px] leading-relaxed">{data.debrief.text}</p>
+          </div>
+        )}
       </motion.div>
     );
   };
 
   return (
-    <div className="bg-zinc-900/70 rounded-2xl border border-zinc-800/60 p-4 backdrop-blur-sm">
+    <div className="bg-card rounded-[18px] border border-border/25 shadow-[0_4px_16px_rgba(0,0,0,0.06)] p-5">
+      {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <button onClick={goBack} className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"><ChevronLeft size={16} /></button>
+        <div className="flex items-center gap-1">
+          <button onClick={goBack} className="p-1.5 rounded-xl hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors">
+            <ChevronLeft size={16} />
+          </button>
           <AnimatePresence mode="wait">
-            <motion.span key={formatLabel(cursor, viewMode)} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
-              className="text-sm font-semibold text-zinc-200 w-48 text-center">{formatLabel(cursor, viewMode)}</motion.span>
+            <motion.span key={formatLabel(cursor, viewMode)} initial={{ opacity: 0, y: -3 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 3 }}
+              className="text-[15px] font-semibold text-foreground w-48 text-center">
+              {formatLabel(cursor, viewMode)}
+            </motion.span>
           </AnimatePresence>
-          <button onClick={goForward} className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"><ChevronRight size={16} /></button>
+          <button onClick={goForward} className="p-1.5 rounded-xl hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors">
+            <ChevronRight size={16} />
+          </button>
         </div>
-        <div className="flex bg-zinc-800/80 rounded-lg p-0.5 gap-0.5">
+        <div className="flex bg-muted/60 rounded-full p-0.5 gap-0.5">
           {(["month","week","day"] as ViewMode[]).map(m => (
-            <button key={m} onClick={() => setViewMode(m)} className={`px-3 py-1 rounded-md text-xs font-medium transition-all capitalize ${viewMode === m ? "bg-zinc-700 text-zinc-100 shadow" : "text-zinc-500 hover:text-zinc-300"}`}>{m}</button>
+            <button key={m} onClick={() => setViewMode(m)}
+              className={cn("px-3 py-1 rounded-full text-[12px] font-medium transition-all capitalize",
+                viewMode === m ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              )}>
+              {m}
+            </button>
           ))}
         </div>
       </div>
+
+      {/* Body */}
       <AnimatePresence mode="wait">
         {loading ? (
           <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-48 flex items-center justify-center">
-            <div className="w-5 h-5 border-2 border-zinc-700 border-t-emerald-500 rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-border border-t-emerald-500 rounded-full animate-spin" />
           </motion.div>
         ) : (
-          <motion.div key={`${viewMode}-${toKey(cursor)}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2 }}>
+          <motion.div key={`${viewMode}-${toKey(cursor)}`} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.18 }}>
             {viewMode === "month" && renderMonth()}
             {viewMode === "week" && renderWeek()}
             {viewMode === "day" && renderDay()}
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Debrief sheet */}
       <AnimatePresence>
         {selected && <DebriefSheet day={selected} onClose={() => setSelected(null)} onRefreshScore={handleRefreshScore} refreshingScore={refreshingScore} />}
       </AnimatePresence>
