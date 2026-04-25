@@ -77,7 +77,7 @@ function DebriefSheet({ day, onClose, onRefreshScore, refreshingScore }: {
         transition={{ type: "spring", damping: 30, stiffness: 300 }}
       >
         <div className="w-10 h-1 bg-border rounded-full mx-auto mb-5" />
-        <div className="flex items-start justify-between mb-4">
+        flex items-center justify-between mb-4
           <div>
             <p className="text-[11px] text-muted-foreground font-medium tracking-widest uppercase">{day.date}</p>
             <h3 className="text-[18px] font-semibold text-foreground mt-0.5">{formatLabel(new Date(day.date + "T12:00:00"), "day")}</h3>
