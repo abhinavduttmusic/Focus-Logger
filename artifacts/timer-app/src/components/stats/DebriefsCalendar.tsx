@@ -364,13 +364,13 @@ export default function DebriefsCalendar({ apiBase = "/api", lockedMode, section
     <div className="bg-card rounded-[18px] border border-border/25 shadow-[0_4px_16px_rgba(0,0,0,0.06)] p-5">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-        <div className="flex items-center gap-1">
+        <div className="flex items-center justify-between w-full">
           <button onClick={goBack} className="p-1.5 rounded-xl hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors">
             <ChevronLeft size={16} />
           </button>
           <AnimatePresence mode="wait">
             <motion.span key={formatLabel(cursor, viewMode)} initial={{ opacity: 0, y: -3 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 3 }}
-              className="text-[15px] font-semibold text-foreground w-48 text-center">
+              className="text-[15px] font-semibold text-foreground flex-1 text-center">
               {formatLabel(cursor, viewMode)}
             </motion.span>
           </AnimatePresence>
