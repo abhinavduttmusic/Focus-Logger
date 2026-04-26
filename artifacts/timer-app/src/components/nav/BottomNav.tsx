@@ -27,8 +27,9 @@ const tabs: { id: Tab; label: string; Icon: typeof Timer }[] = [
   { id: "activity", label: "Activity", Icon: History },
   { id: "tasks", label: "Tasks", Icon: ClipboardCheck },
   { id: "stats", label: "Stats", Icon: BarChart2 },
-];
+
 { id: "score", label: "Score", Icon: TrendingUp },
+];
 
 export function BottomNav({ activeTab, onChange, sessionIsInProgress }: BottomNavProps) {
   return (
