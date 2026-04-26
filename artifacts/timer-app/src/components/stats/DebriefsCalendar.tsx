@@ -72,7 +72,7 @@ function DebriefSheet({ day, onClose, onRefreshScore, refreshingScore }: {
     <motion.div className="fixed inset-0 z-50 flex items-end justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
       <motion.div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
       <motion.div
-        className="relative w-full max-w-lg bg-card border border-border/30 rounded-t-[24px] p-5 pb-10 z-10 shadow-[0_-8px_32px_rgba(0,0,0,0.12)]"
+        className="relative w-full max-w-lg bg-card border border-border/30 rounded-t-[24px] p-5 pb-10 z-10 max-h-[85vh] overflow-y-auto shadow-[0_-8px_32px_rgba(0,0,0,0.12)]"
         initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
         transition={{ type: "spring", damping: 30, stiffness: 300 }}
       >
@@ -135,7 +135,7 @@ function DebriefSheet({ day, onClose, onRefreshScore, refreshingScore }: {
               <FileText size={12} className="text-muted-foreground" />
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Debrief</p>
             </div>
-            <p className="text-foreground/80 text-[14px] leading-relaxed">{day.debrief.text}</p>
+            <p className="text-foreground/80 text-[14px] leading-relaxed" dangerouslySetInnerHTML={{ __html: day.debrief.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>') }} />
           </div>
         ) : (
           <p className="text-muted-foreground text-sm italic">No debrief written for this day.</p>
