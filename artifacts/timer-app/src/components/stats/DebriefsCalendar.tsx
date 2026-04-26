@@ -11,6 +11,7 @@ interface DebriefDay {
   debrief?: { id: number; text: string; updatedAt: string };
   focusRatio?: number;
   totalFocusMinutes?: number;
+  totalBreakMinutes?: number;
   sessionCount?: number;
   aiScore?: number | null;
   aiScoreStale?: boolean;
@@ -79,8 +80,8 @@ function DebriefSheet({ day, onClose, onRefreshScore, refreshingScore }: {
         <div className="w-10 h-1 bg-border rounded-full mx-auto mb-5" />
         <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
           <div>
-            <p className="text-[11px] text-muted-foreground font-medium tracking-widest uppercase">{day.date}</p>
-            <h3 className="text-[18px] font-semibold text-foreground mt-0.5">{formatLabel(new Date(day.date + "T12:00:00"), "day")}</h3>
+            
+            <h3 className="text-[18px] font-semibold text-foreground mt-0.5">{new Date(day.date + "T12:00:00").toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}</h3>
           </div>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors p-1">
             <X size={18} />
@@ -90,10 +91,9 @@ function DebriefSheet({ day, onClose, onRefreshScore, refreshingScore }: {
         {/* Stats row */}
         <div className="flex gap-2 mb-4">
           {[
-            { label: "Focus", value: day.totalFocusMinutes != null ? `${Math.round(day.totalFocusMinutes)}m` : null },
-            { label: "Ratio", value: day.focusRatio != null ? `${Math.round(day.focusRatio * 100)}%` : null },
-            { label: "Sessions", value: day.sessionCount != null ? String(day.sessionCount) : null },
-          ].filter(s => s.value != null).map(({ label, value }) => (
+           { label: "Focus", value: day.totalFocusMinutes != null ? `${Math.floor(day.totalFocusMinutes / 60)}h ${day.totalFocusMinutes % 60}m` : null },
+            { label: "Breaks", value: day.totalBreakMinutes != null ? `${Math.floor(day.totalBreakMinutes / 60)}h ${day.totalBreakMinutes % 60}m` : null },
+            { label: "Ratio", value: day.totalBreakMinutes != null && day.totalBreakMinutes > 0 && day.totalFocusMinutes != null ? `${(day.totalFocusMinutes / day.totalBreakMinutes).toFixed(1)}:1` : "—" },
             <div key={label} className="flex-1 bg-muted/40 rounded-[14px] p-3 border border-border/20 text-center">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{label}</p>
               <p className="text-foreground text-[15px] font-semibold">{value}</p>
@@ -106,7 +106,7 @@ function DebriefSheet({ day, onClose, onRefreshScore, refreshingScore }: {
           <div className="flex items-center gap-3">
             <Flame size={15} className="text-amber-400" />
             <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">AI Score</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Performance Score</p>
               <p className="text-foreground text-[15px] font-semibold">{day.aiScore != null ? `${day.aiScore} / 100` : "Not computed"}</p>
             </div>
           </div>
@@ -135,7 +135,7 @@ function DebriefSheet({ day, onClose, onRefreshScore, refreshingScore }: {
               <FileText size={12} className="text-muted-foreground" />
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Debrief</p>
             </div>
-            <p className="text-foreground/80 text-[14px] leading-relaxed" dangerouslySetInnerHTML={{ __html: day.debrief.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>') }} />
+            <p className="text-foreground/80 text-[14px] leading-relaxed" dangerouslySetInnerHTML={{ __html: day.debrief.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>').replace(/\n/g, '<br/>') }}/>
           </div>
         ) : (
           <p className="text-muted-foreground text-sm italic">No debrief written for this day.</p>

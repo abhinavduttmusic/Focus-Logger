@@ -60,11 +60,12 @@ router.get("/debriefs/calendar", async (req, res) => {
       .where(and(gte(sessionsTable.createdAt, rangeFrom), lte(sessionsTable.createdAt, rangeTo)));
 
     // Group sessions by IST date
-    const sessionsByDate = new Map<string, { focusSecs: number; totalSecs: number; count: number; lastAt: Date | null }>();
+    const sessionsByDate = new Map<string, { focusSecs: number; breakSecs: number; totalSecs: number; count: number; lastAt: Date | null }>();
     for (const s of sessionRows) {
       const key = toISTDateKey(s.createdAt);
-      const existing = sessionsByDate.get(key) ?? { focusSecs: 0, totalSecs: 0, count: 0, lastAt: null };
+      const existing = sessionsByDate.get(key) ?? { focusSecs: 0, breakSecs: 0, totalSecs: 0, count: 0, lastAt: null };
       if (isFocusSession(s.type)) existing.focusSecs += s.durationSeconds ?? 0;
+      else existing.breakSecs += s.durationSeconds ?? 0;
       existing.totalSecs += s.durationSeconds ?? 0;
       existing.count += 1;
       if (!existing.lastAt || s.createdAt > existing.lastAt) existing.lastAt = s.createdAt;
@@ -88,6 +89,7 @@ router.get("/debriefs/calendar", async (req, res) => {
         debrief: debrief ? { id: debrief.id, text: debrief.summary, updatedAt: debrief.createdAt?.toISOString() ?? "" } : undefined,
         focusRatio,
         totalFocusMinutes: stats ? Math.round(stats.focusSecs / 60) : undefined,
+        totalBreakMinutes: stats ? Math.round(stats.breakSecs / 60) : undefined,
         sessionCount: stats?.count,
         aiScore: debrief?.aiScore ?? null,
         aiScoreStale: !!stale,
