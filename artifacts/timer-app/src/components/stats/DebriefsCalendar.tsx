@@ -28,13 +28,26 @@ function endOfMonth(d: Date) { return new Date(d.getFullYear(), d.getMonth()+1, 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DAYS_SHORT = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
+function isCurrentPeriod(d: Date, mode: ViewMode): boolean {
+  const now = new Date();
+  if (mode === "day") return toKey(d) === toKey(now);
+  if (mode === "week") return toKey(startOfWeek(d)) === toKey(startOfWeek(now));
+  return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+}
+
 function formatLabel(d: Date, mode: ViewMode) {
-  if (mode === "month") return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
-  if (mode === "week") {
-    const s = startOfWeek(d), e = endOfWeek(d);
-    return `${MONTHS[s.getMonth()].slice(0,3)} ${s.getDate()} – ${MONTHS[e.getMonth()].slice(0,3)} ${e.getDate()}`;
+  const now = new Date();
+  if (mode === "day") {
+    if (toKey(d) === toKey(now)) return "Today";
+    return `${MONTHS[d.getMonth()].slice(0,3)} ${d.getDate()}, ${d.getFullYear()}`;
   }
-  return `${MONTHS[d.getMonth()].slice(0,3)} ${d.getDate()}, ${d.getFullYear()}`;
+  if (mode === "week") {
+    const ws = startOfWeek(d), we = endOfWeek(d), nws = startOfWeek(now);
+    if (toKey(ws) === toKey(nws)) return "This Week";
+    return `${MONTHS[ws.getMonth()].slice(0,3)} ${ws.getDate()} – ${MONTHS[we.getMonth()].slice(0,3)} ${we.getDate()}`;
+  }
+  if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) return "This Month";
+  return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 function scoreAccent(score: number | null | undefined): string {
@@ -312,7 +325,7 @@ export default function DebriefsCalendar({ apiBase = "/api" }: { apiBase?: strin
         {data?.aiScore != null && (
           <div className="bg-muted/30 rounded-[14px] p-4 border border-border/20">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] text-muted-foreground uppercase tracking-wider">AI Score</span>
+              <span className="text-[11px] text-muted-foreground uppercase tracking-wider">Performance Score</span>
               <span className="text-foreground font-semibold text-[15px]">{data.aiScore} / 100</span>
             </div>
             <div className="w-full bg-border/40 rounded-full h-1.5">
@@ -361,7 +374,7 @@ export default function DebriefsCalendar({ apiBase = "/api" }: { apiBase?: strin
               {formatLabel(cursor, viewMode)}
             </motion.span>
           </AnimatePresence>
-          <button onClick={goForward} className="p-1.5 rounded-xl hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={goForward} disabled={isCurrentPeriod(cursor, viewMode)} className="p-1.5 rounded-xl hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
             <ChevronRight size={16} />
           </button>
         </div>
