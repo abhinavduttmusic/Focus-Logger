@@ -149,7 +149,7 @@ function DebriefSheet({ day, onClose, onRefreshScore, refreshingScore }: {
               <FileText size={12} className="text-muted-foreground" />
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Debrief</p>
             </div>
-            <p className="text-foreground/80 text-[14px] leading-relaxed" dangerouslySetInnerHTML={{ __html: day.debrief.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>').replace(/\n/g, '<br/>') }}/>
+            <p className="text-foreground/80 text-[14px] leading-relaxed" dangerouslySetInnerHTML={{ __html: day.debrief.text.replace(/\*\*([\s\S]*?)\*\*/g, '<strong>$1</strong>').replace(/\*([\s\S]*?)\*/g, '<em>$1</em>').replace(/\n/g, '<br/>') }} />
           </div>
         ) : (
           <p className="text-muted-foreground text-sm italic">No debrief written for this day.</p>
