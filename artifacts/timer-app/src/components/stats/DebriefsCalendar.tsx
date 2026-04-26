@@ -159,8 +159,8 @@ function DebriefSheet({ day, onClose, onRefreshScore, refreshingScore }: {
   );
 }
 
-export default function DebriefsCalendar({ apiBase = "/api" }: { apiBase?: string }) {
-  const [viewMode, setViewMode] = useState<ViewMode>("month");
+export default function DebriefsCalendar({ apiBase = "/api", lockedMode, sectionTitle }: { apiBase?: string; lockedMode?: ViewMode; sectionTitle?: string }) {
+  const [viewMode, setViewMode] = useState<ViewMode>(lockedMode ?? "month");
   const [cursor, setCursor] = useState(new Date());
   const [days, setDays] = useState<DebriefDay[]>([]);
   const [loading, setLoading] = useState(false);
@@ -378,7 +378,7 @@ export default function DebriefsCalendar({ apiBase = "/api" }: { apiBase?: strin
             <ChevronRight size={16} />
           </button>
         </div>
-        <div className="flex bg-muted/60 rounded-full p-0.5 gap-0.5">
+        {!lockedMode && <div className="flex bg-muted/60 rounded-full p-0.5 gap-0.5">
           {(["month","week","day"] as ViewMode[]).map(m => (
             <button key={m} onClick={() => setViewMode(m)}
               className={cn("px-3 py-1 rounded-full text-[12px] font-medium transition-all capitalize",
@@ -387,7 +387,7 @@ export default function DebriefsCalendar({ apiBase = "/api" }: { apiBase?: strin
               {m}
             </button>
           ))}
-        </div>
+        </div>}
       </div>
 
       {/* Body */}
