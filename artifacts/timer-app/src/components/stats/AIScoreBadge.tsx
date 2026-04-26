@@ -106,8 +106,7 @@ export default function AIScoreBadge({ period, periodDate, initialData, apiBase 
         )}
       </div>
 
-      <p className="text-[10px] text-zinc-600 uppercase tracking-widest font-mono">AI Score · {period}</p>
-
+      <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-mono">Performance Score</p>
       <div className="flex flex-col items-center gap-1.5">
         <button
           onClick={handleRequestScore}
