@@ -173,8 +173,8 @@ export default function DebriefsCalendar({ apiBase = "/api", lockedMode, section
     const dx = e.changedTouches[0].clientX - swipeStartX.current;
     swipeStartX.current = null;
     if (Math.abs(dx) < 50) return;
-    if (dx < 0 && !isCurrentPeriod(cursor, viewMode)) goForward();
-    else if (dx > 0) goBack();
+    if (dx < 0 && !isCurrentPeriod(cursor, viewMode)) { if (navigator.vibrate) navigator.vibrate(6); goForward(); }
+else if (dx > 0) { if (navigator.vibrate) navigator.vibrate(6); goBack(); }
   };
 
   const fetchRange = useCallback(async (start: string, end: string) => {

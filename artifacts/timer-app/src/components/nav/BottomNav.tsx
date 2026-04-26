@@ -1,4 +1,4 @@
-import { Timer, History, ClipboardCheck, BarChart2, TrendingUp } from "lucide-react";
+import { Timer, History, ClipboardCheck, BarChart2, Gauge } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
