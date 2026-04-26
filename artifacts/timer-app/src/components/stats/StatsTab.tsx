@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useListSessions } from "@workspace/api-client-react";
 import type { Session } from "@workspace/api-client-react/src/generated/api.schemas";
 import { cn } from "@/lib/utils";
-import DebriefsCalendar from "./DebriefsCalendar";
+
 
 
 const BASE = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL + "/" : "/");
@@ -936,7 +936,7 @@ export function StatsTab({ onViewDebrief }: { onViewDebrief?: (dateKey: string) 
         <AvgByDayCard sessions={periodSessions} delay={0.22} />
         <InsightsCard sessions={periodSessions} delay={0.26} />
         
-        <DebriefsCalendar apiBase={`${BASE}api`} />
+        
         
 
       </div>
