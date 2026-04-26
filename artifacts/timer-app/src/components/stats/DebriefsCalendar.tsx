@@ -94,6 +94,7 @@ function DebriefSheet({ day, onClose, onRefreshScore, refreshingScore }: {
            { label: "Focus", value: day.totalFocusMinutes != null ? `${Math.floor(day.totalFocusMinutes / 60)}h ${day.totalFocusMinutes % 60}m` : null },
             { label: "Breaks", value: day.totalBreakMinutes != null ? `${Math.floor(day.totalBreakMinutes / 60)}h ${day.totalBreakMinutes % 60}m` : null },
             { label: "Ratio", value: day.totalBreakMinutes != null && day.totalBreakMinutes > 0 && day.totalFocusMinutes != null ? `${(day.totalFocusMinutes / day.totalBreakMinutes).toFixed(1)}:1` : "—" },
+            ].filter(s => s.value != null).map(({ label, value }) => (
             <div key={label} className="flex-1 bg-muted/40 rounded-[14px] p-3 border border-border/20 text-center">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{label}</p>
               <p className="text-foreground text-[15px] font-semibold">{value}</p>
