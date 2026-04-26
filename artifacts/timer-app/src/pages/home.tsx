@@ -859,7 +859,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
   return (
     <div className="h-[100dvh] flex flex-col overflow-hidden bg-background">
       <div className="flex-1 min-h-0 relative">
-        {(["timer", "activity", "tasks", "stats"] as const).map((tab) => {
+        {(["timer", "activity", "tasks", "stats", "score"] as const).map((tab) => {
           const isActive = activeTab === tab;
           return (
             <motion.div
