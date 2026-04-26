@@ -24,6 +24,7 @@ import { BottomNav, type Tab } from "@/components/nav/BottomNav";
 import { CalendarView } from "@/components/calendar/CalendarView";
 import { TasksTab } from "@/components/tasks/TasksTab";
 import { StatsTab } from "@/components/stats/StatsTab";
+import { ScoreTab } from "@/components/stats/ScoreTab";
 
 const BASE = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL + "/" : "/");
 
@@ -1111,6 +1112,7 @@ function Home({ restored }: { restored: RestoredSession | null }) {
 
               {tab === "tasks" && <TasksTab isActive={activeTab === "tasks"} />}
               {tab === "stats" && <StatsTab onViewDebrief={handleViewHistoryDebrief} />}
+              {tab === "score" && <ScoreTab />}
 
               {tab === "activity" && (
                 <div className="absolute inset-0">
