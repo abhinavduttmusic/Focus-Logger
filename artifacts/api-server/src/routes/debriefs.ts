@@ -145,7 +145,7 @@ Score this day from 0 to 100. Return ONLY valid JSON with no preamble:
 {"score": <integer 0-100>, "reasoning": "<one sentence, max 20 words>"}`;
 
     const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 100,
       messages: [{ role: "user", content: prompt }],
     });
@@ -234,7 +234,7 @@ Score this ${period} from 0 to 100. Return ONLY valid JSON:
 {"score": <integer 0-100>, "reasoning": "<one sentence, max 25 words>"}`;
 
     const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 120,
       messages: [{ role: "user", content: prompt }],
     });
