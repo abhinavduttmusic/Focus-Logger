@@ -353,7 +353,7 @@ export default function DebriefsCalendar({ apiBase = "/api" }: { apiBase?: strin
         {data?.debrief && (
           <div className="bg-muted/20 rounded-[14px] p-4 border border-border/20">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Debrief</p>
-            <p className="text-foreground/80 text-[14px] leading-relaxed">{data.debrief.text}</p>
+            <p className="text-foreground/80 text-[14px] leading-relaxed" dangerouslySetInnerHTML={{ __html: data.debrief.text.replace(/\*\*([\s\S]*?)\*\*/g, '<strong>$1</strong>').replace(/\*([\s\S]*?)\*/g, '<em>$1</em>').replace(/\n/g, '<br/>') }} />
           </div>
         )}
       </motion.div>
