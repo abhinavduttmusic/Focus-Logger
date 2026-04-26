@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, X, FileText, Flame } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -166,6 +166,16 @@ export default function DebriefsCalendar({ apiBase = "/api", lockedMode, section
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<DebriefDay | null>(null);
   const [refreshingScore, setRefreshingScore] = useState(false);
+  const swipeStartX = useRef<number | null>(null);
+  const handleTouchStart = (e: React.TouchEvent) => { swipeStartX.current = e.touches[0].clientX; };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (swipeStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - swipeStartX.current;
+    swipeStartX.current = null;
+    if (Math.abs(dx) < 50) return;
+    if (dx < 0 && !isCurrentPeriod(cursor, viewMode)) goForward();
+    else if (dx > 0) goBack();
+  };
 
   const fetchRange = useCallback(async (start: string, end: string) => {
     setLoading(true);
@@ -361,7 +371,7 @@ export default function DebriefsCalendar({ apiBase = "/api", lockedMode, section
   };
 
   return (
-    <div className="bg-card rounded-[18px] border border-border/25 shadow-[0_4px_16px_rgba(0,0,0,0.06)] p-5">
+    <div className="bg-card rounded-[18px] border border-border/25 shadow-[0_4px_16px_rgba(0,0,0,0.06)] p-5" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
         <div className="flex items-center justify-between w-full">
