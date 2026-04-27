@@ -67,7 +67,7 @@ router.get("/debriefs/calendar", async (req, res) => {
       if (isFocusSession(s.type)) existing.focusSecs += s.durationSeconds ?? 0;
       else existing.breakSecs += s.durationSeconds ?? 0;
       existing.totalSecs += s.durationSeconds ?? 0;
-      existing.count += 1;
+      if (isFocusSession(s.type)) existing.count += 1;
       if (!existing.lastAt || s.createdAt > existing.lastAt) existing.lastAt = s.createdAt;
       sessionsByDate.set(key, existing);
     }
