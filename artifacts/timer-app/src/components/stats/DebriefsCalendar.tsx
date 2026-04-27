@@ -350,9 +350,9 @@ else if (dx > 0) { if (navigator.vibrate) navigator.vibrate(6); goBack(); }
         )}
         <div className="grid grid-cols-3 gap-2">
           {[
-            { label: "Focus", value: data?.totalFocusMinutes != null ? `${Math.round(data.totalFocusMinutes)}m` : "—" },
-            { label: "Ratio", value: data?.focusRatio != null ? `${Math.round(data.focusRatio * 100)}%` : "—" },
-            { label: "Sessions", value: data?.sessionCount ?? "—" },
+            { label: "Focus", value: data?.totalFocusMinutes != null ? `${Math.floor(data.totalFocusMinutes / 60)}h ${data.totalFocusMinutes % 60}m` : "—" },
+            { label: "Breaks", value: data?.totalBreakMinutes != null ? `${Math.floor(data.totalBreakMinutes / 60)}h ${data.totalBreakMinutes % 60}m` : "—" },
+            { label: "Ratio", value: data?.totalBreakMinutes != null && data.totalBreakMinutes > 0 && data.totalFocusMinutes != null ? `${(data.totalFocusMinutes / data.totalBreakMinutes).toFixed(1)}:1` : "—" },
           ].map(({ label, value }) => (
             <div key={label} className="bg-muted/30 rounded-[14px] p-3 border border-border/20 text-center">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{label}</p>
