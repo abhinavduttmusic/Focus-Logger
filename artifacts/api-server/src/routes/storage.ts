@@ -21,7 +21,8 @@ router.post("/storage/uploads/request-url", async (req: Request, res: Response) 
     const objectId = randomUUID();
     const objectPath = `/objects/uploads/${objectId}`;
     // Return a fake "uploadURL" that points to our own upload endpoint
-    const uploadURL = `${req.protocol}://${req.get("host")}/api/storage/uploads/${objectId}`;
+    const baseUrl = process.env.API_BASE_URL || `${req.protocol}://${req.get("host")}`;
+const uploadURL = `${baseUrl}/api/storage/uploads/${objectId}`;
     res.json({ uploadURL, objectPath });
   } catch (error) {
     console.error("Error generating upload URL:", error);
