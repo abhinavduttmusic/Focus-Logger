@@ -1,42 +1,28 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { Readable } from "stream";
-import {
-  RequestUploadUrlBody,
-  RequestUploadUrlResponse,
-} from "@workspace/api-zod";
-import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
-import { ObjectPermission } from "../lib/objectAcl";
+import { createClient } from "@supabase/supabase-js";
+import { randomUUID } from "crypto";
+import { ObjectNotFoundError } from "../lib/objectStorage";
 
 const router: IRouter = Router();
-const objectStorageService = new ObjectStorageService();
+
+const supabaseUrl = process.env.SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const BUCKET = "recordings";
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 /**
  * POST /storage/uploads/request-url
- *
- * Request a presigned URL for file upload.
- * The client sends JSON metadata (name, size, contentType) — NOT the file.
- * Then uploads the file directly to the returned presigned URL.
+ * Now returns a direct upload path instead of a presigned URL.
+ * The frontend will POST the file to /storage/uploads/:id instead.
  */
 router.post("/storage/uploads/request-url", async (req: Request, res: Response) => {
-  const parsed = RequestUploadUrlBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Missing or invalid required fields" });
-    return;
-  }
-
   try {
-    const { name, size, contentType } = parsed.data;
-
-    const uploadURL = await objectStorageService.getObjectEntityUploadURL();
-    const objectPath = objectStorageService.normalizeObjectEntityPath(uploadURL);
-
-    res.json(
-      RequestUploadUrlResponse.parse({
-        uploadURL,
-        objectPath,
-        metadata: { name, size, contentType },
-      }),
-    );
+    const objectId = randomUUID();
+    const objectPath = `/objects/uploads/${objectId}`;
+    // Return a fake "uploadURL" that points to our own upload endpoint
+    const uploadURL = `${req.protocol}://${req.get("host")}/api/storage/uploads/${objectId}`;
+    res.json({ uploadURL, objectPath });
   } catch (error) {
     console.error("Error generating upload URL:", error);
     res.status(500).json({ error: "Failed to generate upload URL" });
@@ -44,79 +30,56 @@ router.post("/storage/uploads/request-url", async (req: Request, res: Response) 
 });
 
 /**
- * GET /storage/public-objects/*
- *
- * Serve public assets from PUBLIC_OBJECT_SEARCH_PATHS.
- * These are unconditionally public — no authentication or ACL checks.
- * IMPORTANT: Always provide this endpoint when object storage is set up.
+ * PUT /storage/uploads/:id
+ * Receives the audio file and uploads it to Supabase Storage.
  */
-router.get("/storage/public-objects/*filePath", async (req: Request, res: Response) => {
+router.put("/storage/uploads/:id", async (req: Request, res: Response) => {
   try {
-    const raw = req.params.filePath;
-    const filePath = Array.isArray(raw) ? raw.join("/") : raw;
-    const file = await objectStorageService.searchPublicObject(filePath);
-    if (!file) {
-      res.status(404).json({ error: "File not found" });
-      return;
-    }
+    const { id } = req.params;
+    const storagePath = `uploads/${id}`;
+    const contentType = req.headers["content-type"] || "audio/webm";
 
-    const response = await objectStorageService.downloadObject(file);
+    const chunks: Buffer[] = [];
+    req.on("data", (chunk: Buffer) => chunks.push(chunk));
+    req.on("end", async () => {
+      const buffer = Buffer.concat(chunks);
+      const { error } = await supabase.storage
+        .from(BUCKET)
+        .upload(storagePath, buffer, { contentType, upsert: true });
 
-    res.status(response.status);
-    response.headers.forEach((value, key) => res.setHeader(key, value));
-
-    if (response.body) {
-      const nodeStream = Readable.fromWeb(response.body as ReadableStream<Uint8Array>);
-      nodeStream.pipe(res);
-    } else {
-      res.end();
-    }
+      if (error) {
+        console.error("Supabase upload error:", error);
+        res.status(500).json({ error: "Upload failed" });
+        return;
+      }
+      res.status(200).json({ success: true });
+    });
   } catch (error) {
-    console.error("Error serving public object:", error);
-    res.status(500).json({ error: "Failed to serve public object" });
+    console.error("Error uploading file:", error);
+    res.status(500).json({ error: "Upload failed" });
   }
 });
 
 /**
  * GET /storage/objects/*
- *
- * Serve object entities from PRIVATE_OBJECT_DIR.
- * These are served from a separate path from /public-objects and can optionally
- * be protected with authentication or ACL checks based on the use case.
+ * Serves recordings from Supabase Storage via signed URL redirect.
  */
 router.get("/storage/objects/*path", async (req: Request, res: Response) => {
   try {
     const raw = req.params.path;
     const wildcardPath = Array.isArray(raw) ? raw.join("/") : raw;
-    const objectPath = `/objects/${wildcardPath}`;
-    const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
+    const storagePath = wildcardPath;
 
-    // --- Protected route example (uncomment when using replit-auth) ---
-    // if (!req.isAuthenticated()) {
-    //   res.status(401).json({ error: "Unauthorized" });
-    //   return;
-    // }
-    // const canAccess = await objectStorageService.canAccessObjectEntity({
-    //   userId: req.user.id,
-    //   objectFile,
-    //   requestedPermission: ObjectPermission.READ,
-    // });
-    // if (!canAccess) {
-    //   res.status(403).json({ error: "Forbidden" });
-    //   return;
-    // }
+    const { data, error } = await supabase.storage
+      .from(BUCKET)
+      .createSignedUrl(storagePath, 3600);
 
-    const response = await objectStorageService.downloadObject(objectFile);
-
-    res.status(response.status);
-    response.headers.forEach((value, key) => res.setHeader(key, value));
-
-    if (response.body) {
-      const nodeStream = Readable.fromWeb(response.body as ReadableStream<Uint8Array>);
-      nodeStream.pipe(res);
-    } else {
-      res.end();
+    if (error || !data) {
+      res.status(404).json({ error: "File not found" });
+      return;
     }
+
+    res.redirect(data.signedUrl);
   } catch (error) {
     console.error("Error serving object:", error);
     if (error instanceof ObjectNotFoundError) {
@@ -125,6 +88,13 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
     }
     res.status(500).json({ error: "Failed to serve object" });
   }
+});
+
+/**
+ * GET /storage/public-objects/*
+ */
+router.get("/storage/public-objects/*filePath", async (req: Request, res: Response) => {
+  res.status(404).json({ error: "Not found" });
 });
 
 export default router;
