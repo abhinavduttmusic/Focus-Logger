@@ -5,6 +5,7 @@ import router from "./routes";
 const app: Express = express();
 
 app.use(cors());
+app.use("/api/storage/uploads", express.raw({ type: "*/*", limit: "50mb" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
