@@ -40,10 +40,8 @@ router.put("/storage/uploads/:id", async (req: Request, res: Response) => {
     const storagePath = `uploads/${id}`;
     const contentType = req.headers["content-type"] || "audio/webm";
 
-    const chunks: Buffer[] = [];
-    req.on("data", (chunk: Buffer) => chunks.push(chunk));
-    req.on("end", async () => {
-      const buffer = Buffer.concat(chunks);
+    const buffer = req.body as Buffer;
+    {
       const { error } = await supabase.storage
         .from(BUCKET)
         .upload(storagePath, buffer, { contentType, upsert: true });
