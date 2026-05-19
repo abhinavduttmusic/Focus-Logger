@@ -39,20 +39,16 @@ router.put("/storage/uploads/:id", async (req: Request, res: Response) => {
     const { id } = req.params;
     const storagePath = `uploads/${id}`;
     const contentType = req.headers["content-type"] || "audio/webm";
-
     const buffer = req.body as Buffer;
-    {
-      const { error } = await supabase.storage
-        .from(BUCKET)
-        .upload(storagePath, buffer, { contentType, upsert: true });
-
-      if (error) {
-        console.error("Supabase upload error:", error);
-        res.status(500).json({ error: "Upload failed" });
-        return;
-      }
-      res.status(200).json({ success: true });
-    });
+    const { error } = await supabase.storage
+      .from(BUCKET)
+      .upload(storagePath, buffer, { contentType, upsert: true });
+    if (error) {
+      console.error("Supabase upload error:", error);
+      res.status(500).json({ error: "Upload failed" });
+      return;
+    }
+    res.status(200).json({ success: true });
   } catch (error) {
     console.error("Error uploading file:", error);
     res.status(500).json({ error: "Upload failed" });
